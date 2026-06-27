@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Plus, Search } from "lucide-react";
 import { fmtDate } from "@/lib/utils/format";
 import { CustomerSearch } from "@/components/customers/customer-search";
+import { GenerateInviteButton } from "@/components/customers/generate-invite-button";
 
 interface Props {
   searchParams: Promise<{ page?: string; search?: string; sortBy?: string; sortDir?: string }>;
@@ -53,9 +54,12 @@ export default async function CustomersPage({ searchParams }: Props) {
           <h1 className="font-serif text-3xl text-ink">Customers</h1>
           <p className="text-stone-500 text-sm mt-1">{total.toLocaleString()} total</p>
         </div>
-        <Link href="/dashboard/receipts/new" className="btn-primary">
-          <Plus size={15} /> New Receipt
-        </Link>
+        <div className="flex items-center gap-2">
+          <GenerateInviteButton />
+          <Link href="/dashboard/receipts/new" className="btn-primary">
+            <Plus size={15} /> New Receipt
+          </Link>
+        </div>
       </div>
 
       <div className="card">

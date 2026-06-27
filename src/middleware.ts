@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 
 const isPublicRoute = createRouteMatcher([
   "/",
-  "/customer-form",
+  "/customer-form(.*)",
   "/sign-in(.*)",
   "/sign-up(.*)",
   "/api/v1/customers/public", // public form submission endpoint

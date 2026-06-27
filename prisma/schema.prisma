@@ -64,6 +64,7 @@ model User {
   versions          ReceiptVersion[]
   orderChanges      OrderStatusHistory[]
   auditLogs         AuditLog[]
+  customerInvites   CustomerInvite[]
 }
 
 // --------------------------- Customers ---------------------------
@@ -79,11 +80,33 @@ model Customer {
   updatedAt DateTime @updatedAt
 
   receipts Receipt[]
+  invite   CustomerInvite?
 
   @@index([name])
   @@index([phone])
   @@index([email])
   @@index([createdAt])
+}
+
+// ----------------- Customer self-registration invites -----------------
+// One-time tokenized links sent to a prospective customer so they fill in
+// their own details. A token is single-use (usedAt) and time-limited
+// (expiresAt). Sharing a spent link can't create more customers.
+model CustomerInvite {
+  id        String    @id @default(cuid())
+  token     String    @unique
+  usedAt    DateTime?
+  expiresAt DateTime?
+
+  // The customer this invite produced, once submitted.
+  customerId String?   @unique
+  customer   Customer? @relation(fields: [customerId], references: [id])
+
+  createdById String
+  createdBy   User     @relation(fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
+
+  @@index([token])
 }
 
 // ---------------------------- Receipts ---------------------------
