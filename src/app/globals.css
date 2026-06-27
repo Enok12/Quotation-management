@@ -1,0 +1,170 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --font-inter: "Inter", system-ui, sans-serif;
+    --radius: 5px;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-canvas text-ink;
+    font-family: var(--font-inter);
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+
+  /* Consistent focus ring across all interactive elements */
+  :focus-visible {
+    @apply outline-none ring-2 ring-amber-400 ring-offset-1;
+  }
+}
+
+@layer components {
+  /* Typography scale */
+  .display {
+    font-family: "Instrument Serif", Georgia, serif;
+    @apply text-4xl font-normal tracking-tight;
+  }
+  .heading-1 {
+    font-family: "Instrument Serif", Georgia, serif;
+    @apply text-2xl font-normal;
+  }
+  .heading-2 {
+    @apply text-sm font-semibold tracking-widest uppercase text-stone-500;
+  }
+
+  /* Table cell baseline */
+  .td {
+    @apply px-4 py-3 text-sm text-stone-800 border-b border-stone-100;
+  }
+  .th {
+    @apply px-4 py-2.5 text-xs font-semibold tracking-wider uppercase text-stone-500 border-b border-stone-200 bg-stone-25;
+  }
+
+  /* Status badges */
+  .badge {
+    @apply inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium;
+  }
+  .badge-draft {
+    @apply badge bg-stone-100 text-stone-600;
+  }
+  .badge-finalized {
+    @apply badge bg-amber-100 text-amber-600;
+  }
+  .badge-pending {
+    @apply badge bg-blue-50 text-blue-600;
+  }
+  .badge-in-progress {
+    @apply badge bg-violet-50 text-violet-600;
+  }
+  .badge-completed {
+    @apply badge bg-emerald-50 text-emerald-700;
+  }
+  .badge-cancelled {
+    @apply badge bg-stone-100 text-stone-400;
+  }
+
+  /* Form controls */
+  .field-label {
+    @apply block text-xs font-semibold tracking-wide text-stone-600 mb-1.5;
+  }
+  .field-input {
+    @apply w-full px-3 py-2.5 text-sm bg-white border border-stone-200 rounded focus:border-amber-400 focus:ring-1 focus:ring-amber-400 outline-none transition-colors placeholder:text-stone-400;
+  }
+  .field-error {
+    @apply text-xs text-red-500 mt-1;
+  }
+
+  /* Buttons */
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium rounded transition-all disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  .btn-primary {
+    @apply btn bg-ink text-white hover:bg-stone-800 active:bg-stone-900;
+  }
+  .btn-ghost {
+    @apply btn bg-transparent text-stone-600 hover:bg-stone-100 hover:text-ink;
+  }
+  .btn-outline {
+    @apply btn bg-white border border-stone-200 text-stone-700 hover:border-stone-300 hover:bg-stone-50;
+  }
+  .btn-danger {
+    @apply btn bg-red-600 text-white hover:bg-red-700;
+  }
+  .btn-amber {
+    @apply btn bg-amber-400 text-ink hover:bg-amber-300 font-semibold;
+  }
+
+  /* Cards */
+  .card {
+    @apply bg-white border border-stone-100 rounded-lg shadow-sm;
+  }
+  .card-header {
+    @apply px-6 py-4 border-b border-stone-100;
+  }
+  .card-body {
+    @apply px-6 py-5;
+  }
+
+  /* Sidebar nav */
+  .nav-item {
+    @apply flex items-center gap-3 px-3 py-2.5 text-sm rounded-md transition-colors text-stone-400 hover:text-white hover:bg-white/10;
+  }
+  .nav-item-active {
+    @apply text-white bg-white/15 font-medium;
+  }
+}
+
+@layer utilities {
+  .font-serif {
+    font-family: "Instrument Serif", Georgia, serif;
+  }
+  /* Skeleton loading placeholder */
+  .skeleton {
+    @apply relative overflow-hidden rounded bg-stone-200/70;
+  }
+  .skeleton::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(255, 255, 255, 0.65),
+      transparent
+    );
+    animation: skeleton-shimmer 1.5s ease-in-out infinite;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .skeleton::after {
+      animation: none;
+    }
+  }
+  /* Scrollbar styling for tables */
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-track {
+    @apply bg-stone-100;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    @apply bg-stone-300 rounded;
+  }
+}
+
+@keyframes skeleton-shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
