@@ -5,6 +5,7 @@ import { Plus } from "lucide-react";
 import { fmtMoney, fmtDate } from "@/lib/utils/format";
 import { ReceiptStatusBadge, OrderStatusBadge } from "@/components/receipts/status-badges";
 import { CustomerSearch } from "@/components/customers/customer-search";
+import { ReceiptsFilterShell } from "@/components/receipts/receipts-filter-shell";
 
 interface Props {
   searchParams: Promise<{ page?: string; status?: string; orderStatus?: string; search?: string }>;
@@ -73,25 +74,8 @@ export default async function ReceiptsPage({ searchParams }: Props) {
         </Link>
       </div>
 
-      {/* Filters */}
-      <div className="flex items-center gap-6 mb-4">
-        <div className="flex gap-1">
-          {statusTabs.map((t) => (
-            <Link key={t.label} href={t.href} className={`px-3 py-1.5 rounded text-xs font-medium transition-colors ${t.active ? "bg-ink text-white" : "text-stone-500 hover:bg-stone-100"}`}>
-              {t.label}
-            </Link>
-          ))}
-        </div>
-        <div className="w-px h-4 bg-stone-200" />
-        <div className="flex gap-1">
-          {orderTabs.map((t) => (
-            <Link key={t.label} href={t.href} className={`px-3 py-1.5 rounded text-xs font-medium transition-colors ${t.active ? "bg-ink text-white" : "text-stone-500 hover:bg-stone-100"}`}>
-              {t.label}
-            </Link>
-          ))}
-        </div>
-      </div>
-
+      {/* Filters + table (the shell shows a loading overlay while switching) */}
+      <ReceiptsFilterShell statusTabs={statusTabs} orderTabs={orderTabs}>
       <div className="card">
         <div className="card-header">
           <CustomerSearch defaultValue={search} />
@@ -141,6 +125,7 @@ export default async function ReceiptsPage({ searchParams }: Props) {
           </div>
         )}
       </div>
+      </ReceiptsFilterShell>
     </div>
   );
 }
