@@ -1,18 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { CheckCircle } from "lucide-react";
+import { PhoneInput } from "@/components/customers/phone-input";
 
 const schema = z.object({
   name: z.string().min(2, "Full name is required"),
   address: z.string().min(5, "Address is required"),
   phone: z.string().min(7, "Phone number is required"),
   email: z.string().email("Enter a valid email").or(z.literal("")).optional(),
-  nic: z.string().optional(),
-  notes: z.string().optional(),
 });
 type FormValues = z.infer<typeof schema>;
 
@@ -20,8 +19,9 @@ export function CustomerFormClient({ token }: { token: string }) {
   const [success, setSuccess] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
 
-  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<FormValues>({
+  const { register, control, handleSubmit, formState: { errors, isSubmitting } } = useForm<FormValues>({
     resolver: zodResolver(schema),
+    defaultValues: { phone: "" },
   });
 
   const onSubmit = async (data: FormValues) => {
@@ -75,27 +75,22 @@ export function CustomerFormClient({ token }: { token: string }) {
               {errors.address && <p className="field-error">{errors.address.message}</p>}
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="field-label">Phone Number *</label>
-                <input {...register("phone")} type="tel" className="field-input" placeholder="07X XXX XXXX" />
-                {errors.phone && <p className="field-error">{errors.phone.message}</p>}
-              </div>
-              <div>
-                <label className="field-label">Email</label>
-                <input {...register("email")} type="email" className="field-input" placeholder="optional" />
-                {errors.email && <p className="field-error">{errors.email.message}</p>}
-              </div>
+            <div>
+              <label className="field-label">Phone Number *</label>
+              <Controller
+                control={control}
+                name="phone"
+                render={({ field }) => (
+                  <PhoneInput value={field.value} onChange={field.onChange} error={!!errors.phone} />
+                )}
+              />
+              {errors.phone && <p className="field-error">{errors.phone.message}</p>}
             </div>
 
             <div>
-              <label className="field-label">NIC / ID Number</label>
-              <input {...register("nic")} className="field-input" placeholder="National ID number" />
-            </div>
-
-            <div>
-              <label className="field-label">Notes</label>
-              <textarea {...register("notes")} rows={3} className="field-input resize-none" placeholder="Anything you'd like us to know (styles, sizes, quantities…)" />
+              <label className="field-label">Email</label>
+              <input {...register("email")} type="email" className="field-input" placeholder="optional" />
+              {errors.email && <p className="field-error">{errors.email.message}</p>}
             </div>
 
             {serverError && <p className="text-sm text-red-500 bg-red-50 border border-red-200 rounded px-4 py-2">{serverError}</p>}
