@@ -3,7 +3,7 @@ import { requireUser } from "@/lib/auth";
 import Link from "next/link";
 import { Plus } from "lucide-react";
 import { fmtMoney, fmtDate } from "@/lib/utils/format";
-import { ReceiptStatusBadge, OrderStatusBadge } from "@/components/receipts/status-badges";
+import { OrderStatusBadge, PaymentStatusBadge } from "@/components/receipts/status-badges";
 import { CustomerSearch } from "@/components/customers/customer-search";
 import { ReceiptsFilterShell } from "@/components/receipts/receipts-filter-shell";
 
@@ -20,7 +20,6 @@ export default async function ReceiptsPage({ searchParams }: Props) {
   const search = sp.search?.trim() ?? "";
 
   const where = {
-    ...(sp.status ? { status: sp.status as "DRAFT" | "FINALIZED" } : {}),
     ...(sp.orderStatus ? { orderStatus: sp.orderStatus as "FABRIC_SELECTION" | "CUTTING" | "PRODUCTION" | "QUALITY_CHECK" | "IRON_PACKING" | "DELIVERY" } : {}),
     ...(search ? { custName: { contains: search, mode: "insensitive" as const } } : {}),
   };
@@ -34,7 +33,7 @@ export default async function ReceiptsPage({ searchParams }: Props) {
       take: pageSize,
       select: {
         id: true, receiptNumber: true, custName: true, date: true,
-        totalDue: true, balance: true, status: true, orderStatus: true, createdAt: true,
+        totalDue: true, balance: true, paymentStatus: true, orderStatus: true, createdAt: true,
       },
     }),
   ]);
@@ -49,11 +48,6 @@ export default async function ReceiptsPage({ searchParams }: Props) {
     return { label, href: `/dashboard/receipts?${params}`, active };
   };
 
-  const statusTabs = [
-    filterTab("All", null, "status"),
-    filterTab("Draft", "DRAFT", "status"),
-    filterTab("Finalized", "FINALIZED", "status"),
-  ];
   const orderTabs = [
     filterTab("All Orders", null, "orderStatus"),
     filterTab("Fabric Selection", "FABRIC_SELECTION", "orderStatus"),
@@ -77,7 +71,7 @@ export default async function ReceiptsPage({ searchParams }: Props) {
       </div>
 
       {/* Filters + table (the shell shows a loading overlay while switching) */}
-      <ReceiptsFilterShell statusTabs={statusTabs} orderTabs={orderTabs}>
+      <ReceiptsFilterShell orderTabs={orderTabs}>
       <div className="card">
         <div className="card-header">
           <CustomerSearch defaultValue={search} />
@@ -91,7 +85,7 @@ export default async function ReceiptsPage({ searchParams }: Props) {
                 <th className="th text-left">Date</th>
                 <th className="th text-right">Total Due</th>
                 <th className="th text-right">Balance</th>
-                <th className="th text-left">Status</th>
+                <th className="th text-left">Payment</th>
                 <th className="th text-left">Order</th>
               </tr>
             </thead>
@@ -110,7 +104,7 @@ export default async function ReceiptsPage({ searchParams }: Props) {
                   <td className="td text-stone-500">{fmtDate(r.date)}</td>
                   <td className="td text-right font-mono text-sm">{fmtMoney(r.totalDue)}</td>
                   <td className="td text-right font-mono text-sm">{fmtMoney(r.balance)}</td>
-                  <td className="td"><ReceiptStatusBadge status={r.status} /></td>
+                  <td className="td"><PaymentStatusBadge status={r.paymentStatus} /></td>
                   <td className="td"><OrderStatusBadge status={r.orderStatus} /></td>
                 </tr>
               ))}

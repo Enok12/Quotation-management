@@ -41,6 +41,11 @@ export const receiptService = {
           amountPaid: D(input.amountPaid),
           balance: D(totals.balance),
           paymentStatus: derivePaymentStatus(totals.totalDue, input.amountPaid),
+          // Receipts go live immediately — no separate finalization step.
+          status: "FINALIZED",
+          finalizedAt: new Date(),
+          finalizedById: actorId,
+          orderStatus: "FABRIC_SELECTION",
           createdById: actorId,
           items: {
             create: input.items.map((it, i) => ({
@@ -52,6 +57,9 @@ export const receiptService = {
             create: input.adjustments.map((a, i) => ({ label: a.label, amount: D(a.amount), sortOrder: i })),
           },
         },
+      });
+      await tx.orderStatusHistory.create({
+        data: { receiptId: receipt.id, fromStatus: null, toStatus: "FABRIC_SELECTION", changedById: actorId, note: "Receipt created" },
       });
       await auditService.log(tx, {
         actorId, action: "RECEIPT_CREATED", entityType: "Receipt", entityId: receipt.id,
@@ -103,31 +111,6 @@ export const receiptService = {
         actorId, action: "RECEIPT_UPDATED", entityType: "Receipt", entityId: id,
       });
       return updated;
-    });
-  },
-
-  // -------- Finalize --------
-  async finalize(id: string, actorId: string) {
-    const existing = await this.getFull(id);
-    if (existing.status === "FINALIZED") throw new ConflictError("Receipt is already finalized");
-
-    return prisma.$transaction(async (tx) => {
-      const receipt = await tx.receipt.update({
-        where: { id },
-        data: {
-          status: "FINALIZED",
-          finalizedAt: new Date(),
-          finalizedById: actorId,
-          orderStatus: "FABRIC_SELECTION",
-        },
-      });
-      await tx.orderStatusHistory.create({
-        data: { receiptId: id, fromStatus: null, toStatus: "FABRIC_SELECTION", changedById: actorId, note: "Receipt finalized" },
-      });
-      await auditService.log(tx, {
-        actorId, action: "RECEIPT_FINALIZED", entityType: "Receipt", entityId: id,
-      });
-      return receipt;
     });
   },
 

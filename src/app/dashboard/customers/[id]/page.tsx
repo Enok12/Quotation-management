@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Plus } from "lucide-react";
 import { fmtDate, fmtMoney } from "@/lib/utils/format";
-import { ReceiptStatusBadge, OrderStatusBadge } from "@/components/receipts/status-badges";
+import { PaymentStatusBadge, OrderStatusBadge } from "@/components/receipts/status-badges";
 
 interface Props { params: Promise<{ id: string }> }
 
@@ -19,7 +19,7 @@ export default async function CustomerDetailPage({ params }: Props) {
         orderBy: { createdAt: "desc" },
         select: {
           id: true, receiptNumber: true, date: true,
-          totalDue: true, balance: true, status: true, orderStatus: true,
+          totalDue: true, balance: true, paymentStatus: true, orderStatus: true,
         },
       },
     },
@@ -95,7 +95,7 @@ export default async function CustomerDetailPage({ params }: Props) {
               <th className="th text-left">Date</th>
               <th className="th text-right">Total Due</th>
               <th className="th text-right">Balance</th>
-              <th className="th text-left">Receipt</th>
+              <th className="th text-left">Payment</th>
               <th className="th text-left">Order</th>
             </tr>
           </thead>
@@ -109,7 +109,7 @@ export default async function CustomerDetailPage({ params }: Props) {
                 <td className="td text-stone-600">{fmtDate(r.date)}</td>
                 <td className="td text-right font-mono text-sm">{fmtMoney(r.totalDue)}</td>
                 <td className="td text-right font-mono text-sm">{fmtMoney(r.balance)}</td>
-                <td className="td"><ReceiptStatusBadge status={r.status} /></td>
+                <td className="td"><PaymentStatusBadge status={r.paymentStatus} /></td>
                 <td className="td">
                   <div className="flex items-center gap-3">
                     <OrderStatusBadge status={r.orderStatus} />

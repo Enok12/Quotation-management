@@ -21,7 +21,7 @@ export function ReceiptsFilterShell({
   orderTabs,
   children,
 }: {
-  statusTabs: Tab[];
+  statusTabs?: Tab[];
   orderTabs: Tab[];
   children: React.ReactNode;
 }) {
@@ -38,16 +38,20 @@ export function ReceiptsFilterShell({
 
   return (
     <>
-      <div className="flex items-center gap-6 mb-4">
-        <div className="flex gap-1">
-          {statusTabs.map((t) => (
-            <button key={t.label} onClick={() => go(t.href)} disabled={isPending} className={tabClass(t.active)}>
-              {t.label}
-            </button>
-          ))}
-        </div>
-        <div className="w-px h-4 bg-stone-200" />
-        <div className="flex gap-1">
+      <div className="flex items-center gap-6 mb-4 flex-wrap">
+        {statusTabs && statusTabs.length > 0 && (
+          <>
+            <div className="flex gap-1">
+              {statusTabs.map((t) => (
+                <button key={t.label} onClick={() => go(t.href)} disabled={isPending} className={tabClass(t.active)}>
+                  {t.label}
+                </button>
+              ))}
+            </div>
+            <div className="w-px h-4 bg-stone-200" />
+          </>
+        )}
+        <div className="flex gap-1 flex-wrap">
           {orderTabs.map((t) => (
             <button key={t.label} onClick={() => go(t.href)} disabled={isPending} className={tabClass(t.active)}>
               {t.label}

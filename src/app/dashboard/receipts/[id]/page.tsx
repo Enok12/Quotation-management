@@ -4,8 +4,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Edit, FileDown } from "lucide-react";
 import { fmtMoney, fmtDate, fmtDateTime } from "@/lib/utils/format";
-import { ReceiptStatusBadge, OrderStatusBadge, PaymentStatusBadge } from "@/components/receipts/status-badges";
-import { FinalizeButton } from "@/components/receipts/finalize-button";
+import { OrderStatusBadge, PaymentStatusBadge } from "@/components/receipts/status-badges";
 import { GeneratePdfButton } from "@/components/receipts/generate-pdf-button";
 import { OrderStatusChanger } from "@/components/receipts/order-status-changer";
 import { RecordPaymentButton } from "@/components/receipts/record-payment-button";
@@ -40,14 +39,13 @@ export default async function ReceiptDetailPage({ params }: Props) {
         <div className="flex-1">
           <div className="flex items-center gap-3">
             <h1 className="font-serif text-3xl text-ink">Receipt #{receipt.receiptNumber}</h1>
-            <ReceiptStatusBadge status={receipt.status} />
-            {receipt.status === "FINALIZED" && <OrderStatusBadge status={receipt.orderStatus} />}
-            {receipt.status === "FINALIZED" && <PaymentStatusBadge status={receipt.paymentStatus} />}
+            <OrderStatusBadge status={receipt.orderStatus} />
+            <PaymentStatusBadge status={receipt.paymentStatus} />
           </div>
           <p className="text-stone-500 text-sm mt-1">{receipt.custName} · {fmtDate(receipt.date)}</p>
         </div>
         <div className="flex items-center gap-2">
-          {receipt.status === "FINALIZED" && receipt.paymentStatus !== "PAID" && (
+          {receipt.paymentStatus !== "PAID" && (
             <RecordPaymentButton
               receiptId={id}
               receiptNumber={receipt.receiptNumber}
@@ -57,19 +55,9 @@ export default async function ReceiptDetailPage({ params }: Props) {
             />
           )}
           <GeneratePdfButton receiptId={id} receiptNumber={receipt.receiptNumber} />
-          {receipt.status === "DRAFT" && (
-            <>
-              <Link href={`/dashboard/receipts/${id}/edit`} className="btn-outline">
-                <Edit size={14} /> Edit
-              </Link>
-              <FinalizeButton receiptId={id} />
-            </>
-          )}
-          {receipt.status === "FINALIZED" && (
-            <Link href={`/dashboard/receipts/${id}/edit`} className="btn-outline">
-              <Edit size={14} /> Edit (Admin)
-            </Link>
-          )}
+          <Link href={`/dashboard/receipts/${id}/edit`} className="btn-outline">
+            <Edit size={14} /> Edit
+          </Link>
         </div>
       </div>
 

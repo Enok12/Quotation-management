@@ -3,18 +3,21 @@ import { requireUser } from "@/lib/auth";
 import Link from "next/link";
 import { Users, FileText, Package, Clock, CheckCircle, Layers, Scissors, Factory, ShieldCheck, Truck } from "lucide-react";
 import { fmtMoney, fmtDate } from "@/lib/utils/format";
-import { ReceiptStatusBadge, OrderStatusBadge } from "@/components/receipts/status-badges";
+import { PaymentStatusBadge, OrderStatusBadge } from "@/components/receipts/status-badges";
 
 async function getStats() {
-  const [totalCustomers, draftReceipts, finalizedReceipts, byStage] = await Promise.all([
+  const [totalCustomers, totalReceipts, byPayment, byStage] = await Promise.all([
     prisma.customer.count(),
-    prisma.receipt.count({ where: { status: "DRAFT" } }),
-    prisma.receipt.count({ where: { status: "FINALIZED" } }),
-    prisma.receipt.groupBy({ by: ["orderStatus"], where: { status: "FINALIZED" }, _count: true }),
+    prisma.receipt.count(),
+    prisma.receipt.groupBy({ by: ["paymentStatus"], _count: true }),
+    prisma.receipt.groupBy({ by: ["orderStatus"], _count: true }),
   ]);
+  const pay = (s: string) => byPayment.find((b) => b.paymentStatus === s)?._count ?? 0;
   const stage = (s: string) => byStage.find((b) => b.orderStatus === s)?._count ?? 0;
   return {
-    totalCustomers, draftReceipts, finalizedReceipts,
+    totalCustomers, totalReceipts,
+    unpaid: pay("UNPAID"),
+    completed: pay("PAID"),
     fabric: stage("FABRIC_SELECTION"),
     cutting: stage("CUTTING"),
     production: stage("PRODUCTION"),
@@ -30,7 +33,7 @@ async function getRecentReceipts() {
     orderBy: { createdAt: "desc" },
     select: {
       id: true, receiptNumber: true, custName: true, date: true,
-      totalDue: true, balance: true, status: true, orderStatus: true,
+      totalDue: true, balance: true, paymentStatus: true, orderStatus: true,
     },
   });
 }
@@ -41,9 +44,9 @@ export default async function DashboardPage() {
 
   const statCards = [
     { label: "Customers", value: stats.totalCustomers, icon: Users, href: "/dashboard/customers", color: "text-stone-600" },
-    { label: "Total Receipts", value: stats.draftReceipts + stats.finalizedReceipts, icon: FileText, href: "/dashboard/receipts", color: "text-stone-600" },
-    { label: "Draft", value: stats.draftReceipts, icon: Clock, href: "/dashboard/receipts?status=DRAFT", color: "text-stone-500" },
-    { label: "Finalized", value: stats.finalizedReceipts, icon: CheckCircle, href: "/dashboard/receipts?status=FINALIZED", color: "text-amber-500" },
+    { label: "Total Receipts", value: stats.totalReceipts, icon: FileText, href: "/dashboard/receipts", color: "text-stone-600" },
+    { label: "Unpaid", value: stats.unpaid, icon: Clock, href: "/dashboard/payments?status=UNPAID", color: "text-red-500" },
+    { label: "Paid", value: stats.completed, icon: CheckCircle, href: "/dashboard/payments?status=PAID", color: "text-emerald-600" },
     { label: "Fabric Selection", value: stats.fabric, icon: Layers, href: "/dashboard/orders?status=FABRIC_SELECTION", color: "text-sky-500" },
     { label: "Cutting", value: stats.cutting, icon: Scissors, href: "/dashboard/orders?status=CUTTING", color: "text-amber-500" },
     { label: "Production", value: stats.production, icon: Factory, href: "/dashboard/orders?status=PRODUCTION", color: "text-violet-500" },
@@ -94,7 +97,7 @@ export default async function DashboardPage() {
                 <th className="th text-left">Date</th>
                 <th className="th text-right">Total Due</th>
                 <th className="th text-right">Balance</th>
-                <th className="th text-left">Receipt</th>
+                <th className="th text-left">Payment</th>
                 <th className="th text-left">Order</th>
               </tr>
             </thead>
@@ -120,7 +123,7 @@ export default async function DashboardPage() {
                   <td className="td text-stone-500">{fmtDate(r.date)}</td>
                   <td className="td text-right font-mono text-sm">{fmtMoney(r.totalDue)}</td>
                   <td className="td text-right font-mono text-sm">{fmtMoney(r.balance)}</td>
-                  <td className="td"><ReceiptStatusBadge status={r.status} /></td>
+                  <td className="td"><PaymentStatusBadge status={r.paymentStatus} /></td>
                   <td className="td"><OrderStatusBadge status={r.orderStatus} /></td>
                 </tr>
               ))}
