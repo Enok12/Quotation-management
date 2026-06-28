@@ -2,11 +2,18 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-const ORDER_STATUSES = ["PENDING", "IN_PROGRESS", "COMPLETED", "CANCELLED"] as const;
+const ORDER_STATUSES = [
+  "FABRIC_SELECTION", "CUTTING", "PRODUCTION", "QUALITY_CHECK", "IRON_PACKING", "DELIVERY",
+] as const;
 type OS = (typeof ORDER_STATUSES)[number];
 
 const LABELS: Record<OS, string> = {
-  PENDING: "Pending", IN_PROGRESS: "In Progress", COMPLETED: "Completed", CANCELLED: "Cancelled",
+  FABRIC_SELECTION: "Fabric Selection",
+  CUTTING: "Cutting",
+  PRODUCTION: "Production",
+  QUALITY_CHECK: "Quality Check",
+  IRON_PACKING: "Iron / Packing",
+  DELIVERY: "Delivery",
 };
 
 export function OrderStatusChanger({ receiptId, currentStatus }: { receiptId: string; currentStatus: string }) {

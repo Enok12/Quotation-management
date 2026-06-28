@@ -72,6 +72,34 @@
   .badge-cancelled {
     @apply badge bg-stone-100 text-stone-400;
   }
+  /* Production stage badges */
+  .badge-fabric {
+    @apply badge bg-sky-50 text-sky-700;
+  }
+  .badge-cutting {
+    @apply badge bg-amber-50 text-amber-700;
+  }
+  .badge-production {
+    @apply badge bg-violet-50 text-violet-600;
+  }
+  .badge-qc {
+    @apply badge bg-indigo-50 text-indigo-600;
+  }
+  .badge-packing {
+    @apply badge bg-orange-50 text-orange-700;
+  }
+  .badge-delivery {
+    @apply badge bg-emerald-50 text-emerald-700;
+  }
+  .badge-unpaid {
+    @apply badge bg-red-50 text-red-600;
+  }
+  .badge-partial {
+    @apply badge bg-amber-50 text-amber-700;
+  }
+  .badge-paid {
+    @apply badge bg-emerald-50 text-emerald-700;
+  }
 
   /* Form controls */
   .field-label {

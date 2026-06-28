@@ -1,24 +1,27 @@
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import Link from "next/link";
-import { Users, FileText, Package, Clock, CheckCircle, XCircle, AlertCircle, TrendingUp } from "lucide-react";
+import { Users, FileText, Package, Clock, CheckCircle, Layers, Scissors, Factory, ShieldCheck, Truck } from "lucide-react";
 import { fmtMoney, fmtDate } from "@/lib/utils/format";
 import { ReceiptStatusBadge, OrderStatusBadge } from "@/components/receipts/status-badges";
 
 async function getStats() {
-  const [
-    totalCustomers, draftReceipts, finalizedReceipts,
-    pendingOrders, inProgressOrders, completedOrders, cancelledOrders,
-  ] = await Promise.all([
+  const [totalCustomers, draftReceipts, finalizedReceipts, byStage] = await Promise.all([
     prisma.customer.count(),
     prisma.receipt.count({ where: { status: "DRAFT" } }),
     prisma.receipt.count({ where: { status: "FINALIZED" } }),
-    prisma.receipt.count({ where: { status: "FINALIZED", orderStatus: "PENDING" } }),
-    prisma.receipt.count({ where: { status: "FINALIZED", orderStatus: "IN_PROGRESS" } }),
-    prisma.receipt.count({ where: { status: "FINALIZED", orderStatus: "COMPLETED" } }),
-    prisma.receipt.count({ where: { status: "FINALIZED", orderStatus: "CANCELLED" } }),
+    prisma.receipt.groupBy({ by: ["orderStatus"], where: { status: "FINALIZED" }, _count: true }),
   ]);
-  return { totalCustomers, draftReceipts, finalizedReceipts, pendingOrders, inProgressOrders, completedOrders, cancelledOrders };
+  const stage = (s: string) => byStage.find((b) => b.orderStatus === s)?._count ?? 0;
+  return {
+    totalCustomers, draftReceipts, finalizedReceipts,
+    fabric: stage("FABRIC_SELECTION"),
+    cutting: stage("CUTTING"),
+    production: stage("PRODUCTION"),
+    qc: stage("QUALITY_CHECK"),
+    packing: stage("IRON_PACKING"),
+    delivery: stage("DELIVERY"),
+  };
 }
 
 async function getRecentReceipts() {
@@ -41,10 +44,12 @@ export default async function DashboardPage() {
     { label: "Total Receipts", value: stats.draftReceipts + stats.finalizedReceipts, icon: FileText, href: "/dashboard/receipts", color: "text-stone-600" },
     { label: "Draft", value: stats.draftReceipts, icon: Clock, href: "/dashboard/receipts?status=DRAFT", color: "text-stone-500" },
     { label: "Finalized", value: stats.finalizedReceipts, icon: CheckCircle, href: "/dashboard/receipts?status=FINALIZED", color: "text-amber-500" },
-    { label: "Pending Orders", value: stats.pendingOrders, icon: AlertCircle, href: "/dashboard/orders?status=PENDING", color: "text-blue-500" },
-    { label: "In Progress", value: stats.inProgressOrders, icon: TrendingUp, href: "/dashboard/orders?status=IN_PROGRESS", color: "text-violet-500" },
-    { label: "Completed", value: stats.completedOrders, icon: CheckCircle, href: "/dashboard/orders?status=COMPLETED", color: "text-emerald-600" },
-    { label: "Cancelled", value: stats.cancelledOrders, icon: XCircle, href: "/dashboard/orders?status=CANCELLED", color: "text-stone-400" },
+    { label: "Fabric Selection", value: stats.fabric, icon: Layers, href: "/dashboard/orders?status=FABRIC_SELECTION", color: "text-sky-500" },
+    { label: "Cutting", value: stats.cutting, icon: Scissors, href: "/dashboard/orders?status=CUTTING", color: "text-amber-500" },
+    { label: "Production", value: stats.production, icon: Factory, href: "/dashboard/orders?status=PRODUCTION", color: "text-violet-500" },
+    { label: "Quality Check", value: stats.qc, icon: ShieldCheck, href: "/dashboard/orders?status=QUALITY_CHECK", color: "text-indigo-500" },
+    { label: "Iron / Packing", value: stats.packing, icon: Package, href: "/dashboard/orders?status=IRON_PACKING", color: "text-orange-500" },
+    { label: "Delivery", value: stats.delivery, icon: Truck, href: "/dashboard/orders?status=DELIVERY", color: "text-emerald-600" },
   ];
 
   return (

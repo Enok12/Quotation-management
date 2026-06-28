@@ -26,7 +26,9 @@ export const receiptCreateSchema = z.object({
 export const receiptUpdateSchema = receiptCreateSchema.partial();
 
 export const orderStatusSchema = z.object({
-  status: z.enum(["PENDING", "IN_PROGRESS", "COMPLETED", "CANCELLED"]),
+  status: z.enum([
+    "FABRIC_SELECTION", "CUTTING", "PRODUCTION", "QUALITY_CHECK", "IRON_PACKING", "DELIVERY",
+  ]),
   note: z.string().max(500).optional(),
 });
 

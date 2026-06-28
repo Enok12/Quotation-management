@@ -12,7 +12,9 @@ export default async function OrdersPage({ searchParams }: Props) {
   const sp = await searchParams;
   const page = Math.max(1, Number(sp.page ?? 1));
   const pageSize = 25;
-  const orderStatus = sp.status as "PENDING" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED" | undefined;
+  const orderStatus = sp.status as
+    | "FABRIC_SELECTION" | "CUTTING" | "PRODUCTION" | "QUALITY_CHECK" | "IRON_PACKING" | "DELIVERY"
+    | undefined;
 
   const where = {
     status: "FINALIZED" as const,
@@ -36,10 +38,12 @@ export default async function OrdersPage({ searchParams }: Props) {
 
   const tabs = [
     { label: "All", href: "/dashboard/orders", active: !orderStatus },
-    { label: "Pending", href: "/dashboard/orders?status=PENDING", active: orderStatus === "PENDING" },
-    { label: "In Progress", href: "/dashboard/orders?status=IN_PROGRESS", active: orderStatus === "IN_PROGRESS" },
-    { label: "Completed", href: "/dashboard/orders?status=COMPLETED", active: orderStatus === "COMPLETED" },
-    { label: "Cancelled", href: "/dashboard/orders?status=CANCELLED", active: orderStatus === "CANCELLED" },
+    { label: "Fabric Selection", href: "/dashboard/orders?status=FABRIC_SELECTION", active: orderStatus === "FABRIC_SELECTION" },
+    { label: "Cutting", href: "/dashboard/orders?status=CUTTING", active: orderStatus === "CUTTING" },
+    { label: "Production", href: "/dashboard/orders?status=PRODUCTION", active: orderStatus === "PRODUCTION" },
+    { label: "Quality Check", href: "/dashboard/orders?status=QUALITY_CHECK", active: orderStatus === "QUALITY_CHECK" },
+    { label: "Iron / Packing", href: "/dashboard/orders?status=IRON_PACKING", active: orderStatus === "IRON_PACKING" },
+    { label: "Delivery", href: "/dashboard/orders?status=DELIVERY", active: orderStatus === "DELIVERY" },
   ];
 
   return (

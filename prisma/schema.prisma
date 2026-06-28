@@ -22,11 +22,22 @@ enum ReceiptStatus {
   FINALIZED
 }
 
+// Production workflow stages an order moves through after the receipt is finalized.
 enum OrderStatus {
-  PENDING
-  IN_PROGRESS
-  COMPLETED
-  CANCELLED
+  FABRIC_SELECTION
+  CUTTING
+  PRODUCTION
+  QUALITY_CHECK
+  IRON_PACKING
+  DELIVERY
+}
+
+// Payment progress, derived from amounts paid vs. total due.
+// UNPAID → PARTIALLY_PAID → PAID. Drives the Unpaid / Partial / Completed folders.
+enum PaymentStatus {
+  UNPAID
+  PARTIALLY_PAID
+  PAID
 }
 
 enum PaymentMethod {
@@ -45,6 +56,7 @@ enum AuditAction {
   PDF_GENERATED
   ORDER_STATUS_CHANGED
   VERSION_CREATED
+  PAYMENT_RECORDED
 }
 
 // ----------------------------- Users -----------------------------
@@ -65,6 +77,7 @@ model User {
   orderChanges      OrderStatusHistory[]
   auditLogs         AuditLog[]
   customerInvites   CustomerInvite[]
+  payments          Payment[]
 }
 
 // --------------------------- Customers ---------------------------
@@ -138,8 +151,9 @@ model Receipt {
   amountPaid       Decimal @default(0) @db.Decimal(12, 2)
   balance          Decimal @default(0) @db.Decimal(12, 2)
 
-  status      ReceiptStatus @default(DRAFT)
-  orderStatus OrderStatus   @default(PENDING)
+  status        ReceiptStatus @default(DRAFT)
+  orderStatus   OrderStatus   @default(FABRIC_SELECTION)
+  paymentStatus PaymentStatus @default(UNPAID)
 
   currentVersion Int       @default(1)
   finalizedAt    DateTime?
@@ -156,12 +170,33 @@ model Receipt {
   adjustments   ReceiptAdjustment[]
   versions      ReceiptVersion[]
   orderHistory  OrderStatusHistory[]
+  payments      Payment[]
 
   @@index([status])
   @@index([orderStatus])
+  @@index([paymentStatus])
   @@index([customerId])
   @@index([createdAt])
   @@index([receiptNumber])
+}
+
+// ------------------------- Payment ledger ------------------------
+// One row per instalment recorded against a finalized receipt. The
+// receipt's amountPaid is kept as the running sum of these entries;
+// paymentStatus is recomputed from total paid vs. totalDue.
+model Payment {
+  id           String         @id @default(cuid())
+  receiptId    String
+  receipt      Receipt        @relation(fields: [receiptId], references: [id], onDelete: Cascade)
+  amount       Decimal        @db.Decimal(12, 2)
+  method       PaymentMethod?
+  note         String?
+  paidAt       DateTime       @default(now())
+  recordedById String
+  recordedBy   User           @relation(fields: [recordedById], references: [id])
+  createdAt    DateTime       @default(now())
+
+  @@index([receiptId])
 }
 
 model ReceiptItem {

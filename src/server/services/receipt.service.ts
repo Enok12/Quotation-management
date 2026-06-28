@@ -1,7 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { ConflictError, NotFoundError } from "@/lib/api/errors";
-import { calcReceiptTotals } from "./receipt-calc";
+import { calcReceiptTotals, derivePaymentStatus } from "./receipt-calc";
 import { auditService } from "./audit.service";
 import { receiptRepository, type FullReceipt } from "../repositories/receipt.repository";
 import type { ReceiptCreateInput } from "@/lib/validation/receipt.schema";
@@ -40,6 +40,7 @@ export const receiptService = {
           advanceAmount: D(input.advanceAmount),
           amountPaid: D(input.amountPaid),
           balance: D(totals.balance),
+          paymentStatus: derivePaymentStatus(totals.totalDue, input.advanceAmount, input.amountPaid),
           createdById: actorId,
           items: {
             create: input.items.map((it, i) => ({
@@ -85,6 +86,7 @@ export const receiptService = {
           advanceAmount: D(input.advanceAmount),
           amountPaid: D(input.amountPaid),
           balance: D(totals.balance),
+          paymentStatus: derivePaymentStatus(totals.totalDue, input.advanceAmount, input.amountPaid),
           currentVersion: existing.status === "FINALIZED" ? existing.currentVersion + 1 : existing.currentVersion,
           items: {
             create: input.items.map((it, i) => ({
@@ -116,11 +118,11 @@ export const receiptService = {
           status: "FINALIZED",
           finalizedAt: new Date(),
           finalizedById: actorId,
-          orderStatus: "PENDING",
+          orderStatus: "FABRIC_SELECTION",
         },
       });
       await tx.orderStatusHistory.create({
-        data: { receiptId: id, fromStatus: null, toStatus: "PENDING", changedById: actorId, note: "Receipt finalized" },
+        data: { receiptId: id, fromStatus: null, toStatus: "FABRIC_SELECTION", changedById: actorId, note: "Receipt finalized" },
       });
       await auditService.log(tx, {
         actorId, action: "RECEIPT_FINALIZED", entityType: "Receipt", entityId: id,
@@ -143,6 +145,48 @@ export const receiptService = {
       await auditService.log(tx, {
         actorId, action: "ORDER_STATUS_CHANGED", entityType: "Order", entityId: id,
         metadata: { from: existing.orderStatus, to },
+      });
+      return receipt;
+    });
+  },
+
+  // -------- Record a payment (instalment) --------
+  // Appends to the payment ledger, bumps the running amountPaid, and lets the
+  // receipt move between the Unpaid / Partial / Completed folders automatically.
+  async recordPayment(
+    id: string,
+    input: { amount: number; method?: FullReceipt["paymentMethods"][number] | null; note?: string | null },
+    actorId: string,
+  ) {
+    const existing = await this.getFull(id);
+    if (existing.status !== "FINALIZED") {
+      throw new ConflictError("Finalize the receipt before recording payments");
+    }
+    if (!(input.amount > 0)) throw new ConflictError("Payment amount must be greater than zero");
+
+    const totalDue = Number(existing.totalDue);
+    const advance = Number(existing.advanceAmount);
+    const newAmountPaid = Math.round((Number(existing.amountPaid) + input.amount + Number.EPSILON) * 100) / 100;
+    const balance = Math.round((totalDue - advance - newAmountPaid + Number.EPSILON) * 100) / 100;
+    const paymentStatus = derivePaymentStatus(totalDue, advance, newAmountPaid);
+
+    return prisma.$transaction(async (tx) => {
+      await tx.payment.create({
+        data: {
+          receiptId: id,
+          amount: D(input.amount),
+          method: input.method ?? null,
+          note: input.note ?? null,
+          recordedById: actorId,
+        },
+      });
+      const receipt = await tx.receipt.update({
+        where: { id },
+        data: { amountPaid: D(newAmountPaid), balance: D(balance), paymentStatus },
+      });
+      await auditService.log(tx, {
+        actorId, action: "PAYMENT_RECORDED", entityType: "Receipt", entityId: id,
+        metadata: { amount: input.amount, paymentStatus },
       });
       return receipt;
     });

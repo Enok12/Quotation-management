@@ -6,10 +6,12 @@ const RECEIPT_STATUS: Record<string, { label: string; cls: string }> = {
 };
 
 const ORDER_STATUS: Record<string, { label: string; cls: string }> = {
-  PENDING: { label: "Pending", cls: "badge-pending" },
-  IN_PROGRESS: { label: "In Progress", cls: "badge-in-progress" },
-  COMPLETED: { label: "Completed", cls: "badge-completed" },
-  CANCELLED: { label: "Cancelled", cls: "badge-cancelled" },
+  FABRIC_SELECTION: { label: "Fabric Selection", cls: "badge-fabric" },
+  CUTTING: { label: "Cutting", cls: "badge-cutting" },
+  PRODUCTION: { label: "Production", cls: "badge-production" },
+  QUALITY_CHECK: { label: "Quality Check", cls: "badge-qc" },
+  IRON_PACKING: { label: "Iron / Packing", cls: "badge-packing" },
+  DELIVERY: { label: "Delivery", cls: "badge-delivery" },
 };
 
 export function ReceiptStatusBadge({ status }: { status: string }) {
@@ -19,5 +21,16 @@ export function ReceiptStatusBadge({ status }: { status: string }) {
 
 export function OrderStatusBadge({ status }: { status: string }) {
   const s = ORDER_STATUS[status] ?? { label: status, cls: "badge-draft" };
+  return <span className={s.cls}>{s.label}</span>;
+}
+
+const PAYMENT_STATUS: Record<string, { label: string; cls: string }> = {
+  UNPAID: { label: "Unpaid", cls: "badge-unpaid" },
+  PARTIALLY_PAID: { label: "Partial Paid", cls: "badge-partial" },
+  PAID: { label: "Completed", cls: "badge-paid" },
+};
+
+export function PaymentStatusBadge({ status }: { status: string }) {
+  const s = PAYMENT_STATUS[status] ?? { label: status, cls: "badge-draft" };
   return <span className={s.cls}>{s.label}</span>;
 }

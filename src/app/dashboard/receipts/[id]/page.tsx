@@ -4,10 +4,11 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Edit, FileDown } from "lucide-react";
 import { fmtMoney, fmtDate, fmtDateTime } from "@/lib/utils/format";
-import { ReceiptStatusBadge, OrderStatusBadge } from "@/components/receipts/status-badges";
+import { ReceiptStatusBadge, OrderStatusBadge, PaymentStatusBadge } from "@/components/receipts/status-badges";
 import { FinalizeButton } from "@/components/receipts/finalize-button";
 import { GeneratePdfButton } from "@/components/receipts/generate-pdf-button";
 import { OrderStatusChanger } from "@/components/receipts/order-status-changer";
+import { RecordPaymentButton } from "@/components/receipts/record-payment-button";
 import { VersionHistory } from "@/components/receipts/version-history";
 
 interface Props { params: Promise<{ id: string }> }
@@ -24,6 +25,7 @@ export default async function ReceiptDetailPage({ params }: Props) {
       adjustments: { orderBy: { sortOrder: "asc" } },
       versions: { orderBy: { versionNumber: "desc" }, select: { id: true, versionNumber: true, changeSummary: true, createdAt: true } },
       orderHistory: { orderBy: { createdAt: "desc" }, take: 5, select: { toStatus: true, fromStatus: true, note: true, createdAt: true } },
+      payments: { orderBy: { paidAt: "desc" }, select: { id: true, amount: true, method: true, note: true, paidAt: true } },
     },
   });
   if (!receipt) notFound();
@@ -40,10 +42,18 @@ export default async function ReceiptDetailPage({ params }: Props) {
             <h1 className="font-serif text-3xl text-ink">Receipt #{receipt.receiptNumber}</h1>
             <ReceiptStatusBadge status={receipt.status} />
             {receipt.status === "FINALIZED" && <OrderStatusBadge status={receipt.orderStatus} />}
+            {receipt.status === "FINALIZED" && <PaymentStatusBadge status={receipt.paymentStatus} />}
           </div>
           <p className="text-stone-500 text-sm mt-1">{receipt.custName} · {fmtDate(receipt.date)}</p>
         </div>
         <div className="flex items-center gap-2">
+          {receipt.status === "FINALIZED" && receipt.paymentStatus !== "PAID" && (
+            <RecordPaymentButton
+              receiptId={id}
+              receiptNumber={receipt.receiptNumber}
+              balance={Number(receipt.balance)}
+            />
+          )}
           <GeneratePdfButton receiptId={id} receiptNumber={receipt.receiptNumber} />
           {receipt.status === "DRAFT" && (
             <>
@@ -150,6 +160,38 @@ export default async function ReceiptDetailPage({ params }: Props) {
                 receiptId={id}
                 currentStatus={receipt.orderStatus}
               />
+            </div>
+          )}
+
+          {/* Payment history */}
+          {receipt.status === "FINALIZED" && (
+            <div className="card card-body">
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="heading-2">Payment History</h2>
+                <PaymentStatusBadge status={receipt.paymentStatus} />
+              </div>
+              <div className="flex justify-between text-sm mb-3">
+                <span className="text-stone-500">Paid / Total</span>
+                <span className="font-mono">
+                  {fmtMoney(Number(receipt.advanceAmount) + Number(receipt.amountPaid))} / {fmtMoney(receipt.totalDue)}
+                </span>
+              </div>
+              {receipt.payments.length === 0 ? (
+                <p className="text-sm text-stone-400">No payments recorded yet.</p>
+              ) : (
+                <ul className="space-y-2">
+                  {receipt.payments.map((pmt) => (
+                    <li key={pmt.id} className="flex items-start justify-between text-sm border-t border-stone-50 pt-2">
+                      <div>
+                        <span className="font-mono text-emerald-700">{fmtMoney(pmt.amount)}</span>
+                        {pmt.method && <span className="text-stone-400 text-xs ml-2">{pmt.method.replace("_", " ")}</span>}
+                        {pmt.note && <p className="text-xs text-stone-400 mt-0.5">{pmt.note}</p>}
+                      </div>
+                      <span className="text-xs text-stone-400 whitespace-nowrap">{fmtDate(pmt.paidAt)}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
           )}
 

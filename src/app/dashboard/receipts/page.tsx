@@ -21,7 +21,7 @@ export default async function ReceiptsPage({ searchParams }: Props) {
 
   const where = {
     ...(sp.status ? { status: sp.status as "DRAFT" | "FINALIZED" } : {}),
-    ...(sp.orderStatus ? { orderStatus: sp.orderStatus as "PENDING" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED" } : {}),
+    ...(sp.orderStatus ? { orderStatus: sp.orderStatus as "FABRIC_SELECTION" | "CUTTING" | "PRODUCTION" | "QUALITY_CHECK" | "IRON_PACKING" | "DELIVERY" } : {}),
     ...(search ? { custName: { contains: search, mode: "insensitive" as const } } : {}),
   };
 
@@ -56,10 +56,12 @@ export default async function ReceiptsPage({ searchParams }: Props) {
   ];
   const orderTabs = [
     filterTab("All Orders", null, "orderStatus"),
-    filterTab("Pending", "PENDING", "orderStatus"),
-    filterTab("In Progress", "IN_PROGRESS", "orderStatus"),
-    filterTab("Completed", "COMPLETED", "orderStatus"),
-    filterTab("Cancelled", "CANCELLED", "orderStatus"),
+    filterTab("Fabric Selection", "FABRIC_SELECTION", "orderStatus"),
+    filterTab("Cutting", "CUTTING", "orderStatus"),
+    filterTab("Production", "PRODUCTION", "orderStatus"),
+    filterTab("Quality Check", "QUALITY_CHECK", "orderStatus"),
+    filterTab("Iron / Packing", "IRON_PACKING", "orderStatus"),
+    filterTab("Delivery", "DELIVERY", "orderStatus"),
   ];
 
   return (

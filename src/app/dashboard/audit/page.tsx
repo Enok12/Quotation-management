@@ -14,6 +14,7 @@ const ACTION_LABELS: Record<string, string> = {
   PDF_GENERATED: "PDF generated",
   ORDER_STATUS_CHANGED: "Order status changed",
   VERSION_CREATED: "Version created",
+  PAYMENT_RECORDED: "Payment recorded",
 };
 
 export default async function AuditPage({ searchParams }: Props) {
