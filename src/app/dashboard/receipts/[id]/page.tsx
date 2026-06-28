@@ -6,6 +6,7 @@ import { ArrowLeft, Edit, FileDown } from "lucide-react";
 import { fmtMoney, fmtDate, fmtDateTime } from "@/lib/utils/format";
 import { OrderStatusBadge, PaymentStatusBadge } from "@/components/receipts/status-badges";
 import { GeneratePdfButton } from "@/components/receipts/generate-pdf-button";
+import { LinkButton } from "@/components/ui/link-button";
 import { OrderStatusChanger } from "@/components/receipts/order-status-changer";
 import { RecordPaymentButton } from "@/components/receipts/record-payment-button";
 import { VersionHistory } from "@/components/receipts/version-history";
@@ -55,9 +56,9 @@ export default async function ReceiptDetailPage({ params }: Props) {
             />
           )}
           <GeneratePdfButton receiptId={id} receiptNumber={receipt.receiptNumber} />
-          <Link href={`/dashboard/receipts/${id}/edit`} className="btn-outline">
-            <Edit size={14} /> Edit
-          </Link>
+          <LinkButton href={`/dashboard/receipts/${id}/edit`} className="btn-outline" icon={<Edit size={14} />} iconSize={14}>
+            Edit
+          </LinkButton>
         </div>
       </div>
 

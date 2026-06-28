@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Wallet, X } from "lucide-react";
+import { Wallet, X, Loader2 } from "lucide-react";
 import { moveInvoiceIfConnected, type FolderStatus } from "@/lib/folder-sync";
 
 const METHODS = [
@@ -125,6 +125,7 @@ export function RecordPaymentButton({
               {error && <p className="text-sm text-red-500 bg-red-50 border border-red-200 rounded px-3 py-2">{error}</p>}
 
               <button onClick={submit} disabled={saving} className="btn-primary w-full">
+                {saving && <Loader2 size={15} className="animate-spin" />}
                 {saving ? "Saving…" : "Record Payment"}
               </button>
             </div>

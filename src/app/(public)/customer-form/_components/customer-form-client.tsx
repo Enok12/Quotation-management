@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { CheckCircle } from "lucide-react";
+import { CheckCircle, Loader2 } from "lucide-react";
 import { PhoneInput } from "@/components/customers/phone-input";
 
 const schema = z.object({
@@ -96,6 +96,7 @@ export function CustomerFormClient({ token }: { token: string }) {
             {serverError && <p className="text-sm text-red-500 bg-red-50 border border-red-200 rounded px-4 py-2">{serverError}</p>}
 
             <button type="submit" disabled={isSubmitting} className="btn-primary w-full py-3">
+              {isSubmitting && <Loader2 size={15} className="animate-spin" />}
               {isSubmitting ? "Submitting…" : "Submit Details"}
             </button>
 

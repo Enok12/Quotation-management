@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Plus, Trash2, Download, Check } from "lucide-react";
+import { Plus, Trash2, Download, Check, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { fmtMoney } from "@/lib/utils/format";
 
@@ -308,6 +308,7 @@ export function ReceiptBuilder({ customer, defaultValues, mode = "create" }: Pro
           <div className="px-6 py-4 border-t border-stone-200 bg-white space-y-3">
             {error && <p className="text-xs text-red-500">{error}</p>}
             <button type="submit" disabled={saving} className="btn-primary w-full">
+              {saving && <Loader2 size={15} className="animate-spin" />}
               {saving ? "Saving…" : mode === "edit" ? "Save Changes" : "Create Receipt"}
             </button>
           </div>

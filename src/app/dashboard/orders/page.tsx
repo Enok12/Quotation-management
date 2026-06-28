@@ -3,6 +3,7 @@ import { requireUser } from "@/lib/auth";
 import Link from "next/link";
 import { fmtMoney, fmtDate } from "@/lib/utils/format";
 import { OrderStatusBadge } from "@/components/receipts/status-badges";
+import { FilterTableShell } from "@/components/dashboard/filter-table-shell";
 
 interface Props { searchParams: Promise<{ status?: string; page?: string }> }
 export const metadata = { title: "Orders" };
@@ -53,14 +54,7 @@ export default async function OrdersPage({ searchParams }: Props) {
         <p className="text-stone-500 text-sm mt-1">{total.toLocaleString()} finalized orders</p>
       </div>
 
-      <div className="flex gap-1 mb-4">
-        {tabs.map((t) => (
-          <Link key={t.label} href={t.href} className={`px-3 py-1.5 rounded text-xs font-medium transition-colors ${t.active ? "bg-ink text-white" : "text-stone-500 hover:bg-stone-100"}`}>
-            {t.label}
-          </Link>
-        ))}
-      </div>
-
+      <FilterTableShell groups={[tabs]}>
       <div className="card">
         <table className="w-full">
           <thead>
@@ -103,6 +97,7 @@ export default async function OrdersPage({ searchParams }: Props) {
           </div>
         )}
       </div>
+      </FilterTableShell>
     </div>
   );
 }

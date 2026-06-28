@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { FileDown } from "lucide-react";
+import { FileDown, Loader2 } from "lucide-react";
 
 export function GeneratePdfButton({ receiptId, receiptNumber }: { receiptId: string; receiptNumber: number }) {
   const [loading, setLoading] = useState(false);
@@ -20,7 +20,8 @@ export function GeneratePdfButton({ receiptId, receiptNumber }: { receiptId: str
 
   return (
     <button onClick={generate} disabled={loading} className="btn-outline">
-      <FileDown size={14} /> {loading ? "Generating…" : "PDF"}
+      {loading ? <Loader2 size={14} className="animate-spin" /> : <FileDown size={14} />}
+      {loading ? "Generating…" : "PDF"}
     </button>
   );
 }

@@ -5,6 +5,7 @@ import { Plus, Search } from "lucide-react";
 import { fmtDate } from "@/lib/utils/format";
 import { CustomerSearch } from "@/components/customers/customer-search";
 import { GenerateInviteButton } from "@/components/customers/generate-invite-button";
+import { LinkButton } from "@/components/ui/link-button";
 
 interface Props {
   searchParams: Promise<{ page?: string; search?: string; sortBy?: string; sortDir?: string }>;
@@ -56,9 +57,9 @@ export default async function CustomersPage({ searchParams }: Props) {
         </div>
         <div className="flex items-center gap-2">
           <GenerateInviteButton />
-          <Link href="/dashboard/receipts/new" className="btn-primary">
-            <Plus size={15} /> New Receipt
-          </Link>
+          <LinkButton href="/dashboard/receipts/new" className="btn-primary" icon={<Plus size={15} />}>
+            New Receipt
+          </LinkButton>
         </div>
       </div>
 
@@ -102,9 +103,9 @@ export default async function CustomersPage({ searchParams }: Props) {
                   </td>
                   <td className="td text-stone-400 text-xs">{fmtDate(c.createdAt)}</td>
                   <td className="td">
-                    <Link href={`/dashboard/receipts/new?customerId=${c.id}`} className="btn-ghost text-xs py-1">
+                    <LinkButton href={`/dashboard/receipts/new?customerId=${c.id}`} className="btn-ghost text-xs py-1" iconSize={12}>
                       + Receipt
-                    </Link>
+                    </LinkButton>
                   </td>
                 </tr>
               ))}

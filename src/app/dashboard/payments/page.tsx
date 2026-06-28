@@ -4,6 +4,7 @@ import Link from "next/link";
 import { fmtMoney, fmtDate } from "@/lib/utils/format";
 import { PaymentStatusBadge } from "@/components/receipts/status-badges";
 import { FolderSyncPanel } from "@/components/payments/folder-sync-panel";
+import { FilterTableShell } from "@/components/dashboard/filter-table-shell";
 import type { FolderStatus } from "@/lib/folder-sync";
 
 interface Props { searchParams: Promise<{ status?: string; page?: string }> }
@@ -53,6 +54,12 @@ export default async function PaymentsPage({ searchParams }: Props) {
     { label: "Partial Paid", value: "PARTIALLY_PAID", count: countFor("PARTIALLY_PAID") },
     { label: "Completed", value: "PAID", count: countFor("PAID") },
   ];
+  const tabItems = tabs.map((t) => ({
+    label: t.label,
+    count: t.count,
+    active: (t.value ?? null) === (status ?? null),
+    href: t.value ? `/dashboard/payments?status=${t.value}` : "/dashboard/payments",
+  }));
 
   return (
     <div className="px-8 py-8 max-w-6xl">
@@ -66,24 +73,8 @@ export default async function PaymentsPage({ searchParams }: Props) {
         <FolderSyncPanel items={allForSync as { id: string; receiptNumber: number; paymentStatus: FolderStatus }[]} />
       </div>
 
-      {/* Folder tabs */}
-      <div className="flex gap-1 mb-4">
-        {tabs.map((t) => {
-          const active = (t.value ?? null) === (status ?? null);
-          const href = t.value ? `/dashboard/payments?status=${t.value}` : "/dashboard/payments";
-          return (
-            <Link
-              key={t.label}
-              href={href}
-              className={`px-3 py-1.5 rounded text-xs font-medium transition-colors ${active ? "bg-ink text-white" : "text-stone-500 hover:bg-stone-100"}`}
-            >
-              {t.label}
-              <span className={`ml-1.5 ${active ? "text-white/70" : "text-stone-400"}`}>{t.count}</span>
-            </Link>
-          );
-        })}
-      </div>
-
+      {/* Folder tabs + table (loading overlay while switching) */}
+      <FilterTableShell groups={[tabItems]}>
       <div className="card">
         <table className="w-full">
           <thead>
@@ -131,6 +122,7 @@ export default async function PaymentsPage({ searchParams }: Props) {
           </div>
         )}
       </div>
+      </FilterTableShell>
     </div>
   );
 }

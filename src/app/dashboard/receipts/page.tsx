@@ -5,7 +5,8 @@ import { Plus } from "lucide-react";
 import { fmtMoney, fmtDate } from "@/lib/utils/format";
 import { OrderStatusBadge, PaymentStatusBadge } from "@/components/receipts/status-badges";
 import { CustomerSearch } from "@/components/customers/customer-search";
-import { ReceiptsFilterShell } from "@/components/receipts/receipts-filter-shell";
+import { FilterTableShell } from "@/components/dashboard/filter-table-shell";
+import { LinkButton } from "@/components/ui/link-button";
 
 interface Props {
   searchParams: Promise<{ page?: string; status?: string; orderStatus?: string; search?: string }>;
@@ -65,13 +66,13 @@ export default async function ReceiptsPage({ searchParams }: Props) {
           <h1 className="font-serif text-3xl text-ink">Receipts</h1>
           <p className="text-stone-500 text-sm mt-1">{total.toLocaleString()} total</p>
         </div>
-        <Link href="/dashboard/receipts/new" className="btn-primary">
-          <Plus size={15} /> New Receipt
-        </Link>
+        <LinkButton href="/dashboard/receipts/new" className="btn-primary" icon={<Plus size={15} />}>
+          New Receipt
+        </LinkButton>
       </div>
 
       {/* Filters + table (the shell shows a loading overlay while switching) */}
-      <ReceiptsFilterShell orderTabs={orderTabs}>
+      <FilterTableShell groups={[orderTabs]}>
       <div className="card">
         <div className="card-header">
           <CustomerSearch defaultValue={search} />
@@ -121,7 +122,7 @@ export default async function ReceiptsPage({ searchParams }: Props) {
           </div>
         )}
       </div>
-      </ReceiptsFilterShell>
+      </FilterTableShell>
     </div>
   );
 }
