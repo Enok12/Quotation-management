@@ -40,7 +40,7 @@ export const receiptService = {
           advanceAmount: D(input.advanceAmount),
           amountPaid: D(input.amountPaid),
           balance: D(totals.balance),
-          paymentStatus: derivePaymentStatus(totals.totalDue, input.advanceAmount, input.amountPaid),
+          paymentStatus: derivePaymentStatus(totals.totalDue, input.amountPaid),
           createdById: actorId,
           items: {
             create: input.items.map((it, i) => ({
@@ -86,7 +86,7 @@ export const receiptService = {
           advanceAmount: D(input.advanceAmount),
           amountPaid: D(input.amountPaid),
           balance: D(totals.balance),
-          paymentStatus: derivePaymentStatus(totals.totalDue, input.advanceAmount, input.amountPaid),
+          paymentStatus: derivePaymentStatus(totals.totalDue, input.amountPaid),
           currentVersion: existing.status === "FINALIZED" ? existing.currentVersion + 1 : existing.currentVersion,
           items: {
             create: input.items.map((it, i) => ({
@@ -165,10 +165,13 @@ export const receiptService = {
     if (!(input.amount > 0)) throw new ConflictError("Payment amount must be greater than zero");
 
     const totalDue = Number(existing.totalDue);
-    const advance = Number(existing.advanceAmount);
     const newAmountPaid = Math.round((Number(existing.amountPaid) + input.amount + Number.EPSILON) * 100) / 100;
-    const balance = Math.round((totalDue - advance - newAmountPaid + Number.EPSILON) * 100) / 100;
-    const paymentStatus = derivePaymentStatus(totalDue, advance, newAmountPaid);
+    const balance = Math.round((totalDue - newAmountPaid + Number.EPSILON) * 100) / 100;
+    const paymentStatus = derivePaymentStatus(totalDue, newAmountPaid);
+
+    // Reflect the method used on the receipt's Payment Information block (and PDF).
+    const methods = new Set(existing.paymentMethods);
+    if (input.method) methods.add(input.method);
 
     return prisma.$transaction(async (tx) => {
       await tx.payment.create({
@@ -182,7 +185,12 @@ export const receiptService = {
       });
       const receipt = await tx.receipt.update({
         where: { id },
-        data: { amountPaid: D(newAmountPaid), balance: D(balance), paymentStatus },
+        data: {
+          amountPaid: D(newAmountPaid),
+          balance: D(balance),
+          paymentStatus,
+          paymentMethods: { set: Array.from(methods) },
+        },
       });
       await auditService.log(tx, {
         actorId, action: "PAYMENT_RECORDED", entityType: "Receipt", entityId: id,

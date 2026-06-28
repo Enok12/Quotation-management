@@ -132,7 +132,7 @@ export async function generateReceiptPdf(
   const totalsRows: [string, string][] = [
     ...data.adjustments.map((a) => [a.label, money(a.amount)] as [string, string]),
     ["Total Due", money(data.totalDue)],
-    ["Advance Amount", money(data.advanceAmount)],
+    ["Advance Payment", money(data.advanceAmount)],
     ["Amount Paid", money(data.amountPaid)],
     ["Balance", money(data.balance)],
   ];

@@ -17,10 +17,14 @@ export function RecordPaymentButton({
   receiptId,
   receiptNumber,
   balance,
+  advanceAmount = 0,
+  amountPaid = 0,
 }: {
   receiptId: string;
   receiptNumber: number;
   balance: number;
+  advanceAmount?: number;
+  amountPaid?: number;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -29,6 +33,9 @@ export function RecordPaymentButton({
   const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Remaining advance still to be collected (advance is a target, paid is real).
+  const advanceRemaining = Math.max(0, Math.round((advanceAmount - amountPaid) * 100) / 100);
 
   const submit = async () => {
     setError(null);
@@ -83,15 +90,26 @@ export function RecordPaymentButton({
                   onChange={(e) => setAmount(e.target.value)}
                   className="field-input" placeholder="0.00" autoFocus
                 />
-                {balance > 0 && (
-                  <button
-                    type="button"
-                    onClick={() => setAmount(String(balance))}
-                    className="text-xs text-amber-600 hover:underline mt-1"
-                  >
-                    Pay full balance ({balance.toLocaleString()})
-                  </button>
-                )}
+                <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1">
+                  {advanceRemaining > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setAmount(String(advanceRemaining))}
+                      className="text-xs text-amber-600 hover:underline"
+                    >
+                      Pay advance ({advanceRemaining.toLocaleString()})
+                    </button>
+                  )}
+                  {balance > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setAmount(String(balance))}
+                      className="text-xs text-amber-600 hover:underline"
+                    >
+                      Pay full balance ({balance.toLocaleString()})
+                    </button>
+                  )}
+                </div>
               </div>
               <div>
                 <label className="field-label">Method</label>

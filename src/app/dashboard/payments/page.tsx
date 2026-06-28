@@ -102,7 +102,7 @@ export default async function PaymentsPage({ searchParams }: Props) {
               <tr><td colSpan={7} className="td text-center text-stone-400 py-10">No invoices in this folder.</td></tr>
             )}
             {receipts.map((r) => {
-              const paid = Number(r.advanceAmount) + Number(r.amountPaid);
+              const paid = Number(r.amountPaid);
               return (
                 <tr key={r.id} className="hover:bg-stone-25 transition-colors">
                   <td className="td font-mono text-xs text-stone-500">#{r.receiptNumber}</td>

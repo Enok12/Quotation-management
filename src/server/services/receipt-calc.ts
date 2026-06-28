@@ -21,20 +21,18 @@ export function calcReceiptTotals(input: CalcInput): CalcResult {
   const subtotal = round2(lineTotals.reduce((s, v) => s + v, 0));
   const adjustmentsTotal = round2(input.adjustments.reduce((s, a) => s + a.amount, 0));
   const totalDue = round2(subtotal + adjustmentsTotal);
-  const balance = round2(totalDue - input.advanceAmount - input.amountPaid);
+  // Advance is an expected/quoted figure shown to the customer — only money
+  // actually collected (amountPaid) reduces the balance.
+  const balance = round2(totalDue - input.amountPaid);
   return { lineTotals, subtotal, adjustmentsTotal, totalDue, balance };
 }
 
 export type PaymentStatusValue = "UNPAID" | "PARTIALLY_PAID" | "PAID";
 
-// Which folder a receipt belongs in, from money paid vs. owed.
+// Which folder a receipt belongs in, from money actually paid vs. owed.
 // Single source of truth for status transitions (Unpaid → Partial → Completed).
-export function derivePaymentStatus(
-  totalDue: number,
-  advanceAmount: number,
-  amountPaid: number,
-): PaymentStatusValue {
-  const paid = round2(advanceAmount + amountPaid);
+export function derivePaymentStatus(totalDue: number, amountPaid: number): PaymentStatusValue {
+  const paid = round2(amountPaid);
   if (paid <= 0) return "UNPAID";
   if (paid >= totalDue) return "PAID";
   return "PARTIALLY_PAID";

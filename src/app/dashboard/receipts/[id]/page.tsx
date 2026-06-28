@@ -52,6 +52,8 @@ export default async function ReceiptDetailPage({ params }: Props) {
               receiptId={id}
               receiptNumber={receipt.receiptNumber}
               balance={Number(receipt.balance)}
+              advanceAmount={Number(receipt.advanceAmount)}
+              amountPaid={Number(receipt.amountPaid)}
             />
           )}
           <GeneratePdfButton receiptId={id} receiptNumber={receipt.receiptNumber} />
@@ -137,7 +139,7 @@ export default async function ReceiptDetailPage({ params }: Props) {
               ))}
               {[
                 { label: "Total Due", value: receipt.totalDue, bold: true },
-                { label: "Advance Amount", value: receipt.advanceAmount },
+                { label: "Advance Payment", value: receipt.advanceAmount },
                 { label: "Amount Paid", value: receipt.amountPaid },
                 { label: "Balance", value: receipt.balance, bold: true },
               ].map(({ label, value, bold }) => (
@@ -173,7 +175,7 @@ export default async function ReceiptDetailPage({ params }: Props) {
               <div className="flex justify-between text-sm mb-3">
                 <span className="text-stone-500">Paid / Total</span>
                 <span className="font-mono">
-                  {fmtMoney(Number(receipt.advanceAmount) + Number(receipt.amountPaid))} / {fmtMoney(receipt.totalDue)}
+                  {fmtMoney(receipt.amountPaid)} / {fmtMoney(receipt.totalDue)}
                 </span>
               </div>
               {receipt.payments.length === 0 ? (

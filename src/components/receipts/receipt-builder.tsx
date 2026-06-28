@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -45,13 +45,14 @@ const PAYMENT_OPTIONS = [
 ];
 
 // ---- Totals calculation (mirrors server-side receipt-calc.ts) ----
-function calcTotals(items: { quantity: number; unitPrice: number }[], adjs: { amount: number }[], advance: number, paid: number) {
+function calcTotals(items: { quantity: number; unitPrice: number }[], adjs: { amount: number }[], paid: number) {
   const r2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
   const lineTotals = items.map((i) => r2(i.quantity * i.unitPrice));
   const subtotal = r2(lineTotals.reduce((s, v) => s + v, 0));
   const adjTotal = r2(adjs.reduce((s, a) => s + a.amount, 0));
   const totalDue = r2(subtotal + adjTotal);
-  const balance = r2(totalDue - advance - paid);
+  // Only money actually paid reduces the balance; advance is just a quote.
+  const balance = r2(totalDue - paid);
   return { lineTotals, subtotal, adjTotal, totalDue, balance };
 }
 
@@ -62,7 +63,7 @@ export function ReceiptBuilder({ customer, defaultValues, mode = "create" }: Pro
 
   const today = new Date().toISOString().slice(0, 10);
   const {
-    register, control, watch, handleSubmit,
+    register, control, watch, setValue, handleSubmit,
     formState: { errors },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -77,6 +78,9 @@ export function ReceiptBuilder({ customer, defaultValues, mode = "create" }: Pro
     },
   });
 
+  // Advance auto-fills to 60% of the total until the user overrides it.
+  const [advanceTouched, setAdvanceTouched] = useState(mode === "edit" || (defaultValues?.advanceAmount ?? 0) > 0);
+
   const { fields: itemFields, append: addItem, remove: removeItem } = useFieldArray({ control, name: "items" });
   const { fields: adjFields, append: addAdj, remove: removeAdj } = useFieldArray({ control, name: "adjustments" });
 
@@ -86,9 +90,15 @@ export function ReceiptBuilder({ customer, defaultValues, mode = "create" }: Pro
   const totals = calcTotals(
     items.map((i) => ({ quantity: Number(i.quantity) || 0, unitPrice: Number(i.unitPrice) || 0 })),
     adjs.map((a) => ({ amount: Number(a.amount) || 0 })),
-    Number(watchedValues.advanceAmount) || 0,
     Number(watchedValues.amountPaid) || 0,
   );
+
+  // Keep the advance at 60% of the total until staff edit it manually.
+  useEffect(() => {
+    if (advanceTouched) return;
+    const sixty = Math.round(totals.totalDue * 0.6 * 100) / 100;
+    setValue("advanceAmount", sixty, { shouldDirty: false });
+  }, [totals.totalDue, advanceTouched, setValue]);
 
   const onSubmit = useCallback(async (data: FormValues) => {
     setSaving(true);
@@ -255,8 +265,13 @@ export function ReceiptBuilder({ customer, defaultValues, mode = "create" }: Pro
             {/* Advance / Paid */}
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="field-label">Advance Amount</label>
-                <input {...register("advanceAmount")} type="number" min="0" step="0.01" className="field-input" />
+                <label className="field-label">Advance Payment</label>
+                <input
+                  {...register("advanceAmount")}
+                  onInput={() => setAdvanceTouched(true)}
+                  type="number" min="0" step="0.01" className="field-input"
+                />
+                <p className="text-xs text-stone-400 mt-1">60% of total by default — expected, not yet paid.</p>
               </div>
               <div>
                 <label className="field-label">Amount Paid</label>
@@ -351,7 +366,7 @@ function ReceiptPreview({
   const totalRows = [
     ...adjustments.filter((a) => a.label).map((a) => [a.label, fmtMoney(a.amount)] as [string, string]),
     ["Total Due", fmtMoney(totals.totalDue)],
-    ["Advance Amount", fmtMoney(advanceAmount)],
+    ["Advance Payment", fmtMoney(advanceAmount)],
     ["Amount Paid", fmtMoney(amountPaid)],
     ["Balance", fmtMoney(totals.balance)],
   ];
