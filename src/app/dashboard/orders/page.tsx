@@ -2,11 +2,11 @@ import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import Link from "next/link";
 import { fmtMoney, fmtDate } from "@/lib/utils/format";
-import { OrderStatusBadge } from "@/components/receipts/status-badges";
+import { OrderStatusSelect } from "@/components/receipts/order-status-select";
 import { FilterTableShell } from "@/components/dashboard/filter-table-shell";
 
 interface Props { searchParams: Promise<{ status?: string; page?: string }> }
-export const metadata = { title: "Orders" };
+export const metadata = { title: "Production" };
 
 export default async function OrdersPage({ searchParams }: Props) {
   await requireUser();
@@ -50,8 +50,8 @@ export default async function OrdersPage({ searchParams }: Props) {
   return (
     <div className="px-8 py-8 max-w-6xl">
       <div className="mb-6">
-        <h1 className="font-serif text-3xl text-ink">Orders</h1>
-        <p className="text-stone-500 text-sm mt-1">{total.toLocaleString()} finalized orders</p>
+        <h1 className="font-serif text-3xl text-ink">Production</h1>
+        <p className="text-stone-500 text-sm mt-1">{total.toLocaleString()} orders in production</p>
       </div>
 
       <FilterTableShell groups={[tabs]}>
@@ -82,7 +82,7 @@ export default async function OrdersPage({ searchParams }: Props) {
                 <td className="td text-stone-500">{fmtDate(r.date)}</td>
                 <td className="td text-right font-mono">{fmtMoney(r.totalDue)}</td>
                 <td className="td text-right font-mono">{fmtMoney(r.balance)}</td>
-                <td className="td"><OrderStatusBadge status={r.orderStatus} /></td>
+                <td className="td"><OrderStatusSelect receiptId={r.id} status={r.orderStatus} /></td>
               </tr>
             ))}
           </tbody>

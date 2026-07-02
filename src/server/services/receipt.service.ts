@@ -21,7 +21,9 @@ export const receiptService = {
     const customer = await prisma.customer.findUnique({ where: { id: input.customerId } });
     if (!customer) throw new NotFoundError("Customer");
 
-    const totals = calcReceiptTotals(input);
+    // Sample orders are single-unit — force every line to quantity 1.
+    const items = input.orderType === "SAMPLE" ? input.items.map((i) => ({ ...i, quantity: 1 })) : input.items;
+    const totals = calcReceiptTotals({ ...input, items });
 
     return prisma.$transaction(async (tx) => {
       const receipt = await tx.receipt.create({
@@ -41,6 +43,7 @@ export const receiptService = {
           amountPaid: D(input.amountPaid),
           balance: D(totals.balance),
           paymentStatus: derivePaymentStatus(totals.totalDue, input.amountPaid),
+          orderType: input.orderType,
           // Receipts go live immediately — no separate finalization step.
           status: "FINALIZED",
           finalizedAt: new Date(),
@@ -48,7 +51,7 @@ export const receiptService = {
           orderStatus: "FABRIC_SELECTION",
           createdById: actorId,
           items: {
-            create: input.items.map((it, i) => ({
+            create: items.map((it, i) => ({
               description: it.description, quantity: it.quantity,
               unitPrice: D(it.unitPrice), lineTotal: D(totals.lineTotals[i]), sortOrder: i,
             })),
@@ -73,7 +76,8 @@ export const receiptService = {
   // first (admin-only enforcement lives in the route).
   async update(id: string, input: ReceiptCreateInput, actorId: string) {
     const existing = await this.getFull(id);
-    const totals = calcReceiptTotals(input);
+    const items = input.orderType === "SAMPLE" ? input.items.map((i) => ({ ...i, quantity: 1 })) : input.items;
+    const totals = calcReceiptTotals({ ...input, items });
 
     return prisma.$transaction(async (tx) => {
       if (existing.status === "FINALIZED") {
@@ -95,9 +99,10 @@ export const receiptService = {
           amountPaid: D(input.amountPaid),
           balance: D(totals.balance),
           paymentStatus: derivePaymentStatus(totals.totalDue, input.amountPaid),
+          orderType: input.orderType,
           currentVersion: existing.status === "FINALIZED" ? existing.currentVersion + 1 : existing.currentVersion,
           items: {
-            create: input.items.map((it, i) => ({
+            create: items.map((it, i) => ({
               description: it.description, quantity: it.quantity,
               unitPrice: D(it.unitPrice), lineTotal: D(totals.lineTotals[i]), sortOrder: i,
             })),
@@ -181,6 +186,83 @@ export const receiptService = {
       });
       return receipt;
     });
+  },
+
+  // -------- Create a bulk order from an approved sample --------
+  // The sample receipt is left completely untouched (it stays in Sample
+  // Orders); a brand-new BULK receipt is created from its items/adjustments
+  // so staff can set the real bulk quantities on it.
+  async createBulkFromSample(sampleId: string, actorId: string) {
+    const sample = await this.getFull(sampleId);
+    if (sample.orderType !== "SAMPLE") throw new ConflictError("Only sample orders can be converted");
+
+    const items = sample.items.map((it) => ({
+      description: it.description, quantity: it.quantity, unitPrice: Number(it.unitPrice),
+    }));
+    const adjustments = sample.adjustments.map((a) => ({ label: a.label, amount: Number(a.amount) }));
+    const totals = calcReceiptTotals({ items, adjustments, advanceAmount: 0, amountPaid: 0 });
+    const advanceAmount = Math.round(totals.totalDue * 0.6 * 100) / 100;
+
+    return prisma.$transaction(async (tx) => {
+      const receipt = await tx.receipt.create({
+        data: {
+          customerId: sample.customerId,
+          custName: sample.custName,
+          custAddress: sample.custAddress,
+          custPhone: sample.custPhone,
+          custEmail: sample.custEmail,
+          date: new Date(),
+          notes: sample.notes,
+          paymentMethods: sample.paymentMethods,
+          subtotal: D(totals.subtotal),
+          adjustmentsTotal: D(totals.adjustmentsTotal),
+          totalDue: D(totals.totalDue),
+          advanceAmount: D(advanceAmount),
+          amountPaid: D(0),
+          balance: D(totals.balance),
+          paymentStatus: derivePaymentStatus(totals.totalDue, 0),
+          orderType: "BULK",
+          status: "FINALIZED",
+          finalizedAt: new Date(),
+          finalizedById: actorId,
+          orderStatus: "FABRIC_SELECTION",
+          createdById: actorId,
+          items: {
+            create: items.map((it, i) => ({
+              description: it.description, quantity: it.quantity,
+              unitPrice: D(it.unitPrice), lineTotal: D(totals.lineTotals[i]), sortOrder: i,
+            })),
+          },
+          adjustments: {
+            create: adjustments.map((a, i) => ({ label: a.label, amount: D(a.amount), sortOrder: i })),
+          },
+        },
+      });
+      await tx.orderStatusHistory.create({
+        data: {
+          receiptId: receipt.id, fromStatus: null, toStatus: "FABRIC_SELECTION", changedById: actorId,
+          note: `Created from sample receipt #${sample.receiptNumber}`,
+        },
+      });
+      await auditService.log(tx, {
+        actorId, action: "RECEIPT_CREATED", entityType: "Receipt", entityId: receipt.id,
+        metadata: { fromSampleId: sampleId, fromSampleReceiptNumber: sample.receiptNumber },
+      });
+      return receipt;
+    });
+  },
+
+  // -------- Delete a receipt (e.g. a rejected sample) --------
+  async remove(id: string, actorId: string) {
+    const existing = await this.getFull(id);
+    await prisma.$transaction(async (tx) => {
+      await auditService.log(tx, {
+        actorId, action: "RECEIPT_DELETED", entityType: "Receipt", entityId: id,
+        metadata: { receiptNumber: existing.receiptNumber, orderType: existing.orderType },
+      });
+      await tx.receipt.delete({ where: { id } }); // cascades items/adjustments/payments/history/versions
+    });
+    return existing;
   },
 
   listVersions: (receiptId: string) => receiptRepository.listVersions(receiptId),

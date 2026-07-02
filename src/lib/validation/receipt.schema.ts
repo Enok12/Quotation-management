@@ -22,6 +22,7 @@ export const receiptCreateSchema = z.object({
   adjustments: z.array(receiptAdjustmentSchema).default([]),
   advanceAmount: z.number().nonnegative().default(0),
   amountPaid: z.number().nonnegative().default(0),
+  orderType: z.enum(["BULK", "SAMPLE"]).default("BULK"),
 });
 export const receiptUpdateSchema = receiptCreateSchema.partial();
 

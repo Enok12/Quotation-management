@@ -1,28 +1,21 @@
 "use client";
 
+import { FOLDER_NAMES, ALL_FOLDER_KEYS, type FolderKey } from "@/lib/order-folder";
+
 // ---------------------------------------------------------------------------
 // Browser → local-disk folder sync (File System Access API, Chrome/Edge only).
 //
-// Mirrors finalized invoices into three folders on the user's computer:
-//   <chosen folder>/Unpaid, /Partial Paid, /Completed
+// Mirrors receipts into three folders on the user's computer:
+//   <chosen folder>/BULK ORDERS, /Sample Orders, /Completed
 // The user picks the root folder once (e.g. D:\MONTRA); the handle is kept in
-// IndexedDB so it survives reloads. A payment moves an invoice's PDF from its
-// old folder to the new one. "Sync all" reconciles every invoice.
+// IndexedDB so it survives reloads. A change moves a receipt's PDF from its
+// old folder to the new one. "Sync all" reconciles every receipt.
 //
 // Note: the browser cannot target an absolute path itself — the user must pick
 // the folder via the OS chooser. After that, everything is automatic.
 // ---------------------------------------------------------------------------
 
-export type FolderStatus = "UNPAID" | "PARTIALLY_PAID" | "PAID";
-
-// On-disk folder name for each payment status (matches the app's labels).
-export const FOLDER_NAMES: Record<FolderStatus, string> = {
-  UNPAID: "Unpaid",
-  PARTIALLY_PAID: "Partial Paid",
-  PAID: "Completed",
-};
-
-const ALL_FOLDERS = Object.values(FOLDER_NAMES);
+const ALL_FOLDERS = ALL_FOLDER_KEYS.map((k) => FOLDER_NAMES[k]);
 
 // Minimal shape of the File System Access API bits we use (not in older TS lib.dom).
 type PermState = "granted" | "denied" | "prompt";
@@ -143,8 +136,8 @@ async function fetchInvoicePdf(receiptId: string): Promise<ArrayBuffer> {
   return res.arrayBuffer();
 }
 
-async function placeInvoice(root: DirHandle, receiptId: string, receiptNumber: number, status: FolderStatus) {
-  const targetName = FOLDER_NAMES[status];
+async function placeInvoice(root: DirHandle, receiptId: string, receiptNumber: number, folder: FolderKey) {
+  const targetName = FOLDER_NAMES[folder];
   const bytes = await fetchInvoicePdf(receiptId);
 
   const dir = await root.getDirectoryHandle(targetName, { create: true });
@@ -170,11 +163,30 @@ async function placeInvoice(root: DirHandle, receiptId: string, receiptNumber: n
  * isn't connected or permission isn't currently granted — "Sync all" will
  * reconcile it later. Never throws to the caller's happy path.
  */
-export async function moveInvoiceIfConnected(receiptId: string, receiptNumber: number, status: FolderStatus): Promise<boolean> {
+export async function moveInvoiceIfConnected(receiptId: string, receiptNumber: number, folder: FolderKey): Promise<boolean> {
   try {
     const handle = await getSavedHandle();
     if (!handle || !(await hasPermission(handle))) return false;
-    await placeInvoice(handle, receiptId, receiptNumber, status);
+    await placeInvoice(handle, receiptId, receiptNumber, folder);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Remove a receipt's PDF from every folder (used when a receipt is deleted). */
+export async function removeInvoiceFromFolders(receiptNumber: number): Promise<boolean> {
+  try {
+    const handle = await getSavedHandle();
+    if (!handle || !(await hasPermission(handle))) return false;
+    for (const name of ALL_FOLDERS) {
+      try {
+        const dir = await handle.getDirectoryHandle(name, { create: false });
+        await dir.removeEntry(fileName(receiptNumber));
+      } catch {
+        /* not present — fine */
+      }
+    }
     return true;
   } catch {
     return false;
@@ -184,7 +196,7 @@ export async function moveInvoiceIfConnected(receiptId: string, receiptNumber: n
 export interface SyncItem {
   id: string;
   receiptNumber: number;
-  paymentStatus: FolderStatus;
+  folder: FolderKey;
 }
 
 const RECEIPT_FILE = /^receipt-(\d+)\.pdf$/i;
@@ -235,7 +247,7 @@ export async function diffFolders(items: SyncItem[]): Promise<FolderDiff> {
 
   // Expected: receiptNumber → folder it should live in.
   const expected = new Map<number, string>();
-  for (const it of items) expected.set(it.receiptNumber, FOLDER_NAMES[it.paymentStatus]);
+  for (const it of items) expected.set(it.receiptNumber, FOLDER_NAMES[it.folder]);
 
   let upToDate = 0, missing = 0, misfiled = 0, orphan = 0;
   const details: DiffDetail[] = [];
@@ -290,7 +302,7 @@ export async function syncAll(items: SyncItem[], onProgress?: (done: number, tot
   let synced = 0, failed = 0;
   for (let i = 0; i < items.length; i++) {
     try {
-      await placeInvoice(handle, items[i].id, items[i].receiptNumber, items[i].paymentStatus);
+      await placeInvoice(handle, items[i].id, items[i].receiptNumber, items[i].folder);
       synced++;
     } catch {
       failed++;

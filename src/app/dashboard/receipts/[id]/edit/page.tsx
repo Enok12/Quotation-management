@@ -45,6 +45,7 @@ export default async function EditReceiptPage({ params }: Props) {
     })),
     advanceAmount: Number(receipt.advanceAmount),
     amountPaid: Number(receipt.amountPaid),
+    isSample: receipt.orderType === "SAMPLE",
   };
 
   return (

@@ -34,3 +34,13 @@ export function PaymentStatusBadge({ status }: { status: string }) {
   const s = PAYMENT_STATUS[status] ?? { label: status, cls: "badge-draft" };
   return <span className={s.cls}>{s.label}</span>;
 }
+
+const ORDER_TYPE: Record<string, { label: string; cls: string }> = {
+  BULK: { label: "Bulk", cls: "badge-bulk" },
+  SAMPLE: { label: "Sample", cls: "badge-sample" },
+};
+
+export function OrderTypeBadge({ type }: { type: string }) {
+  const s = ORDER_TYPE[type] ?? { label: type, cls: "badge-draft" };
+  return <span className={s.cls}>{s.label}</span>;
+}

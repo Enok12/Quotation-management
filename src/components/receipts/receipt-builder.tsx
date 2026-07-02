@@ -27,8 +27,15 @@ const schema = z.object({
   adjustments: z.array(adjSchema).default([]),
   advanceAmount: z.coerce.number().nonnegative().default(0),
   amountPaid: z.coerce.number().nonnegative().default(0),
+  isSample: z.boolean().default(false),
+  patternDeductionEnabled: z.boolean().default(false),
+  patternDeductionAmount: z.coerce.number().nonnegative().default(2000),
 });
 type FormValues = z.infer<typeof schema>;
+
+// Pattern Deduction is stored as a normal adjustment row with this exact
+// label — no schema change needed. The toggle just adds/removes that row.
+const PATTERN_LABEL = "Pattern Deduction";
 
 interface Customer { id: string; name: string; address?: string | null; phone?: string | null; email?: string | null }
 interface Props {
@@ -62,6 +69,13 @@ export function ReceiptBuilder({ customer, defaultValues, mode = "create" }: Pro
   const [error, setError] = useState<string | null>(null);
 
   const today = new Date().toISOString().slice(0, 10);
+
+  // Pull any existing "Pattern Deduction" row out of the raw adjustments so it
+  // renders via the dedicated toggle instead of the generic Adjustments list.
+  const rawAdjustments = defaultValues?.adjustments ?? [];
+  const existingPattern = rawAdjustments.find((a) => a.label === PATTERN_LABEL);
+  const otherAdjustments = rawAdjustments.filter((a) => a.label !== PATTERN_LABEL);
+
   const {
     register, control, watch, setValue, handleSubmit,
     formState: { errors },
@@ -70,11 +84,14 @@ export function ReceiptBuilder({ customer, defaultValues, mode = "create" }: Pro
     defaultValues: {
       date: today,
       items: [{ description: "", quantity: 1, unitPrice: 0 }],
-      adjustments: [],
       paymentMethods: [],
       advanceAmount: 0,
       amountPaid: 0,
+      isSample: false,
       ...defaultValues,
+      adjustments: otherAdjustments,
+      patternDeductionEnabled: !!existingPattern,
+      patternDeductionAmount: existingPattern ? Math.abs(Number(existingPattern.amount)) : 2000,
     },
   });
 
@@ -87,9 +104,23 @@ export function ReceiptBuilder({ customer, defaultValues, mode = "create" }: Pro
   const watchedValues = watch();
   const items = watchedValues.items ?? [];
   const adjs = watchedValues.adjustments ?? [];
+  const isSample = watchedValues.isSample ?? false;
+  const patternDeductionEnabled = watchedValues.patternDeductionEnabled ?? false;
+  const patternDeductionAmount = Number(watchedValues.patternDeductionAmount) || 0;
+
+  // Combine manual adjustments with the Pattern Deduction toggle for totals/preview.
+  const allAdjustments = patternDeductionEnabled
+    ? [...adjs, { label: PATTERN_LABEL, amount: -patternDeductionAmount }]
+    : adjs;
+
+  // Sample orders are single-unit — force every item quantity to 1.
+  useEffect(() => {
+    if (!isSample) return;
+    items.forEach((_, i) => setValue(`items.${i}.quantity`, 1, { shouldDirty: false }));
+  }, [isSample, items.length, setValue]);
   const totals = calcTotals(
     items.map((i) => ({ quantity: Number(i.quantity) || 0, unitPrice: Number(i.unitPrice) || 0 })),
-    adjs.map((a) => ({ amount: Number(a.amount) || 0 })),
+    allAdjustments.map((a) => ({ amount: Number(a.amount) || 0 })),
     Number(watchedValues.amountPaid) || 0,
   );
 
@@ -109,14 +140,18 @@ export function ReceiptBuilder({ customer, defaultValues, mode = "create" }: Pro
         date: new Date(data.date).toISOString(),
         notes: data.notes,
         paymentMethods: data.paymentMethods,
+        orderType: data.isSample ? "SAMPLE" : "BULK",
         items: data.items.map((i) => ({
           description: i.description,
-          quantity: Number(i.quantity),
+          quantity: data.isSample ? 1 : Number(i.quantity),
           unitPrice: Number(i.unitPrice),
         })),
-        adjustments: data.adjustments.map((a) => ({
-          label: a.label, amount: Number(a.amount),
-        })),
+        adjustments: [
+          ...data.adjustments.map((a) => ({ label: a.label, amount: Number(a.amount) })),
+          ...(data.patternDeductionEnabled
+            ? [{ label: PATTERN_LABEL, amount: -Number(data.patternDeductionAmount) }]
+            : []),
+        ],
         advanceAmount: Number(data.advanceAmount),
         amountPaid: Number(data.amountPaid),
       };
@@ -164,6 +199,17 @@ export function ReceiptBuilder({ customer, defaultValues, mode = "create" }: Pro
               {errors.date && <p className="field-error">{errors.date.message}</p>}
             </div>
 
+            {/* Sample order toggle */}
+            <label className="flex items-start gap-3 cursor-pointer bg-white border border-stone-200 rounded-md p-3 hover:border-purple-300 transition-colors">
+              <input type="checkbox" {...register("isSample")} className="mt-0.5 accent-purple-500" />
+              <span>
+                <span className="text-sm font-medium text-ink">Sample order</span>
+                <span className="block text-xs text-stone-500 mt-0.5">
+                  Single-unit development for quality check. Quantity is locked to 1; convert to a bulk order later if the customer approves.
+                </span>
+              </span>
+            </label>
+
             {/* Items */}
             <div>
               <div className="flex items-center justify-between mb-2">
@@ -201,7 +247,9 @@ export function ReceiptBuilder({ customer, defaultValues, mode = "create" }: Pro
                         <input
                           {...register(`items.${i}.quantity`)}
                           type="number" min="1" placeholder="Qty"
-                          className="field-input text-xs"
+                          disabled={isSample}
+                          title={isSample ? "Sample orders are single-unit" : undefined}
+                          className="field-input text-xs disabled:bg-stone-100 disabled:text-stone-400"
                         />
                         {errors.items?.[i]?.quantity && (
                           <p className="field-error">{errors.items[i]?.quantity?.message}</p>
@@ -260,6 +308,29 @@ export function ReceiptBuilder({ customer, defaultValues, mode = "create" }: Pro
                   </div>
                 ))}
               </div>
+            </div>
+
+            {/* Pattern Deduction */}
+            <div className="bg-white border border-stone-200 rounded-md p-3">
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input type="checkbox" {...register("patternDeductionEnabled")} className="mt-0.5 accent-amber-400" />
+                <span className="flex-1">
+                  <span className="text-sm font-medium text-ink">Pattern Deduction</span>
+                  <span className="block text-xs text-stone-500 mt-0.5">
+                    Deducts the pattern making cost already paid (e.g. during the sample stage).
+                  </span>
+                </span>
+              </label>
+              {patternDeductionEnabled && (
+                <div className="mt-3 pl-7">
+                  <label className="field-label">Amount</label>
+                  <input
+                    {...register("patternDeductionAmount")}
+                    type="number" min="0" step="0.01"
+                    className="field-input text-xs"
+                  />
+                </div>
+              )}
             </div>
 
             {/* Advance / Paid */}
@@ -325,7 +396,7 @@ export function ReceiptBuilder({ customer, defaultValues, mode = "create" }: Pro
             customer={customer}
             date={date}
             items={items.map((i) => ({ ...i, quantity: Number(i.quantity), unitPrice: Number(i.unitPrice) }))}
-            adjustments={adjs.map((a) => ({ ...a, amount: Number(a.amount) }))}
+            adjustments={allAdjustments.map((a) => ({ ...a, amount: Number(a.amount) }))}
             paymentMethods={paymentMethods}
             totals={totals}
             advanceAmount={Number(watchedValues.advanceAmount) || 0}

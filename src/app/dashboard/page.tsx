@@ -1,23 +1,23 @@
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import Link from "next/link";
-import { Users, FileText, Package, Clock, CheckCircle, Layers, Scissors, Factory, ShieldCheck, Truck } from "lucide-react";
+import { Users, FileText, Package, CheckCircle, Layers, Scissors, Factory, ShieldCheck, Truck, Boxes, FlaskConical } from "lucide-react";
 import { fmtMoney, fmtDate } from "@/lib/utils/format";
 import { PaymentStatusBadge, OrderStatusBadge } from "@/components/receipts/status-badges";
 
 async function getStats() {
-  const [totalCustomers, totalReceipts, byPayment, byStage] = await Promise.all([
+  const [totalCustomers, totalReceipts, bulk, sample, completed, byStage] = await Promise.all([
     prisma.customer.count(),
     prisma.receipt.count(),
-    prisma.receipt.groupBy({ by: ["paymentStatus"], _count: true }),
+    prisma.receipt.count({ where: { orderType: "BULK", paymentStatus: { not: "PAID" } } }),
+    prisma.receipt.count({ where: { orderType: "SAMPLE" } }),
+    prisma.receipt.count({ where: { orderType: "BULK", paymentStatus: "PAID" } }),
     prisma.receipt.groupBy({ by: ["orderStatus"], _count: true }),
   ]);
-  const pay = (s: string) => byPayment.find((b) => b.paymentStatus === s)?._count ?? 0;
   const stage = (s: string) => byStage.find((b) => b.orderStatus === s)?._count ?? 0;
   return {
     totalCustomers, totalReceipts,
-    unpaid: pay("UNPAID"),
-    completed: pay("PAID"),
+    bulk, sample, completed,
     fabric: stage("FABRIC_SELECTION"),
     cutting: stage("CUTTING"),
     production: stage("PRODUCTION"),
@@ -45,8 +45,9 @@ export default async function DashboardPage() {
   const statCards = [
     { label: "Customers", value: stats.totalCustomers, icon: Users, href: "/dashboard/customers", color: "text-stone-600" },
     { label: "Total Receipts", value: stats.totalReceipts, icon: FileText, href: "/dashboard/receipts", color: "text-stone-600" },
-    { label: "Unpaid", value: stats.unpaid, icon: Clock, href: "/dashboard/payments?status=UNPAID", color: "text-red-500" },
-    { label: "Paid", value: stats.completed, icon: CheckCircle, href: "/dashboard/payments?status=PAID", color: "text-emerald-600" },
+    { label: "Bulk Orders", value: stats.bulk, icon: Boxes, href: "/dashboard/payments?folder=BULK", color: "text-blue-500" },
+    { label: "Sample Orders", value: stats.sample, icon: FlaskConical, href: "/dashboard/payments?folder=SAMPLE", color: "text-purple-500" },
+    { label: "Completed", value: stats.completed, icon: CheckCircle, href: "/dashboard/payments?folder=COMPLETED", color: "text-emerald-600" },
     { label: "Fabric Selection", value: stats.fabric, icon: Layers, href: "/dashboard/orders?status=FABRIC_SELECTION", color: "text-sky-500" },
     { label: "Cutting", value: stats.cutting, icon: Scissors, href: "/dashboard/orders?status=CUTTING", color: "text-amber-500" },
     { label: "Production", value: stats.production, icon: Factory, href: "/dashboard/orders?status=PRODUCTION", color: "text-violet-500" },

@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Wallet, X, Loader2 } from "lucide-react";
-import { moveInvoiceIfConnected, type FolderStatus } from "@/lib/folder-sync";
+import { moveInvoiceIfConnected } from "@/lib/folder-sync";
+import { deriveFolder } from "@/lib/order-folder";
 
 const METHODS = [
   { value: "", label: "—" },
@@ -19,12 +20,14 @@ export function RecordPaymentButton({
   balance,
   advanceAmount = 0,
   amountPaid = 0,
+  orderType = "BULK",
 }: {
   receiptId: string;
   receiptNumber: number;
   balance: number;
   advanceAmount?: number;
   amountPaid?: number;
+  orderType?: string;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -53,7 +56,7 @@ export function RecordPaymentButton({
       if (!json.success) throw new Error(json.message ?? "Failed to record payment");
 
       // Mirror the invoice into its new computer folder (no-op if not connected).
-      await moveInvoiceIfConnected(receiptId, receiptNumber, json.data.paymentStatus as FolderStatus);
+      await moveInvoiceIfConnected(receiptId, receiptNumber, deriveFolder(orderType, json.data.paymentStatus));
 
       setOpen(false);
       setAmount(""); setMethod(""); setNote("");

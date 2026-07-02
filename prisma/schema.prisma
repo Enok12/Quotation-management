@@ -33,11 +33,17 @@ enum OrderStatus {
 }
 
 // Payment progress, derived from amounts paid vs. total due.
-// UNPAID → PARTIALLY_PAID → PAID. Drives the Unpaid / Partial / Completed folders.
 enum PaymentStatus {
   UNPAID
   PARTIALLY_PAID
   PAID
+}
+
+// Bulk (normal multi-unit) vs Sample (single-unit development for QC).
+// A sample can be converted to bulk, or deleted if the customer rejects it.
+enum OrderType {
+  BULK
+  SAMPLE
 }
 
 enum PaymentMethod {
@@ -57,6 +63,7 @@ enum AuditAction {
   ORDER_STATUS_CHANGED
   VERSION_CREATED
   PAYMENT_RECORDED
+  RECEIPT_DELETED
 }
 
 // ----------------------------- Users -----------------------------
@@ -154,6 +161,7 @@ model Receipt {
   status        ReceiptStatus @default(DRAFT)
   orderStatus   OrderStatus   @default(FABRIC_SELECTION)
   paymentStatus PaymentStatus @default(UNPAID)
+  orderType     OrderType     @default(BULK)
 
   currentVersion Int       @default(1)
   finalizedAt    DateTime?
@@ -175,6 +183,7 @@ model Receipt {
   @@index([status])
   @@index([orderStatus])
   @@index([paymentStatus])
+  @@index([orderType])
   @@index([customerId])
   @@index([createdAt])
   @@index([receiptNumber])

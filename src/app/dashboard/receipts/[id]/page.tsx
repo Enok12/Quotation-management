@@ -4,8 +4,10 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Edit, FileDown } from "lucide-react";
 import { fmtMoney, fmtDate, fmtDateTime } from "@/lib/utils/format";
-import { OrderStatusBadge, PaymentStatusBadge } from "@/components/receipts/status-badges";
+import { OrderStatusBadge, PaymentStatusBadge, OrderTypeBadge } from "@/components/receipts/status-badges";
 import { GeneratePdfButton } from "@/components/receipts/generate-pdf-button";
+import { ConvertToBulkButton } from "@/components/receipts/convert-to-bulk-button";
+import { DeleteReceiptButton } from "@/components/receipts/delete-receipt-button";
 import { LinkButton } from "@/components/ui/link-button";
 import { OrderStatusChanger } from "@/components/receipts/order-status-changer";
 import { RecordPaymentButton } from "@/components/receipts/record-payment-button";
@@ -40,12 +42,16 @@ export default async function ReceiptDetailPage({ params }: Props) {
         <div className="flex-1">
           <div className="flex items-center gap-3">
             <h1 className="font-serif text-3xl text-ink">Receipt #{receipt.receiptNumber}</h1>
+            <OrderTypeBadge type={receipt.orderType} />
             <OrderStatusBadge status={receipt.orderStatus} />
             <PaymentStatusBadge status={receipt.paymentStatus} />
           </div>
           <p className="text-stone-500 text-sm mt-1">{receipt.custName} · {fmtDate(receipt.date)}</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap justify-end">
+          {receipt.orderType === "SAMPLE" && (
+            <ConvertToBulkButton receiptId={id} />
+          )}
           {receipt.paymentStatus !== "PAID" && (
             <RecordPaymentButton
               receiptId={id}
@@ -53,12 +59,14 @@ export default async function ReceiptDetailPage({ params }: Props) {
               balance={Number(receipt.balance)}
               advanceAmount={Number(receipt.advanceAmount)}
               amountPaid={Number(receipt.amountPaid)}
+              orderType={receipt.orderType}
             />
           )}
           <GeneratePdfButton receiptId={id} receiptNumber={receipt.receiptNumber} />
           <LinkButton href={`/dashboard/receipts/${id}/edit`} className="btn-outline" icon={<Edit size={14} />} iconSize={14}>
             Edit
           </LinkButton>
+          <DeleteReceiptButton receiptId={id} receiptNumber={receipt.receiptNumber} />
         </div>
       </div>
 

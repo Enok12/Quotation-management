@@ -100,6 +100,12 @@
   .badge-paid {
     @apply badge bg-emerald-50 text-emerald-700;
   }
+  .badge-bulk {
+    @apply badge bg-blue-50 text-blue-600;
+  }
+  .badge-sample {
+    @apply badge bg-purple-50 text-purple-600;
+  }
 
   /* Form controls */
   .field-label {

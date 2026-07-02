@@ -102,8 +102,8 @@ export function FolderSyncPanel({ items }: { items: SyncItem[] }) {
         <div>
           <p className="text-sm font-medium text-ink">Folder sync unavailable</p>
           <p className="text-xs text-stone-500 mt-0.5">
-            Saving invoices to a folder on your computer needs Google Chrome or Microsoft Edge on desktop.
-            The Unpaid / Partial / Completed tabs below still work in any browser.
+            Saving orders to a folder on your computer needs Google Chrome or Microsoft Edge on desktop.
+            The Bulk / Sample / Completed tabs below still work in any browser.
           </p>
         </div>
       </div>
@@ -128,7 +128,7 @@ export function FolderSyncPanel({ items }: { items: SyncItem[] }) {
             </p>
             <p className="text-xs text-stone-500 mt-0.5">
               {state.kind === "disconnected" &&
-                "Pick a folder (e.g. D:\\MONTRA) — invoices auto-file into Unpaid / Partial Paid / Completed."}
+                "Pick a folder (e.g. D:\\MONTRA) — orders auto-file into BULK ORDERS / Sample Orders / Completed."}
               {state.kind === "needsPermission" && "Re-grant access to continue writing to this folder."}
               {state.kind === "connected" && "Invoices move automatically when you record a payment on this computer."}
             </p>

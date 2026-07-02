@@ -19,3 +19,12 @@ export const PUT = handler(async (req: NextRequest, { params }: Ctx) => {
   const body = receiptCreateSchema.parse(await req.json());
   return ok(await receiptService.update(id, body, user.id));
 });
+
+// Delete a receipt (e.g. a rejected sample). Returns the number so the client
+// can remove its PDF from the computer folder.
+export const DELETE = handler(async (_req: NextRequest, { params }: Ctx) => {
+  const user = await requireUser();
+  const { id } = await params;
+  const removed = await receiptService.remove(id, user.id);
+  return ok({ id, receiptNumber: removed.receiptNumber });
+});
