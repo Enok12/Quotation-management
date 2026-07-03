@@ -163,6 +163,10 @@ model Receipt {
   paymentStatus PaymentStatus @default(UNPAID)
   orderType     OrderType     @default(BULK)
 
+  // Permanent public tracking-page token — set only for BULK orders (null
+  // for SAMPLE). Never expires; customers use it to check production status.
+  trackingToken String? @unique
+
   currentVersion Int       @default(1)
   finalizedAt    DateTime?
   finalizedById  String?

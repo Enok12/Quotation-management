@@ -4,9 +4,12 @@ import { NextResponse } from "next/server";
 const isPublicRoute = createRouteMatcher([
   "/",
   "/customer-form(.*)",
+  "/track",
+  "/track/(.*)",
   "/sign-in(.*)",
   "/sign-up(.*)",
   "/api/v1/customers/public", // public form submission endpoint
+  "/api/v1/track", // public invoice-number tracking lookup
 ]);
 
 export default clerkMiddleware(async (auth, req) => {

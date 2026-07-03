@@ -8,6 +8,7 @@ import { OrderStatusBadge, PaymentStatusBadge, OrderTypeBadge } from "@/componen
 import { GeneratePdfButton } from "@/components/receipts/generate-pdf-button";
 import { ConvertToBulkButton } from "@/components/receipts/convert-to-bulk-button";
 import { DeleteReceiptButton } from "@/components/receipts/delete-receipt-button";
+import { TrackingLinkButton } from "@/components/receipts/tracking-link-button";
 import { LinkButton } from "@/components/ui/link-button";
 import { OrderStatusChanger } from "@/components/receipts/order-status-changer";
 import { RecordPaymentButton } from "@/components/receipts/record-payment-button";
@@ -52,6 +53,9 @@ export default async function ReceiptDetailPage({ params }: Props) {
           {/* Available for every sample, paid or not — payment status is unrelated to conversion. */}
           {receipt.orderType === "SAMPLE" && (
             <ConvertToBulkButton receiptId={id} custName={receipt.custName} />
+          )}
+          {receipt.orderType === "BULK" && receipt.trackingToken && (
+            <TrackingLinkButton token={receipt.trackingToken} />
           )}
           {receipt.paymentStatus !== "PAID" && (
             <RecordPaymentButton

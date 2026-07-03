@@ -5,6 +5,7 @@ import { calcReceiptTotals, derivePaymentStatus } from "./receipt-calc";
 import { auditService } from "./audit.service";
 import { receiptRepository, type FullReceipt } from "../repositories/receipt.repository";
 import type { ReceiptCreateInput } from "@/lib/validation/receipt.schema";
+import { generateToken } from "@/lib/utils/token";
 
 const D = (n: number) => new Prisma.Decimal(n);
 
@@ -44,6 +45,8 @@ export const receiptService = {
           balance: D(totals.balance),
           paymentStatus: derivePaymentStatus(totals.totalDue, input.amountPaid),
           orderType: input.orderType,
+          // Only bulk orders get a public tracking link — samples get none.
+          trackingToken: input.orderType === "BULK" ? generateToken() : null,
           // Receipts go live immediately — no separate finalization step.
           status: "FINALIZED",
           finalizedAt: new Date(),
@@ -100,6 +103,13 @@ export const receiptService = {
           balance: D(totals.balance),
           paymentStatus: derivePaymentStatus(totals.totalDue, input.amountPaid),
           orderType: input.orderType,
+          // Keep the tracking-token invariant intact if the order type changes
+          // on a normal edit (not just via the dedicated convert action):
+          // bulk gets a token if it doesn't have one yet; sample never has one.
+          trackingToken:
+            input.orderType === "BULK"
+              ? (existing.trackingToken ?? generateToken())
+              : null,
           currentVersion: existing.status === "FINALIZED" ? existing.currentVersion + 1 : existing.currentVersion,
           items: {
             create: items.map((it, i) => ({
@@ -227,6 +237,7 @@ export const receiptService = {
           balance: D(totals.balance),
           paymentStatus: derivePaymentStatus(totals.totalDue, 0),
           orderType: "BULK",
+          trackingToken: generateToken(),
           status: "FINALIZED",
           finalizedAt: new Date(),
           finalizedById: actorId,
