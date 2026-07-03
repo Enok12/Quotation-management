@@ -37,8 +37,8 @@ export function StageTimeline({
                 className={cn(
                   "flex items-center justify-center w-10 h-10 rounded-full border-2 flex-none",
                   done && "bg-emerald-500 border-emerald-500 text-white",
-                  active && "bg-amber-400 border-amber-400 text-ink",
-                  upcoming && "bg-white border-stone-200 text-stone-300",
+                  active && "bg-amber-400 border-amber-400 text-stone-900",
+                  upcoming && "bg-white dark:bg-stone-800 border-stone-200 dark:border-stone-700 text-stone-300",
                 )}
               >
                 {done ? <Check size={18} /> : <Icon size={18} />}

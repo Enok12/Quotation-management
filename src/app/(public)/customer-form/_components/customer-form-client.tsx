@@ -38,7 +38,7 @@ export function CustomerFormClient({ token }: { token: string }) {
 
   if (success) {
     return (
-      <main className="min-h-screen bg-stone-50 flex items-center justify-center px-4">
+      <main className="min-h-screen bg-stone-50 dark:bg-stone-950 flex items-center justify-center px-4">
         <div className="text-center max-w-sm">
           <CheckCircle size={48} className="text-emerald-500 mx-auto mb-4" />
           <h2 className="font-serif text-2xl text-ink mb-2">Thank you!</h2>
@@ -51,7 +51,7 @@ export function CustomerFormClient({ token }: { token: string }) {
   }
 
   return (
-    <main className="min-h-screen bg-stone-50 flex items-center justify-center px-4 py-12">
+    <main className="min-h-screen bg-stone-50 dark:bg-stone-950 flex items-center justify-center px-4 py-12">
       <div className="w-full max-w-lg">
         {/* Header */}
         <div className="text-center mb-10">
@@ -93,7 +93,7 @@ export function CustomerFormClient({ token }: { token: string }) {
               {errors.email && <p className="field-error">{errors.email.message}</p>}
             </div>
 
-            {serverError && <p className="text-sm text-red-500 bg-red-50 border border-red-200 rounded px-4 py-2">{serverError}</p>}
+            {serverError && <p className="text-sm text-red-500 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30 rounded px-4 py-2">{serverError}</p>}
 
             <button type="submit" disabled={isSubmitting} className="btn-primary w-full py-3">
               {isSubmitting && <Loader2 size={15} className="animate-spin" />}

@@ -6,6 +6,14 @@
   :root {
     --font-inter: "Inter", system-ui, sans-serif;
     --radius: 5px;
+    --ink: #0a0a0a;
+    --canvas: #fafaf9;
+  }
+
+  :root[data-theme="dark"],
+  .dark {
+    --ink: #f2f1ef;
+    --canvas: #16150f;
   }
 
   * {
@@ -17,14 +25,14 @@
   }
 
   body {
-    @apply bg-canvas text-ink;
+    @apply bg-canvas text-ink transition-colors duration-150;
     font-family: var(--font-inter);
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   }
 
   /* Consistent focus ring across all interactive elements */
   :focus-visible {
-    @apply outline-none ring-2 ring-amber-400 ring-offset-1;
+    @apply outline-none ring-2 ring-amber-400 ring-offset-1 dark:ring-offset-stone-900;
   }
 }
 
@@ -39,15 +47,15 @@
     @apply text-2xl font-normal;
   }
   .heading-2 {
-    @apply text-sm font-semibold tracking-widest uppercase text-stone-500;
+    @apply text-sm font-semibold tracking-widest uppercase text-stone-500 dark:text-stone-400;
   }
 
   /* Table cell baseline */
   .td {
-    @apply px-4 py-3 text-sm text-stone-800 border-b border-stone-100;
+    @apply px-4 py-3 text-sm text-stone-800 border-b border-stone-100 dark:text-stone-200 dark:border-stone-800;
   }
   .th {
-    @apply px-4 py-2.5 text-xs font-semibold tracking-wider uppercase text-stone-500 border-b border-stone-200 bg-stone-25;
+    @apply px-4 py-2.5 text-xs font-semibold tracking-wider uppercase text-stone-500 border-b border-stone-200 bg-stone-25 dark:text-stone-400 dark:border-stone-800 dark:bg-white/[0.02];
   }
 
   /* Status badges */
@@ -55,67 +63,67 @@
     @apply inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium;
   }
   .badge-draft {
-    @apply badge bg-stone-100 text-stone-600;
+    @apply badge bg-stone-100 text-stone-600 dark:bg-white/10 dark:text-stone-300;
   }
   .badge-finalized {
-    @apply badge bg-amber-100 text-amber-600;
+    @apply badge bg-amber-100 text-amber-600 dark:bg-amber-500/15 dark:text-amber-400;
   }
   .badge-pending {
-    @apply badge bg-blue-50 text-blue-600;
+    @apply badge bg-blue-50 text-blue-600 dark:bg-blue-500/15 dark:text-blue-400;
   }
   .badge-in-progress {
-    @apply badge bg-violet-50 text-violet-600;
+    @apply badge bg-violet-50 text-violet-600 dark:bg-violet-500/15 dark:text-violet-400;
   }
   .badge-completed {
-    @apply badge bg-emerald-50 text-emerald-700;
+    @apply badge bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400;
   }
   .badge-cancelled {
-    @apply badge bg-stone-100 text-stone-400;
+    @apply badge bg-stone-100 text-stone-400 dark:bg-white/10 dark:text-stone-400;
   }
   /* Production stage badges */
   .badge-fabric {
-    @apply badge bg-sky-50 text-sky-700;
+    @apply badge bg-sky-50 text-sky-700 dark:bg-sky-500/15 dark:text-sky-400;
   }
   .badge-cutting {
-    @apply badge bg-amber-50 text-amber-700;
+    @apply badge bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400;
   }
   .badge-production {
-    @apply badge bg-violet-50 text-violet-600;
+    @apply badge bg-violet-50 text-violet-600 dark:bg-violet-500/15 dark:text-violet-400;
   }
   .badge-qc {
-    @apply badge bg-indigo-50 text-indigo-600;
+    @apply badge bg-indigo-50 text-indigo-600 dark:bg-indigo-500/15 dark:text-indigo-400;
   }
   .badge-packing {
-    @apply badge bg-orange-50 text-orange-700;
+    @apply badge bg-orange-50 text-orange-700 dark:bg-orange-500/15 dark:text-orange-400;
   }
   .badge-delivery {
-    @apply badge bg-emerald-50 text-emerald-700;
+    @apply badge bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400;
   }
   .badge-unpaid {
-    @apply badge bg-red-50 text-red-600;
+    @apply badge bg-red-50 text-red-600 dark:bg-red-500/15 dark:text-red-400;
   }
   .badge-partial {
-    @apply badge bg-amber-50 text-amber-700;
+    @apply badge bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400;
   }
   .badge-paid {
-    @apply badge bg-emerald-50 text-emerald-700;
+    @apply badge bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400;
   }
   .badge-bulk {
-    @apply badge bg-blue-50 text-blue-600;
+    @apply badge bg-blue-50 text-blue-600 dark:bg-blue-500/15 dark:text-blue-400;
   }
   .badge-sample {
-    @apply badge bg-purple-50 text-purple-600;
+    @apply badge bg-purple-50 text-purple-600 dark:bg-purple-500/15 dark:text-purple-400;
   }
 
   /* Form controls */
   .field-label {
-    @apply block text-xs font-semibold tracking-wide text-stone-600 mb-1.5;
+    @apply block text-xs font-semibold tracking-wide text-stone-600 mb-1.5 dark:text-stone-400;
   }
   .field-input {
-    @apply w-full px-3 py-2.5 text-sm bg-white border border-stone-200 rounded focus:border-amber-400 focus:ring-1 focus:ring-amber-400 outline-none transition-colors placeholder:text-stone-400;
+    @apply w-full px-3 py-2.5 text-sm bg-white border border-stone-200 rounded focus:border-amber-400 focus:ring-1 focus:ring-amber-400 outline-none transition-colors placeholder:text-stone-400 dark:bg-stone-800 dark:border-stone-700 dark:text-stone-100 dark:placeholder:text-stone-500;
   }
   .field-error {
-    @apply text-xs text-red-500 mt-1;
+    @apply text-xs text-red-500 mt-1 dark:text-red-400;
   }
 
   /* Buttons */
@@ -123,27 +131,27 @@
     @apply inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium rounded transition-all duration-150 hover:scale-[1.03] active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100;
   }
   .btn-primary {
-    @apply btn bg-ink text-white hover:bg-stone-800 active:bg-stone-900;
+    @apply btn bg-ink text-white hover:bg-stone-800 active:bg-stone-900 dark:bg-white dark:text-stone-900 dark:hover:bg-stone-200 dark:active:bg-stone-300;
   }
   .btn-ghost {
-    @apply btn bg-transparent text-stone-600 hover:bg-stone-100 hover:text-ink;
+    @apply btn bg-transparent text-stone-600 hover:bg-stone-100 hover:text-ink dark:text-stone-400 dark:hover:bg-white/10 dark:hover:text-white;
   }
   .btn-outline {
-    @apply btn bg-white border border-stone-200 text-stone-700 hover:border-stone-300 hover:bg-stone-50;
+    @apply btn bg-white border border-stone-200 text-stone-700 hover:border-stone-300 hover:bg-stone-50 dark:bg-stone-800 dark:border-stone-700 dark:text-stone-200 dark:hover:border-stone-600 dark:hover:bg-stone-700;
   }
   .btn-danger {
     @apply btn bg-red-600 text-white hover:bg-red-700;
   }
   .btn-amber {
-    @apply btn bg-amber-400 text-ink hover:bg-amber-300 font-semibold;
+    @apply btn bg-amber-400 text-stone-900 hover:bg-amber-300 font-semibold;
   }
 
   /* Cards */
   .card {
-    @apply bg-white border border-stone-100 rounded-lg shadow-sm;
+    @apply bg-white border border-stone-100 rounded-lg shadow-sm dark:bg-stone-800/60 dark:border-stone-700;
   }
   .card-header {
-    @apply px-6 py-4 border-b border-stone-100;
+    @apply px-6 py-4 border-b border-stone-100 dark:border-stone-700;
   }
   .card-body {
     @apply px-6 py-5;
@@ -164,7 +172,7 @@
   }
   /* Skeleton loading placeholder */
   .skeleton {
-    @apply relative overflow-hidden rounded bg-stone-200/70;
+    @apply relative overflow-hidden rounded bg-stone-200/70 dark:bg-white/10;
   }
   .skeleton::after {
     content: "";
@@ -179,6 +187,14 @@
     );
     animation: skeleton-shimmer 1.5s ease-in-out infinite;
   }
+  .dark .skeleton::after {
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(255, 255, 255, 0.12),
+      transparent
+    );
+  }
   @media (prefers-reduced-motion: reduce) {
     .skeleton::after {
       animation: none;
@@ -190,10 +206,10 @@
     height: 4px;
   }
   .scrollbar-thin::-webkit-scrollbar-track {
-    @apply bg-stone-100;
+    @apply bg-stone-100 dark:bg-stone-800;
   }
   .scrollbar-thin::-webkit-scrollbar-thumb {
-    @apply bg-stone-300 rounded;
+    @apply bg-stone-300 rounded dark:bg-stone-600;
   }
 }
 

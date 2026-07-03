@@ -33,7 +33,7 @@ export default async function TrackingPage({ params }: Props) {
   for (const h of receipt.orderHistory) stageDates[h.toStatus] = h.createdAt;
 
   return (
-    <main className="min-h-screen bg-stone-50 px-4 py-12">
+    <main className="min-h-screen bg-stone-50 dark:bg-stone-950 px-4 py-12">
       <div className="max-w-md mx-auto">
         <div className="text-center mb-8">
           {/* eslint-disable-next-line @next/next/no-img-element */}

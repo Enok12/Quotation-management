@@ -59,7 +59,7 @@ export function FilterTableShell({
         <div className={cn("transition-opacity", isPending && "opacity-50 pointer-events-none")}>{children}</div>
         {isPending && (
           <div className="absolute inset-0 z-10 flex items-start justify-center pt-24">
-            <span className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm text-stone-600 shadow-md border border-stone-100">
+            <span className="inline-flex items-center gap-2 rounded-full bg-white dark:bg-stone-800 px-4 py-2 text-sm text-stone-600 shadow-md border border-stone-100 dark:border-stone-700">
               <Loader2 size={16} className="animate-spin text-amber-500" />
               Loading…
             </span>

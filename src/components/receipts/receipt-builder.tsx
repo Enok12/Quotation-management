@@ -195,9 +195,9 @@ export function ReceiptBuilder({ customer, defaultValues, mode = "create" }: Pro
   return (
     <div className="flex h-full overflow-hidden">
       {/* ---- LEFT: Form ---- */}
-      <div className="w-[420px] flex-none border-r border-stone-200 overflow-y-auto bg-stone-25 flex flex-col">
+      <div className="w-[420px] flex-none border-r border-stone-200 dark:border-stone-700 overflow-y-auto bg-stone-25 dark:bg-stone-900 flex flex-col">
         <form onSubmit={handleSubmit(onSubmit)} className="flex-1 flex flex-col">
-          <div className="px-6 pt-6 pb-4 border-b border-stone-200 bg-white">
+          <div className="px-6 pt-6 pb-4 border-b border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800">
             <h2 className="font-serif text-xl text-ink">
               {mode === "edit" ? "Edit Receipt" : "New Receipt"}
             </h2>
@@ -213,7 +213,7 @@ export function ReceiptBuilder({ customer, defaultValues, mode = "create" }: Pro
             </div>
 
             {/* Sample order toggle */}
-            <label className="flex items-start gap-3 cursor-pointer bg-white border border-stone-200 rounded-md p-3 hover:border-purple-300 transition-colors">
+            <label className="flex items-start gap-3 cursor-pointer bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 rounded-md p-3 hover:border-purple-300 transition-colors">
               <input type="checkbox" {...register("isSample")} className="mt-0.5 accent-purple-500" />
               <span>
                 <span className="text-sm font-medium text-ink">Sample order</span>
@@ -237,7 +237,7 @@ export function ReceiptBuilder({ customer, defaultValues, mode = "create" }: Pro
               </div>
               <div className="space-y-2">
                 {itemFields.map((field, i) => (
-                  <div key={field.id} className="bg-white border border-stone-200 rounded-md p-3 space-y-2">
+                  <div key={field.id} className="bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 rounded-md p-3 space-y-2">
                     <div className="flex items-start gap-2">
                       <div className="flex-1">
                         <input
@@ -262,7 +262,7 @@ export function ReceiptBuilder({ customer, defaultValues, mode = "create" }: Pro
                           type="number" min="1" placeholder="Qty"
                           disabled={isSample}
                           title={isSample ? "Sample orders are single-unit" : undefined}
-                          className="field-input text-xs disabled:bg-stone-100 disabled:text-stone-400"
+                          className="field-input text-xs disabled:bg-stone-100 disabled:text-stone-400 dark:disabled:bg-stone-700 dark:disabled:text-stone-500"
                         />
                         {errors.items?.[i]?.quantity && (
                           <p className="field-error">{errors.items[i]?.quantity?.message}</p>
@@ -300,7 +300,7 @@ export function ReceiptBuilder({ customer, defaultValues, mode = "create" }: Pro
               </div>
               <div className="space-y-2">
                 {adjFields.map((field, i) => (
-                  <div key={field.id} className="bg-white border border-stone-200 rounded-md p-3">
+                  <div key={field.id} className="bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 rounded-md p-3">
                     <div className="grid grid-cols-2 gap-2">
                       <input
                         {...register(`adjustments.${i}.label`)}
@@ -324,7 +324,7 @@ export function ReceiptBuilder({ customer, defaultValues, mode = "create" }: Pro
             </div>
 
             {/* Pattern Deduction */}
-            <div className="bg-white border border-stone-200 rounded-md p-3">
+            <div className="bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 rounded-md p-3">
               <label className="flex items-start gap-3 cursor-pointer">
                 <input type="checkbox" {...register("patternDeductionEnabled")} className="mt-0.5 accent-amber-400" />
                 <span className="flex-1">
@@ -368,7 +368,7 @@ export function ReceiptBuilder({ customer, defaultValues, mode = "create" }: Pro
               <label className="field-label">Payment Method</label>
               <div className="grid grid-cols-2 gap-2">
                 {PAYMENT_OPTIONS.map((opt) => (
-                  <label key={opt.value} className="flex items-center gap-2 cursor-pointer bg-white border border-stone-200 rounded px-3 py-2 text-sm hover:border-amber-400 transition-colors">
+                  <label key={opt.value} className="flex items-center gap-2 cursor-pointer bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 rounded px-3 py-2 text-sm hover:border-amber-400 transition-colors">
                     <input
                       type="checkbox"
                       value={opt.value}
@@ -389,7 +389,7 @@ export function ReceiptBuilder({ customer, defaultValues, mode = "create" }: Pro
           </div>
 
           {/* Footer */}
-          <div className="px-6 py-4 border-t border-stone-200 bg-white space-y-3">
+          <div className="px-6 py-4 border-t border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 space-y-3">
             {error && <p className="text-xs text-red-500">{error}</p>}
             <button type="submit" disabled={saving} className="btn-primary w-full">
               {saving && <Loader2 size={15} className="animate-spin" />}
@@ -400,9 +400,11 @@ export function ReceiptBuilder({ customer, defaultValues, mode = "create" }: Pro
       </div>
 
       {/* ---- RIGHT: Live preview ---- */}
-      <div className="flex-1 overflow-auto bg-stone-100 flex items-start justify-center py-8 px-8">
+      <div className="flex-1 overflow-auto bg-stone-100 dark:bg-stone-950 flex items-start justify-center py-8 px-8">
         <div
-          className="bg-white shadow-lg"
+          // Always mimics printed paper (white page, black ink) — intentionally
+          // NOT theme-aware, regardless of site dark mode.
+          className="bg-white text-black shadow-lg"
           style={{ width: 595, minHeight: 841, fontFamily: "Times New Roman, serif", fontSize: 10 }}
         >
           <ReceiptPreview

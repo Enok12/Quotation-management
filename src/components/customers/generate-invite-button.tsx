@@ -48,7 +48,7 @@ export function GenerateInviteButton() {
           onClick={() => setOpen(false)}
         >
           <div
-            className="bg-white rounded-lg shadow-xl w-full max-w-md p-6"
+            className="bg-white dark:bg-stone-800 rounded-lg shadow-xl w-full max-w-md p-6"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-start justify-between mb-4">
@@ -64,7 +64,7 @@ export function GenerateInviteButton() {
             {loading && <p className="text-sm text-stone-500 py-6 text-center">Generating…</p>}
 
             {error && (
-              <p className="text-sm text-red-500 bg-red-50 border border-red-200 rounded px-4 py-2">
+              <p className="text-sm text-red-500 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30 rounded px-4 py-2">
                 {error}
               </p>
             )}

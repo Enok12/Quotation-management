@@ -3,6 +3,7 @@ import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { SidebarNav } from "@/components/layout/sidebar-nav";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { userId } = await auth();
@@ -35,6 +36,11 @@ export default async function DashboardLayout({ children }: { children: React.Re
             ]}
           />
         </nav>
+
+        {/* Theme */}
+        <div className="px-3 pb-1 border-t border-white/10 pt-3">
+          <ThemeToggle />
+        </div>
 
         {/* User */}
         <div className="px-4 py-4 border-t border-white/10 flex items-center gap-3">

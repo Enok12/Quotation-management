@@ -102,7 +102,7 @@ export default async function ReceiptsPage({ searchParams }: Props) {
                 <tr><td colSpan={7} className="td text-center text-stone-400 py-10">No receipts found.</td></tr>
               )}
               {receipts.map((r) => (
-                <tr key={r.id} className="hover:bg-stone-25 transition-colors">
+                <tr key={r.id} className="hover:bg-stone-25 dark:hover:bg-white/5 transition-colors">
                   <td className="td font-mono text-xs text-stone-500">#{r.receiptNumber}</td>
                   <td className="td font-medium">
                     <Link href={`/dashboard/receipts/${r.id}`} className="hover:text-amber-600 transition-colors">
@@ -120,7 +120,7 @@ export default async function ReceiptsPage({ searchParams }: Props) {
           </table>
         </div>
         {totalPages > 1 && (
-          <div className="px-6 py-4 border-t border-stone-100 flex items-center justify-between text-sm">
+          <div className="px-6 py-4 border-t border-stone-100 dark:border-stone-700 flex items-center justify-between text-sm">
             <span className="text-stone-500">Page {page} of {totalPages}</span>
             <div className="flex gap-2">
               {page > 1 && <Link href={`/dashboard/receipts?page=${page - 1}&${new URLSearchParams(sp as Record<string, string>)}`} className="btn-outline text-xs py-1.5">Previous</Link>}

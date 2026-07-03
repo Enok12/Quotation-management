@@ -4,7 +4,7 @@ import { AlertCircle } from "lucide-react";
 // never have a tracking token, so there is nothing to look up for them.
 export function TrackingInvalid() {
   return (
-    <main className="min-h-screen bg-stone-50 flex items-center justify-center px-4">
+    <main className="min-h-screen bg-stone-50 dark:bg-stone-950 flex items-center justify-center px-4">
       <div className="text-center max-w-sm">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/brand/montra-wordmark.png" alt="MONTRA" className="h-9 mx-auto mb-6" />

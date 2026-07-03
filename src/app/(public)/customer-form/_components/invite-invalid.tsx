@@ -4,7 +4,7 @@ import { AlertCircle } from "lucide-react";
 // used / expired. Kept deliberately vague so it can't be used to probe tokens.
 export function InviteInvalid({ used = false }: { used?: boolean }) {
   return (
-    <main className="min-h-screen bg-stone-50 flex items-center justify-center px-4">
+    <main className="min-h-screen bg-stone-50 dark:bg-stone-950 flex items-center justify-center px-4">
       <div className="text-center max-w-sm">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/brand/montra-wordmark.png" alt="MONTRA" className="h-9 mx-auto mb-6" />

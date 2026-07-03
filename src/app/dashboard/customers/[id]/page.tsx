@@ -105,7 +105,7 @@ export default async function CustomerDetailPage({ params }: Props) {
               <tr><td colSpan={6} className="td text-center text-stone-400 py-8">No receipts yet.</td></tr>
             )}
             {customer.receipts.map((r) => (
-              <tr key={r.id} className="hover:bg-stone-25 transition-colors">
+              <tr key={r.id} className="hover:bg-stone-25 dark:hover:bg-white/5 transition-colors">
                 <td className="td font-mono text-xs text-stone-500">#{r.receiptNumber}</td>
                 <td className="td text-stone-600">{fmtDate(r.date)}</td>
                 <td className="td text-right font-mono text-sm">{fmtMoney(r.totalDue)}</td>

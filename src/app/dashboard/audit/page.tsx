@@ -60,7 +60,7 @@ export default async function AuditPage({ searchParams }: Props) {
               <tr><td colSpan={4} className="td text-center text-stone-400 py-10">No events yet.</td></tr>
             )}
             {logs.map((log) => (
-              <tr key={log.id} className="hover:bg-stone-25 transition-colors">
+              <tr key={log.id} className="hover:bg-stone-25 dark:hover:bg-white/5 transition-colors">
                 <td className="td text-xs text-stone-500 font-mono whitespace-nowrap">{fmtDateTime(log.createdAt)}</td>
                 <td className="td text-xs text-stone-600">{log.actor.name ?? log.actor.email}</td>
                 <td className="td">
@@ -75,7 +75,7 @@ export default async function AuditPage({ searchParams }: Props) {
           </tbody>
         </table>
         {totalPages > 1 && (
-          <div className="px-6 py-4 border-t border-stone-100 flex items-center justify-between text-sm">
+          <div className="px-6 py-4 border-t border-stone-100 dark:border-stone-700 flex items-center justify-between text-sm">
             <span className="text-stone-500">Page {page} of {totalPages}</span>
             <div className="flex gap-2">
               {page > 1 && <a href={`/dashboard/audit?page=${page - 1}`} className="btn-outline text-xs py-1.5">Previous</a>}

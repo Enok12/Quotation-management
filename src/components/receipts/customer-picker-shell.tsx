@@ -47,7 +47,7 @@ export function CustomerPickerShell({ customers }: { customers: Customer[] }) {
             <button
               key={c.id}
               onClick={() => router.push(`/dashboard/receipts/new?customerId=${c.id}`)}
-              className="w-full flex items-center justify-between px-6 py-3.5 hover:bg-stone-25 transition-colors text-left"
+              className="w-full flex items-center justify-between px-6 py-3.5 hover:bg-stone-25 dark:hover:bg-white/5 transition-colors text-left"
             >
               <div>
                 <p className="font-medium text-sm text-ink">{c.name}</p>

@@ -188,7 +188,7 @@ export function FolderSyncPanel({ items }: { items: SyncItem[] }) {
       )}
 
       {progress && (
-        <div className="mt-3 h-1.5 rounded bg-stone-100 overflow-hidden">
+        <div className="mt-3 h-1.5 rounded bg-stone-100 dark:bg-stone-700 overflow-hidden">
           <div
             className="h-full bg-amber-400 transition-all"
             style={{ width: `${progress.total ? (progress.done / progress.total) * 100 : 0}%` }}

@@ -31,7 +31,7 @@ export default async function NewReceiptPage({ searchParams }: Props) {
 
   return (
     <div className="flex flex-col h-screen">
-      <div className="flex items-center gap-4 px-6 py-3 border-b border-stone-200 bg-white flex-none">
+      <div className="flex items-center gap-4 px-6 py-3 border-b border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 flex-none">
         <Link href="/dashboard/receipts" className="btn-ghost text-xs py-1">
           <ArrowLeft size={14} /> Receipts
         </Link>

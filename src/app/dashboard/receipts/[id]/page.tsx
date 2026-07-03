@@ -133,7 +133,7 @@ export default async function ReceiptDetailPage({ params }: Props) {
               </tbody>
             </table>
             {/* Totals block */}
-            <div className="border-t border-stone-100">
+            <div className="border-t border-stone-100 dark:border-stone-700">
               {receipt.adjustments.map((a) => (
                 <div key={a.id} className="flex justify-between px-4 py-2 text-sm border-b border-stone-50">
                   <span className="font-medium text-stone-600">{a.label}</span>
@@ -146,7 +146,7 @@ export default async function ReceiptDetailPage({ params }: Props) {
                 { label: "Amount Paid", value: receipt.amountPaid },
                 { label: "Balance", value: receipt.balance, bold: true },
               ].map(({ label, value, bold }) => (
-                <div key={label} className={cn("flex justify-between px-4 py-2 text-sm border-b border-stone-50", bold && "bg-amber-50")}>
+                <div key={label} className={cn("flex justify-between px-4 py-2 text-sm border-b border-stone-50", bold && "bg-amber-50 dark:bg-amber-500/10")}>
                   <span className={cn("text-stone-600", bold && "font-semibold text-ink")}>{label}</span>
                   <span className={cn("font-mono", bold && "font-semibold")}>{fmtMoney(value)}</span>
                 </div>

@@ -29,7 +29,7 @@ export function TrackingLinkButton({ token }: { token: string }) {
           onClick={() => setOpen(false)}
         >
           <div
-            className="bg-white rounded-lg shadow-xl w-full max-w-md p-6"
+            className="bg-white dark:bg-stone-800 rounded-lg shadow-xl w-full max-w-md p-6"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-start justify-between mb-4">

@@ -89,7 +89,7 @@ export default async function CustomersPage({ searchParams }: Props) {
                 </tr>
               )}
               {customers.map((c) => (
-                <tr key={c.id} className="hover:bg-stone-25 transition-colors">
+                <tr key={c.id} className="hover:bg-stone-25 dark:hover:bg-white/5 transition-colors">
                   <td className="td font-medium">
                     <Link href={`/dashboard/customers/${c.id}`} className="hover:text-amber-600 transition-colors">
                       {c.name}
@@ -115,7 +115,7 @@ export default async function CustomersPage({ searchParams }: Props) {
 
         {/* Pagination */}
         {totalPages > 1 && (
-          <div className="px-6 py-4 border-t border-stone-100 flex items-center justify-between text-sm">
+          <div className="px-6 py-4 border-t border-stone-100 dark:border-stone-700 flex items-center justify-between text-sm">
             <span className="text-stone-500">
               Page {page} of {totalPages}
             </span>

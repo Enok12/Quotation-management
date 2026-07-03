@@ -1,6 +1,7 @@
 import type { Config } from "tailwindcss";
 
 const config: Config = {
+  darkMode: "class",
   content: ["./src/**/*.{ts,tsx}"],
   theme: {
     extend: {
@@ -31,8 +32,9 @@ const config: Config = {
           500: "#B08040",
           600: "#8C6230",
         },
-        ink: "#0A0A0A",
-        canvas: "#FAFAF9",
+        // Theme-aware tokens — flip via CSS variables under .dark (see globals.css).
+        ink: "var(--ink)",
+        canvas: "var(--canvas)",
       },
       borderRadius: {
         sm: "3px",

@@ -114,7 +114,7 @@ export default async function DashboardPage() {
                 </tr>
               )}
               {recent.map((r) => (
-                <tr key={r.id} className="hover:bg-stone-25 transition-colors">
+                <tr key={r.id} className="hover:bg-stone-25 dark:hover:bg-white/5 transition-colors">
                   <td className="td font-mono text-stone-500 text-xs">#{r.receiptNumber}</td>
                   <td className="td font-medium">
                     <Link href={`/dashboard/receipts/${r.id}`} className="hover:text-amber-600 transition-colors">

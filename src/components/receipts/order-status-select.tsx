@@ -53,7 +53,7 @@ export function OrderStatusSelect({ receiptId, status }: { receiptId: string; st
         value={value}
         disabled={saving}
         onChange={(e) => change(e.target.value as OS)}
-        className="appearance-none bg-white border border-stone-200 rounded px-2 py-1.5 pr-7 text-xs text-ink hover:border-amber-400 focus:border-amber-400 focus:ring-1 focus:ring-amber-400 outline-none transition-colors disabled:opacity-60 cursor-pointer"
+        className="appearance-none bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 rounded px-2 py-1.5 pr-7 text-xs text-ink hover:border-amber-400 focus:border-amber-400 focus:ring-1 focus:ring-amber-400 outline-none transition-colors disabled:opacity-60 cursor-pointer"
       >
         {ORDER_STATUSES.map((s) => (
           <option key={s} value={s}>{LABELS[s]}</option>

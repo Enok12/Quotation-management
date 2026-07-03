@@ -41,7 +41,7 @@ export function DeleteReceiptButton({
 
       {open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" onClick={() => !loading && setOpen(false)}>
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-sm p-6" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white dark:bg-stone-800 rounded-lg shadow-xl w-full max-w-sm p-6" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-start justify-between mb-3">
               <h3 className="font-serif text-xl text-ink">Delete receipt #{receiptNumber}?</h3>
               <button onClick={() => !loading && setOpen(false)} className="text-stone-400 hover:text-ink"><X size={18} /></button>

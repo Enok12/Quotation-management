@@ -82,7 +82,7 @@ export function RecordPaymentButton({
 
       {open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" onClick={() => !saving && setOpen(false)}>
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-sm p-6" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white dark:bg-stone-800 rounded-lg shadow-xl w-full max-w-sm p-6" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-start justify-between mb-4">
               <div>
                 <h3 className="font-serif text-xl text-ink">Record a payment</h3>
@@ -131,7 +131,7 @@ export function RecordPaymentButton({
                 <input value={note} onChange={(e) => setNote(e.target.value)} className="field-input" placeholder="e.g. Advance, instalment 2…" />
               </div>
 
-              {error && <p className="text-sm text-red-500 bg-red-50 border border-red-200 rounded px-3 py-2">{error}</p>}
+              {error && <p className="text-sm text-red-500 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30 rounded px-3 py-2">{error}</p>}
 
               <button onClick={submit} disabled={saving} className="btn-primary w-full">
                 {saving && <Loader2 size={15} className="animate-spin" />}

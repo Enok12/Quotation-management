@@ -91,10 +91,10 @@ export function PhoneInput({
         <button
           type="button"
           onClick={() => setOpen((o) => !o)}
-          className="flex items-center gap-1.5 px-3 py-2.5 text-sm bg-white border border-stone-200 border-r-0 rounded-l hover:bg-stone-50 transition-colors whitespace-nowrap"
+          className="flex items-center gap-1.5 px-3 py-2.5 text-sm bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 border-r-0 rounded-l hover:bg-stone-50 dark:hover:bg-stone-700 transition-colors whitespace-nowrap"
         >
           <span className="text-base leading-none">{flag(country.code)}</span>
-          <span className="text-stone-700">{country.dial}</span>
+          <span className="text-stone-700 dark:text-stone-300">{country.dial}</span>
           <ChevronDown size={14} className="text-stone-400" />
         </button>
 
@@ -104,14 +104,14 @@ export function PhoneInput({
           value={number}
           onChange={(e) => onNumber(e.target.value)}
           placeholder="77 123 4567"
-          className="flex-1 min-w-0 px-3 py-2.5 text-sm bg-white border border-stone-200 rounded-r focus:border-amber-400 focus:ring-1 focus:ring-amber-400 outline-none transition-colors placeholder:text-stone-400"
+          className="flex-1 min-w-0 px-3 py-2.5 text-sm bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 rounded-r focus:border-amber-400 focus:ring-1 focus:ring-amber-400 outline-none transition-colors placeholder:text-stone-400"
         />
       </div>
 
       {/* Dropdown */}
       {open && (
-        <div className="absolute z-20 mt-1 w-72 max-w-[90vw] bg-white border border-stone-200 rounded-lg shadow-xl overflow-hidden">
-          <div className="p-2 border-b border-stone-100">
+        <div className="absolute z-20 mt-1 w-72 max-w-[90vw] bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 rounded-lg shadow-xl overflow-hidden">
+          <div className="p-2 border-b border-stone-100 dark:border-stone-700">
             <div className="relative">
               <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-stone-400" />
               <input
@@ -119,7 +119,7 @@ export function PhoneInput({
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search country or code…"
-                className="w-full pl-8 pr-3 py-2 text-sm border border-stone-200 rounded outline-none focus:border-amber-400"
+                className="w-full pl-8 pr-3 py-2 text-sm border border-stone-200 dark:border-stone-700 rounded outline-none focus:border-amber-400"
               />
             </div>
           </div>
@@ -133,8 +133,8 @@ export function PhoneInput({
                   type="button"
                   onClick={() => pickCountry(c)}
                   className={cn(
-                    "w-full flex items-center gap-2.5 px-3 py-2 text-sm text-left hover:bg-stone-50 transition-colors",
-                    c.code === country.code && "bg-amber-50",
+                    "w-full flex items-center gap-2.5 px-3 py-2 text-sm text-left hover:bg-stone-50 dark:hover:bg-stone-700 transition-colors",
+                    c.code === country.code && "bg-amber-50 dark:bg-amber-500/10",
                   )}
                 >
                   <span className="text-base leading-none">{flag(c.code)}</span>
