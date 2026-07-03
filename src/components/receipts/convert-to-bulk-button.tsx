@@ -9,7 +9,7 @@ import { deriveFolder } from "@/lib/order-folder";
 // Creates a new bulk order cloned from an approved sample — the sample
 // itself is left untouched in Sample Orders — then opens the new receipt
 // so staff can set the real bulk quantities.
-export function ConvertToBulkButton({ receiptId }: { receiptId: string }) {
+export function ConvertToBulkButton({ receiptId, custName }: { receiptId: string; custName: string }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
 
@@ -21,7 +21,7 @@ export function ConvertToBulkButton({ receiptId }: { receiptId: string }) {
       if (!json.success) throw new Error(json.message ?? "Failed to create bulk order");
       const { id: newId, receiptNumber: newNumber, paymentStatus } = json.data;
       // File the new bulk receipt's PDF; the sample's PDF stays where it is.
-      await moveInvoiceIfConnected(newId, newNumber, deriveFolder("BULK", paymentStatus));
+      await moveInvoiceIfConnected(newId, newNumber, custName, deriveFolder("BULK", paymentStatus));
       router.push(`/dashboard/receipts/${newId}/edit`);
     } catch (e) {
       alert(e instanceof Error ? e.message : "Failed to create bulk order");

@@ -4,6 +4,7 @@ import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { receiptService } from "@/server/services/receipt.service";
 import { renderReceiptPdf } from "@/server/pdf/render-receipt";
+import { receiptFileName } from "@/lib/utils/receipt-filename";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -26,7 +27,7 @@ export const POST = handler(async (req: NextRequest, { params }: Ctx) => {
   return new NextResponse(Buffer.from(bytes), {
     headers: {
       "Content-Type": "application/pdf",
-      "Content-Disposition": `inline; filename="receipt-${receipt.receiptNumber}.pdf"`,
+      "Content-Disposition": `inline; filename="${receiptFileName(receipt.receiptNumber, receipt.custName)}"`,
     },
   });
 });

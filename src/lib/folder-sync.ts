@@ -1,6 +1,7 @@
 "use client";
 
 import { FOLDER_NAMES, ALL_FOLDER_KEYS, type FolderKey } from "@/lib/order-folder";
+import { receiptFileName } from "@/lib/utils/receipt-filename";
 
 // ---------------------------------------------------------------------------
 // Browser → local-disk folder sync (File System Access API, Chrome/Edge only).
@@ -36,7 +37,12 @@ export function isFolderSyncSupported(): boolean {
   return typeof window !== "undefined" && "showDirectoryPicker" in window;
 }
 
-const fileName = (receiptNumber: number) => `receipt-${receiptNumber}.pdf`;
+// e.g. "John Doe", 12 → "John_Doe-12.pdf"
+const fileName = receiptFileName;
+
+// Matches any "...-<digits>.pdf" filename so both the current naming and the
+// older "receipt-<N>.pdf" naming are recognized by number (and cleaned up).
+const RECEIPT_FILE = /-(\d+)\.pdf$/i;
 
 // ----------------------------- IndexedDB ----------------------------------
 const DB_NAME = "montra-folder-sync";
@@ -136,26 +142,51 @@ async function fetchInvoicePdf(receiptId: string): Promise<ArrayBuffer> {
   return res.arrayBuffer();
 }
 
-async function placeInvoice(root: DirHandle, receiptId: string, receiptNumber: number, folder: FolderKey) {
+interface FolderFile { name: string; number: number }
+
+/** List every receipt-numbered PDF currently in one folder (any naming style). */
+async function listFolderFiles(root: DirHandle, folderName: string): Promise<FolderFile[]> {
+  const results: FolderFile[] = [];
+  let dir: DirHandle;
+  try {
+    dir = await root.getDirectoryHandle(folderName, { create: false });
+  } catch {
+    return results; // folder not created yet
+  }
+  for await (const name of dir.keys()) {
+    const m = name.match(RECEIPT_FILE);
+    if (m) results.push({ name, number: Number(m[1]) });
+  }
+  return results;
+}
+
+/** Remove every file for this receipt number across all folders (any naming style). */
+async function removeAllCopies(root: DirHandle, receiptNumber: number) {
+  for (const folderName of ALL_FOLDERS) {
+    for (const f of await listFolderFiles(root, folderName)) {
+      if (f.number !== receiptNumber) continue;
+      try {
+        const dir = await root.getDirectoryHandle(folderName, { create: false });
+        await dir.removeEntry(f.name);
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+}
+
+async function placeInvoice(root: DirHandle, receiptId: string, receiptNumber: number, custName: string, folder: FolderKey) {
   const targetName = FOLDER_NAMES[folder];
   const bytes = await fetchInvoicePdf(receiptId);
 
+  // Clear out any existing copy first (old naming, wrong folder, or both).
+  await removeAllCopies(root, receiptNumber);
+
   const dir = await root.getDirectoryHandle(targetName, { create: true });
-  const file = await dir.getFileHandle(fileName(receiptNumber), { create: true });
+  const file = await dir.getFileHandle(fileName(receiptNumber, custName), { create: true });
   const writable = await file.createWritable();
   await writable.write(bytes);
   await writable.close();
-
-  // Remove any stale copy from the other two folders.
-  for (const name of ALL_FOLDERS) {
-    if (name === targetName) continue;
-    try {
-      const other = await root.getDirectoryHandle(name, { create: false });
-      await other.removeEntry(fileName(receiptNumber));
-    } catch {
-      /* not present — fine */
-    }
-  }
 }
 
 /**
@@ -163,11 +194,16 @@ async function placeInvoice(root: DirHandle, receiptId: string, receiptNumber: n
  * isn't connected or permission isn't currently granted — "Sync all" will
  * reconcile it later. Never throws to the caller's happy path.
  */
-export async function moveInvoiceIfConnected(receiptId: string, receiptNumber: number, folder: FolderKey): Promise<boolean> {
+export async function moveInvoiceIfConnected(
+  receiptId: string,
+  receiptNumber: number,
+  custName: string,
+  folder: FolderKey,
+): Promise<boolean> {
   try {
     const handle = await getSavedHandle();
     if (!handle || !(await hasPermission(handle))) return false;
-    await placeInvoice(handle, receiptId, receiptNumber, folder);
+    await placeInvoice(handle, receiptId, receiptNumber, custName, folder);
     return true;
   } catch {
     return false;
@@ -179,14 +215,7 @@ export async function removeInvoiceFromFolders(receiptNumber: number): Promise<b
   try {
     const handle = await getSavedHandle();
     if (!handle || !(await hasPermission(handle))) return false;
-    for (const name of ALL_FOLDERS) {
-      try {
-        const dir = await handle.getDirectoryHandle(name, { create: false });
-        await dir.removeEntry(fileName(receiptNumber));
-      } catch {
-        /* not present — fine */
-      }
-    }
+    await removeAllCopies(handle, receiptNumber);
     return true;
   } catch {
     return false;
@@ -196,24 +225,8 @@ export async function removeInvoiceFromFolders(receiptNumber: number): Promise<b
 export interface SyncItem {
   id: string;
   receiptNumber: number;
+  custName: string;
   folder: FolderKey;
-}
-
-const RECEIPT_FILE = /^receipt-(\d+)\.pdf$/i;
-
-/** Read the set of receipt PDF filenames currently in one folder. */
-async function listFolderFiles(root: DirHandle, folderName: string): Promise<Set<string>> {
-  const names = new Set<string>();
-  let dir: DirHandle;
-  try {
-    dir = await root.getDirectoryHandle(folderName, { create: false });
-  } catch {
-    return names; // folder not created yet
-  }
-  for await (const name of dir.keys()) {
-    if (RECEIPT_FILE.test(name)) names.add(name);
-  }
-  return names;
 }
 
 export interface DiffDetail {
@@ -241,9 +254,11 @@ export async function diffFolders(items: SyncItem[]): Promise<FolderDiff> {
   if (!handle) throw new Error("No folder connected");
   if (!(await hasPermission(handle))) throw new Error("Folder permission needed");
 
-  // Snapshot current disk state per folder.
-  const present: Record<string, Set<string>> = {};
-  for (const folder of ALL_FOLDERS) present[folder] = await listFolderFiles(handle, folder);
+  // Snapshot current disk state per folder, by receipt number (naming-agnostic).
+  const present: Record<string, Set<number>> = {};
+  for (const folder of ALL_FOLDERS) {
+    present[folder] = new Set((await listFolderFiles(handle, folder)).map((f) => f.number));
+  }
 
   // Expected: receiptNumber → folder it should live in.
   const expected = new Map<number, string>();
@@ -253,9 +268,8 @@ export async function diffFolders(items: SyncItem[]): Promise<FolderDiff> {
   const details: DiffDetail[] = [];
 
   for (const [num, targetFolder] of expected) {
-    const file = fileName(num);
-    const inTarget = present[targetFolder]?.has(file) ?? false;
-    const elsewhere = ALL_FOLDERS.find((f) => f !== targetFolder && present[f]?.has(file));
+    const inTarget = present[targetFolder]?.has(num) ?? false;
+    const elsewhere = ALL_FOLDERS.find((f) => f !== targetFolder && present[f]?.has(num));
 
     if (inTarget && !elsewhere) {
       upToDate++;
@@ -270,10 +284,7 @@ export async function diffFolders(items: SyncItem[]): Promise<FolderDiff> {
 
   // Files on disk for receipts the app doesn't know about.
   for (const folder of ALL_FOLDERS) {
-    for (const file of present[folder]) {
-      const m = file.match(RECEIPT_FILE);
-      if (!m) continue;
-      const num = Number(m[1]);
+    for (const num of present[folder]) {
       if (!expected.has(num)) {
         orphan++;
         details.push({ receiptNumber: num, issue: "orphan", from: folder });
@@ -302,7 +313,7 @@ export async function syncAll(items: SyncItem[], onProgress?: (done: number, tot
   let synced = 0, failed = 0;
   for (let i = 0; i < items.length; i++) {
     try {
-      await placeInvoice(handle, items[i].id, items[i].receiptNumber, items[i].folder);
+      await placeInvoice(handle, items[i].id, items[i].receiptNumber, items[i].custName, items[i].folder);
       synced++;
     } catch {
       failed++;
@@ -313,12 +324,11 @@ export async function syncAll(items: SyncItem[], onProgress?: (done: number, tot
   // Remove orphaned receipt PDFs (no matching invoice in the app anymore).
   const known = new Set(items.map((it) => it.receiptNumber));
   for (const folder of ALL_FOLDERS) {
-    for (const file of await listFolderFiles(handle, folder)) {
-      const m = file.match(RECEIPT_FILE);
-      if (m && !known.has(Number(m[1]))) {
+    for (const f of await listFolderFiles(handle, folder)) {
+      if (!known.has(f.number)) {
         try {
           const dir = await handle.getDirectoryHandle(folder, { create: false });
-          await dir.removeEntry(file);
+          await dir.removeEntry(f.name);
         } catch {
           /* ignore */
         }

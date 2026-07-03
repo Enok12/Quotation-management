@@ -54,7 +54,7 @@ export default async function OrdersFolderPage({ searchParams }: Props) {
     // Lightweight list of every receipt for the "Sync all" reconcile (unfiltered by date).
     prisma.receipt.findMany({
       where: baseWhereNoDate,
-      select: { id: true, receiptNumber: true, orderType: true, paymentStatus: true },
+      select: { id: true, receiptNumber: true, custName: true, orderType: true, paymentStatus: true },
     }),
   ]);
   const totalPages = Math.ceil(total / pageSize);
@@ -63,6 +63,7 @@ export default async function OrdersFolderPage({ searchParams }: Props) {
   const syncItems = allForSync.map((r) => ({
     id: r.id,
     receiptNumber: r.receiptNumber,
+    custName: r.custName,
     folder: deriveFolder(r.orderType, r.paymentStatus),
   }));
 

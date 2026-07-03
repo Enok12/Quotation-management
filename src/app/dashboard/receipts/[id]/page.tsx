@@ -51,19 +51,20 @@ export default async function ReceiptDetailPage({ params }: Props) {
         <div className="flex items-center gap-2 flex-wrap justify-end">
           {/* Available for every sample, paid or not — payment status is unrelated to conversion. */}
           {receipt.orderType === "SAMPLE" && (
-            <ConvertToBulkButton receiptId={id} />
+            <ConvertToBulkButton receiptId={id} custName={receipt.custName} />
           )}
           {receipt.paymentStatus !== "PAID" && (
             <RecordPaymentButton
               receiptId={id}
               receiptNumber={receipt.receiptNumber}
-              balance={Number(receipt.balance)}
+              custName={receipt.custName}
+              totalDue={Number(receipt.totalDue)}
               advanceAmount={Number(receipt.advanceAmount)}
               amountPaid={Number(receipt.amountPaid)}
               orderType={receipt.orderType}
             />
           )}
-          <GeneratePdfButton receiptId={id} receiptNumber={receipt.receiptNumber} />
+          <GeneratePdfButton receiptId={id} receiptNumber={receipt.receiptNumber} custName={receipt.custName} />
           <LinkButton href={`/dashboard/receipts/${id}/edit`} className="btn-outline" icon={<Edit size={14} />} iconSize={14}>
             Edit
           </LinkButton>

@@ -8,6 +8,8 @@ import { z } from "zod";
 import { Plus, Trash2, Download, Check, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { fmtMoney } from "@/lib/utils/format";
+import { moveInvoiceIfConnected } from "@/lib/folder-sync";
+import { deriveFolder } from "@/lib/order-folder";
 
 // ---- Types ----
 const itemSchema = z.object({
@@ -52,14 +54,15 @@ const PAYMENT_OPTIONS = [
 ];
 
 // ---- Totals calculation (mirrors server-side receipt-calc.ts) ----
-function calcTotals(items: { quantity: number; unitPrice: number }[], adjs: { amount: number }[], paid: number) {
+function calcTotals(items: { quantity: number; unitPrice: number }[], adjs: { amount: number }[], advance: number, paid: number) {
   const r2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
   const lineTotals = items.map((i) => r2(i.quantity * i.unitPrice));
   const subtotal = r2(lineTotals.reduce((s, v) => s + v, 0));
   const adjTotal = r2(adjs.reduce((s, a) => s + a.amount, 0));
   const totalDue = r2(subtotal + adjTotal);
-  // Only money actually paid reduces the balance; advance is just a quote.
-  const balance = r2(totalDue - paid);
+  // Balance never shows more owed than totalDue - advance (the advance is
+  // reserved from the start); once real payments exceed it, balance tracks them.
+  const balance = r2(totalDue - Math.max(advance, paid));
   return { lineTotals, subtotal, adjTotal, totalDue, balance };
 }
 
@@ -121,6 +124,7 @@ export function ReceiptBuilder({ customer, defaultValues, mode = "create" }: Pro
   const totals = calcTotals(
     items.map((i) => ({ quantity: Number(i.quantity) || 0, unitPrice: Number(i.unitPrice) || 0 })),
     allAdjustments.map((a) => ({ amount: Number(a.amount) || 0 })),
+    Number(watchedValues.advanceAmount) || 0,
     Number(watchedValues.amountPaid) || 0,
   );
 
@@ -168,6 +172,15 @@ export function ReceiptBuilder({ customer, defaultValues, mode = "create" }: Pro
       });
       const json = await res.json();
       if (!json.success) throw new Error(json.message ?? "Failed to save");
+
+      // Keep the computer folder mirror in sync with whatever was just saved
+      // (e.g. quantities set after converting a sample to bulk).
+      const saved = json.data;
+      await moveInvoiceIfConnected(
+        saved.id, saved.receiptNumber, saved.custName,
+        deriveFolder(saved.orderType, saved.paymentStatus),
+      );
+
       router.push(`/dashboard/receipts/${json.data.id}`);
       router.refresh();
     } catch (e) {

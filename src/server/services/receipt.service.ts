@@ -153,8 +153,11 @@ export const receiptService = {
     if (!(input.amount > 0)) throw new ConflictError("Payment amount must be greater than zero");
 
     const totalDue = Number(existing.totalDue);
+    const advanceAmount = Number(existing.advanceAmount);
     const newAmountPaid = Math.round((Number(existing.amountPaid) + input.amount + Number.EPSILON) * 100) / 100;
-    const balance = Math.round((totalDue - newAmountPaid + Number.EPSILON) * 100) / 100;
+    // Balance never shows more owed than totalDue - advanceAmount — the advance
+    // is reserved from the start. Once real payments exceed it, balance tracks them.
+    const balance = Math.round((totalDue - Math.max(advanceAmount, newAmountPaid) + Number.EPSILON) * 100) / 100;
     const paymentStatus = derivePaymentStatus(totalDue, newAmountPaid);
 
     // Reflect the method used on the receipt's Payment Information block (and PDF).
@@ -200,8 +203,10 @@ export const receiptService = {
       description: it.description, quantity: it.quantity, unitPrice: Number(it.unitPrice),
     }));
     const adjustments = sample.adjustments.map((a) => ({ label: a.label, amount: Number(a.amount) }));
-    const totals = calcReceiptTotals({ items, adjustments, advanceAmount: 0, amountPaid: 0 });
-    const advanceAmount = Math.round(totals.totalDue * 0.6 * 100) / 100;
+    const preTotals = calcReceiptTotals({ items, adjustments, advanceAmount: 0, amountPaid: 0 });
+    const advanceAmount = Math.round(preTotals.totalDue * 0.6 * 100) / 100;
+    // Recompute with the real advance so balance = totalDue - advanceAmount (nothing paid yet).
+    const totals = calcReceiptTotals({ items, adjustments, advanceAmount, amountPaid: 0 });
 
     return prisma.$transaction(async (tx) => {
       const receipt = await tx.receipt.create({

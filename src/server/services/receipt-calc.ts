@@ -21,9 +21,11 @@ export function calcReceiptTotals(input: CalcInput): CalcResult {
   const subtotal = round2(lineTotals.reduce((s, v) => s + v, 0));
   const adjustmentsTotal = round2(input.adjustments.reduce((s, a) => s + a.amount, 0));
   const totalDue = round2(subtotal + adjustmentsTotal);
-  // Advance is an expected/quoted figure shown to the customer — only money
-  // actually collected (amountPaid) reduces the balance.
-  const balance = round2(totalDue - input.amountPaid);
+  // The advance is reserved against the balance from the moment it's quoted
+  // (the customer is expected to pay at least that much) — so balance never
+  // shows more owed than totalDue - advanceAmount. Once actual payments
+  // (amountPaid) exceed the advance, the balance tracks real money paid.
+  const balance = round2(totalDue - Math.max(input.advanceAmount, input.amountPaid));
   return { lineTotals, subtotal, adjustmentsTotal, totalDue, balance };
 }
 

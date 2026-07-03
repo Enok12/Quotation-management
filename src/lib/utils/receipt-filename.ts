@@ -1,0 +1,18 @@
+// Shared filename builder for receipt PDFs — used by the download button, the
+// server's Content-Disposition header, and the computer folder sync, so every
+// place a receipt PDF gets a name agrees on the same format:
+//   Customer_Name-ReceiptNumber.pdf
+
+// Strip characters invalid in Windows/macOS filenames, collapse whitespace to
+// underscores, and cap the length.
+export function sanitizeForFilename(name: string): string {
+  const cleaned = name
+    .replace(/[<>:"/\\|?*\x00-\x1F]/g, "")
+    .trim()
+    .replace(/\s+/g, "_");
+  return cleaned.slice(0, 60) || "Customer";
+}
+
+export function receiptFileName(receiptNumber: number, custName: string): string {
+  return `${sanitizeForFilename(custName)}-${receiptNumber}.pdf`;
+}

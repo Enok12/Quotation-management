@@ -1,8 +1,11 @@
 "use client";
 import { useState } from "react";
 import { FileDown, Loader2 } from "lucide-react";
+import { receiptFileName } from "@/lib/utils/receipt-filename";
 
-export function GeneratePdfButton({ receiptId, receiptNumber }: { receiptId: string; receiptNumber: number }) {
+export function GeneratePdfButton({
+  receiptId, receiptNumber, custName,
+}: { receiptId: string; receiptNumber: number; custName: string }) {
   const [loading, setLoading] = useState(false);
 
   const generate = async () => {
@@ -13,7 +16,7 @@ export function GeneratePdfButton({ receiptId, receiptNumber }: { receiptId: str
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
-      a.href = url; a.download = `receipt-${receiptNumber}.pdf`;
+      a.href = url; a.download = receiptFileName(receiptNumber, custName);
       a.click(); URL.revokeObjectURL(url);
     } finally { setLoading(false); }
   };
