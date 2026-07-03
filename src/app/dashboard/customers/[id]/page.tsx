@@ -6,6 +6,7 @@ import { ArrowLeft, Plus } from "lucide-react";
 import { fmtDate, fmtMoney } from "@/lib/utils/format";
 import { PaymentStatusBadge, OrderStatusBadge } from "@/components/receipts/status-badges";
 import { LinkButton } from "@/components/ui/link-button";
+import { DeleteCustomerButton } from "@/components/customers/delete-customer-button";
 
 interface Props { params: Promise<{ id: string }> }
 
@@ -40,9 +41,12 @@ export default async function CustomerDetailPage({ params }: Props) {
           <h1 className="font-serif text-3xl text-ink">{customer.name}</h1>
           <p className="text-stone-500 text-sm mt-1">Customer since {fmtDate(customer.createdAt)}</p>
         </div>
-        <LinkButton href={`/dashboard/receipts/new?customerId=${customer.id}`} className="btn-primary" icon={<Plus size={15} />}>
-          New Receipt
-        </LinkButton>
+        <div className="flex items-center gap-2">
+          <LinkButton href={`/dashboard/receipts/new?customerId=${customer.id}`} className="btn-primary" icon={<Plus size={15} />}>
+            New Receipt
+          </LinkButton>
+          <DeleteCustomerButton customerId={customer.id} customerName={customer.name} receiptCount={customer.receipts.length} />
+        </div>
       </div>
 
       <div className="grid grid-cols-3 gap-6 mb-8">

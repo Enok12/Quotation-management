@@ -32,7 +32,9 @@ export function FilterTableShell({
   const tabClass = (active: boolean) =>
     cn(
       "px-3 py-1.5 rounded text-xs font-medium transition-colors disabled:cursor-not-allowed",
-      active ? "bg-ink text-white" : "text-stone-500 hover:bg-stone-100",
+      active
+        ? "bg-ink text-white dark:bg-white dark:text-stone-900"
+        : "text-stone-500 hover:bg-stone-100 dark:text-stone-400 dark:hover:bg-white/10",
     );
 
   return (
@@ -40,13 +42,13 @@ export function FilterTableShell({
       <div className="flex items-center gap-6 mb-4 flex-wrap">
         {groups.map((tabs, gi) => (
           <Fragment key={gi}>
-            {gi > 0 && <div className="w-px h-4 bg-stone-200" />}
+            {gi > 0 && <div className="w-px h-4 bg-stone-200 dark:bg-stone-700" />}
             <div className="flex gap-1 flex-wrap">
               {tabs.map((t) => (
                 <button key={t.label} onClick={() => go(t.href)} disabled={isPending} className={tabClass(t.active)}>
                   {t.label}
                   {t.count !== undefined && (
-                    <span className={cn("ml-1.5", t.active ? "text-white/70" : "text-stone-400")}>{t.count}</span>
+                    <span className={cn("ml-1.5", t.active ? "text-white/70 dark:text-stone-900/60" : "text-stone-400 dark:text-stone-500")}>{t.count}</span>
                   )}
                 </button>
               ))}

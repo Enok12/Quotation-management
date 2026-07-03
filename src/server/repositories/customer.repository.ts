@@ -44,8 +44,4 @@ export const customerRepository = {
   update(id: string, data: Prisma.CustomerUpdateInput) {
     return prisma.customer.update({ where: { id }, data });
   },
-
-  delete(id: string) {
-    return prisma.customer.delete({ where: { id } });
-  },
 };

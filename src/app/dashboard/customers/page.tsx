@@ -6,6 +6,7 @@ import { fmtDate } from "@/lib/utils/format";
 import { CustomerSearch } from "@/components/customers/customer-search";
 import { GenerateInviteButton } from "@/components/customers/generate-invite-button";
 import { LinkButton } from "@/components/ui/link-button";
+import { DeleteCustomerButton } from "@/components/customers/delete-customer-button";
 
 interface Props {
   searchParams: Promise<{ page?: string; search?: string; sortBy?: string; sortDir?: string }>;
@@ -77,7 +78,7 @@ export default async function CustomersPage({ searchParams }: Props) {
                 <th className="th text-left">NIC</th>
                 <th className="th text-center">Receipts</th>
                 <th className="th text-left">Added</th>
-                <th className="th w-16"></th>
+                <th className="th w-32"></th>
               </tr>
             </thead>
             <tbody>
@@ -103,9 +104,17 @@ export default async function CustomersPage({ searchParams }: Props) {
                   </td>
                   <td className="td text-stone-400 text-xs">{fmtDate(c.createdAt)}</td>
                   <td className="td">
-                    <LinkButton href={`/dashboard/receipts/new?customerId=${c.id}`} className="btn-ghost text-xs py-1" iconSize={12}>
-                      + Receipt
-                    </LinkButton>
+                    <div className="flex items-center gap-1">
+                      <LinkButton href={`/dashboard/receipts/new?customerId=${c.id}`} className="btn-ghost text-xs py-1" iconSize={12}>
+                        + Receipt
+                      </LinkButton>
+                      <DeleteCustomerButton
+                        customerId={c.id}
+                        customerName={c.name}
+                        receiptCount={c._count.receipts}
+                        iconOnly
+                      />
+                    </div>
                   </td>
                 </tr>
               ))}

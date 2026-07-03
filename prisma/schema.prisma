@@ -64,6 +64,7 @@ enum AuditAction {
   VERSION_CREATED
   PAYMENT_RECORDED
   RECEIPT_DELETED
+  CUSTOMER_DELETED
 }
 
 // ----------------------------- Users -----------------------------

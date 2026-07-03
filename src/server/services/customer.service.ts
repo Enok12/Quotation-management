@@ -54,8 +54,28 @@ export const customerService = {
     });
   },
 
-  async remove(id: string) {
-    await this.getById(id);
-    return customerRepository.delete(id);
+  // Deleting a customer also deletes all of their receipts (and, via cascade,
+  // each receipt's items/adjustments/payments/versions/order history). The
+  // caller is expected to have already confirmed this with the user.
+  async remove(id: string, actorId: string) {
+    const customer = await this.getById(id);
+
+    return prisma.$transaction(async (tx) => {
+      // Detach any registration invite that produced this customer — the FK
+      // has no cascade, so it would otherwise block the delete.
+      await tx.customerInvite.updateMany({ where: { customerId: id }, data: { customerId: null } });
+
+      const receipts = await tx.receipt.findMany({ where: { customerId: id }, select: { receiptNumber: true } });
+      await tx.receipt.deleteMany({ where: { customerId: id } });
+
+      await tx.customer.delete({ where: { id } });
+
+      await auditService.log(tx, {
+        actorId, action: "CUSTOMER_DELETED", entityType: "Customer", entityId: id,
+        metadata: { name: customer.name, receiptsDeleted: receipts.length },
+      });
+
+      return { id, receiptNumbers: receipts.map((r) => r.receiptNumber) };
+    });
   },
 };

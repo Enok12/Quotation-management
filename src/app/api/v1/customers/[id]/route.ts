@@ -20,8 +20,8 @@ export const PUT = handler(async (req: NextRequest, { params }: Ctx) => {
 });
 
 export const DELETE = handler(async (_req: NextRequest, { params }: Ctx) => {
-  await requireAdmin();
+  const user = await requireAdmin();
   const { id } = await params;
-  await customerService.remove(id);
-  return ok({ id });
+  const result = await customerService.remove(id, user.id);
+  return ok(result);
 });
