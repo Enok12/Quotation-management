@@ -4,8 +4,10 @@ import Link from "next/link";
 import { fmtMoney, fmtDate } from "@/lib/utils/format";
 import { OrderStatusSelect } from "@/components/receipts/order-status-select";
 import { FilterTableShell } from "@/components/dashboard/filter-table-shell";
+import { DateRangeFilter } from "@/components/dashboard/date-range-filter";
+import { dateRangeFilter, buildQuery } from "@/lib/utils/date-range";
 
-interface Props { searchParams: Promise<{ status?: string; page?: string }> }
+interface Props { searchParams: Promise<{ status?: string; page?: string; from?: string; to?: string }> }
 export const metadata = { title: "Production" };
 
 export default async function OrdersPage({ searchParams }: Props) {
@@ -16,10 +18,12 @@ export default async function OrdersPage({ searchParams }: Props) {
   const orderStatus = sp.status as
     | "FABRIC_SELECTION" | "CUTTING" | "PRODUCTION" | "QUALITY_CHECK" | "IRON_PACKING" | "DELIVERY"
     | undefined;
+  const dateWhere = dateRangeFilter(sp.from, sp.to);
 
   const where = {
     status: "FINALIZED" as const,
     ...(orderStatus ? { orderStatus } : {}),
+    ...(dateWhere ? { date: dateWhere } : {}),
   };
 
   const [total, orders] = await Promise.all([
@@ -37,14 +41,15 @@ export default async function OrdersPage({ searchParams }: Props) {
   ]);
   const totalPages = Math.ceil(total / pageSize);
 
+  const tabHref = (status?: string) => `/dashboard/orders?${buildQuery({ status, from: sp.from, to: sp.to })}`;
   const tabs = [
-    { label: "All", href: "/dashboard/orders", active: !orderStatus },
-    { label: "Fabric Selection", href: "/dashboard/orders?status=FABRIC_SELECTION", active: orderStatus === "FABRIC_SELECTION" },
-    { label: "Cutting", href: "/dashboard/orders?status=CUTTING", active: orderStatus === "CUTTING" },
-    { label: "Production", href: "/dashboard/orders?status=PRODUCTION", active: orderStatus === "PRODUCTION" },
-    { label: "Quality Check", href: "/dashboard/orders?status=QUALITY_CHECK", active: orderStatus === "QUALITY_CHECK" },
-    { label: "Iron / Packing", href: "/dashboard/orders?status=IRON_PACKING", active: orderStatus === "IRON_PACKING" },
-    { label: "Delivery", href: "/dashboard/orders?status=DELIVERY", active: orderStatus === "DELIVERY" },
+    { label: "All", href: tabHref(), active: !orderStatus },
+    { label: "Fabric Selection", href: tabHref("FABRIC_SELECTION"), active: orderStatus === "FABRIC_SELECTION" },
+    { label: "Cutting", href: tabHref("CUTTING"), active: orderStatus === "CUTTING" },
+    { label: "Production", href: tabHref("PRODUCTION"), active: orderStatus === "PRODUCTION" },
+    { label: "Quality Check", href: tabHref("QUALITY_CHECK"), active: orderStatus === "QUALITY_CHECK" },
+    { label: "Iron / Packing", href: tabHref("IRON_PACKING"), active: orderStatus === "IRON_PACKING" },
+    { label: "Delivery", href: tabHref("DELIVERY"), active: orderStatus === "DELIVERY" },
   ];
 
   return (
@@ -52,6 +57,10 @@ export default async function OrdersPage({ searchParams }: Props) {
       <div className="mb-6">
         <h1 className="font-serif text-3xl text-ink">Production</h1>
         <p className="text-stone-500 text-sm mt-1">{total.toLocaleString()} orders in production</p>
+      </div>
+
+      <div className="flex justify-end mb-4">
+        <DateRangeFilter />
       </div>
 
       <FilterTableShell groups={[tabs]}>
@@ -91,8 +100,8 @@ export default async function OrdersPage({ searchParams }: Props) {
           <div className="px-6 py-4 border-t border-stone-100 flex items-center justify-between text-sm">
             <span className="text-stone-500">Page {page} of {totalPages}</span>
             <div className="flex gap-2">
-              {page > 1 && <Link href={`/dashboard/orders?page=${page - 1}${orderStatus ? `&status=${orderStatus}` : ""}`} className="btn-outline text-xs py-1.5">Previous</Link>}
-              {page < totalPages && <Link href={`/dashboard/orders?page=${page + 1}${orderStatus ? `&status=${orderStatus}` : ""}`} className="btn-outline text-xs py-1.5">Next</Link>}
+              {page > 1 && <Link href={`/dashboard/orders?${buildQuery({ page: String(page - 1), status: orderStatus, from: sp.from, to: sp.to })}`} className="btn-outline text-xs py-1.5">Previous</Link>}
+              {page < totalPages && <Link href={`/dashboard/orders?${buildQuery({ page: String(page + 1), status: orderStatus, from: sp.from, to: sp.to })}`} className="btn-outline text-xs py-1.5">Next</Link>}
             </div>
           </div>
         )}

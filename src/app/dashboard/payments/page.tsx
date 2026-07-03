@@ -6,9 +6,11 @@ import { fmtMoney, fmtDate } from "@/lib/utils/format";
 import { PaymentStatusBadge, OrderTypeBadge } from "@/components/receipts/status-badges";
 import { FolderSyncPanel } from "@/components/payments/folder-sync-panel";
 import { FilterTableShell } from "@/components/dashboard/filter-table-shell";
+import { DateRangeFilter } from "@/components/dashboard/date-range-filter";
 import { deriveFolder, FOLDER_NAMES, type FolderKey } from "@/lib/order-folder";
+import { dateRangeFilter, buildQuery } from "@/lib/utils/date-range";
 
-interface Props { searchParams: Promise<{ folder?: string; page?: string }> }
+interface Props { searchParams: Promise<{ folder?: string; page?: string; from?: string; to?: string }> }
 export const metadata = { title: "Orders" };
 
 const FOLDERS = ["BULK", "SAMPLE", "COMPLETED"] as const;
@@ -27,8 +29,11 @@ export default async function OrdersFolderPage({ searchParams }: Props) {
   const page = Math.max(1, Number(sp.page ?? 1));
   const pageSize = 25;
   const folder = FOLDERS.includes(sp.folder as (typeof FOLDERS)[number]) ? (sp.folder as FolderKey) : undefined;
+  const dateWhere = dateRangeFilter(sp.from, sp.to);
 
-  const baseWhere: Prisma.ReceiptWhereInput = { status: "FINALIZED" };
+  // Sync-all always reconciles every receipt, regardless of the date filter.
+  const baseWhereNoDate: Prisma.ReceiptWhereInput = { status: "FINALIZED" };
+  const baseWhere: Prisma.ReceiptWhereInput = { ...baseWhereNoDate, ...(dateWhere ? { date: dateWhere } : {}) };
   const where: Prisma.ReceiptWhereInput = { ...baseWhere, ...whereForFolder(folder) };
 
   const [bulkCount, sampleCount, completedCount, total, receipts, allForSync] = await Promise.all([
@@ -46,9 +51,9 @@ export default async function OrdersFolderPage({ searchParams }: Props) {
         totalDue: true, amountPaid: true, balance: true, paymentStatus: true, orderType: true,
       },
     }),
-    // Lightweight list of every receipt for the "Sync all" reconcile.
+    // Lightweight list of every receipt for the "Sync all" reconcile (unfiltered by date).
     prisma.receipt.findMany({
-      where: baseWhere,
+      where: baseWhereNoDate,
       select: { id: true, receiptNumber: true, orderType: true, paymentStatus: true },
     }),
   ]);
@@ -71,7 +76,7 @@ export default async function OrdersFolderPage({ searchParams }: Props) {
     label: t.label,
     count: t.count,
     active: (t.value ?? null) === (folder ?? null),
-    href: t.value ? `/dashboard/payments?folder=${t.value}` : "/dashboard/payments",
+    href: `/dashboard/payments?${buildQuery({ folder: t.value ?? undefined, from: sp.from, to: sp.to })}`,
   }));
 
   return (
@@ -84,6 +89,10 @@ export default async function OrdersFolderPage({ searchParams }: Props) {
       {/* Computer-folder sync */}
       <div className="mb-6">
         <FolderSyncPanel items={syncItems} />
+      </div>
+
+      <div className="flex justify-end mb-4">
+        <DateRangeFilter />
       </div>
 
       {/* Folder tabs + table (loading overlay while switching) */}
@@ -128,8 +137,8 @@ export default async function OrdersFolderPage({ searchParams }: Props) {
           <div className="px-6 py-4 border-t border-stone-100 flex items-center justify-between text-sm">
             <span className="text-stone-500">Page {page} of {totalPages}</span>
             <div className="flex gap-2">
-              {page > 1 && <Link href={`/dashboard/payments?page=${page - 1}${folder ? `&folder=${folder}` : ""}`} className="btn-outline text-xs py-1.5">Previous</Link>}
-              {page < totalPages && <Link href={`/dashboard/payments?page=${page + 1}${folder ? `&folder=${folder}` : ""}`} className="btn-outline text-xs py-1.5">Next</Link>}
+              {page > 1 && <Link href={`/dashboard/payments?${buildQuery({ page: String(page - 1), folder, from: sp.from, to: sp.to })}`} className="btn-outline text-xs py-1.5">Previous</Link>}
+              {page < totalPages && <Link href={`/dashboard/payments?${buildQuery({ page: String(page + 1), folder, from: sp.from, to: sp.to })}`} className="btn-outline text-xs py-1.5">Next</Link>}
             </div>
           </div>
         )}

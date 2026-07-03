@@ -49,6 +49,7 @@ export default async function ReceiptDetailPage({ params }: Props) {
           <p className="text-stone-500 text-sm mt-1">{receipt.custName} · {fmtDate(receipt.date)}</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap justify-end">
+          {/* Available for every sample, paid or not — payment status is unrelated to conversion. */}
           {receipt.orderType === "SAMPLE" && (
             <ConvertToBulkButton receiptId={id} />
           )}

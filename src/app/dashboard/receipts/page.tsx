@@ -6,10 +6,12 @@ import { fmtMoney, fmtDate } from "@/lib/utils/format";
 import { OrderStatusBadge, PaymentStatusBadge } from "@/components/receipts/status-badges";
 import { CustomerSearch } from "@/components/customers/customer-search";
 import { FilterTableShell } from "@/components/dashboard/filter-table-shell";
+import { DateRangeFilter } from "@/components/dashboard/date-range-filter";
 import { LinkButton } from "@/components/ui/link-button";
+import { dateRangeFilter } from "@/lib/utils/date-range";
 
 interface Props {
-  searchParams: Promise<{ page?: string; status?: string; orderStatus?: string; search?: string }>;
+  searchParams: Promise<{ page?: string; status?: string; orderStatus?: string; search?: string; from?: string; to?: string }>;
 }
 export const metadata = { title: "Receipts" };
 
@@ -19,10 +21,12 @@ export default async function ReceiptsPage({ searchParams }: Props) {
   const page = Math.max(1, Number(sp.page ?? 1));
   const pageSize = 25;
   const search = sp.search?.trim() ?? "";
+  const dateWhere = dateRangeFilter(sp.from, sp.to);
 
   const where = {
     ...(sp.orderStatus ? { orderStatus: sp.orderStatus as "FABRIC_SELECTION" | "CUTTING" | "PRODUCTION" | "QUALITY_CHECK" | "IRON_PACKING" | "DELIVERY" } : {}),
     ...(search ? { custName: { contains: search, mode: "insensitive" as const } } : {}),
+    ...(dateWhere ? { date: dateWhere } : {}),
   };
 
   const [total, receipts] = await Promise.all([
@@ -44,6 +48,8 @@ export default async function ReceiptsPage({ searchParams }: Props) {
     const active = sp[key] === value || (value === null && !sp[key]);
     const params = new URLSearchParams();
     if (sp.search) params.set("search", sp.search);
+    if (sp.from) params.set("from", sp.from);
+    if (sp.to) params.set("to", sp.to);
     if (key === "status" && value) params.set("status", value);
     if (key === "orderStatus" && value) params.set("orderStatus", value);
     return { label, href: `/dashboard/receipts?${params}`, active };
@@ -74,8 +80,9 @@ export default async function ReceiptsPage({ searchParams }: Props) {
       {/* Filters + table (the shell shows a loading overlay while switching) */}
       <FilterTableShell groups={[orderTabs]}>
       <div className="card">
-        <div className="card-header">
+        <div className="card-header flex items-center justify-between flex-wrap gap-3">
           <CustomerSearch defaultValue={search} />
+          <DateRangeFilter />
         </div>
         <div className="overflow-x-auto">
           <table className="w-full">
