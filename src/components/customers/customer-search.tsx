@@ -5,7 +5,13 @@ import { useCallback, useTransition } from "react";
 import { Search } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 
-export function CustomerSearch({ defaultValue }: { defaultValue: string }) {
+export function CustomerSearch({
+  defaultValue,
+  placeholder = "Search by name, phone, or email…",
+}: {
+  defaultValue: string;
+  placeholder?: string;
+}) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -32,7 +38,7 @@ export function CustomerSearch({ defaultValue }: { defaultValue: string }) {
         type="text"
         defaultValue={defaultValue}
         onChange={handleChange}
-        placeholder="Search by name, phone, or email…"
+        placeholder={placeholder}
         className={cn("field-input pl-9 max-w-sm", isPending && "opacity-60")}
       />
     </div>

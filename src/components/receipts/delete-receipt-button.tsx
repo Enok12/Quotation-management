@@ -10,9 +10,14 @@ import { removeInvoiceFromFolders } from "@/lib/folder-sync";
 export function DeleteReceiptButton({
   receiptId,
   receiptNumber,
+  iconOnly = false,
 }: {
   receiptId: string;
   receiptNumber: number;
+  /** Render a compact icon-only trigger (e.g. for a dense table row) instead
+   * of the full labeled button. Skips the redirect-to-list navigation, since
+   * the caller is already on a list page. */
+  iconOnly?: boolean;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -25,7 +30,7 @@ export function DeleteReceiptButton({
       const json = await res.json();
       if (!json.success) throw new Error(json.message ?? "Failed to delete");
       await removeInvoiceFromFolders(receiptNumber);
-      router.push("/dashboard/receipts");
+      if (!iconOnly) router.push("/dashboard/receipts");
       router.refresh();
     } catch (e) {
       alert(e instanceof Error ? e.message : "Failed to delete");
@@ -35,9 +40,20 @@ export function DeleteReceiptButton({
 
   return (
     <>
-      <button onClick={() => setOpen(true)} className="btn-danger">
-        <Trash2 size={14} /> Delete
-      </button>
+      {iconOnly ? (
+        <button
+          onClick={() => setOpen(true)}
+          title="Delete receipt"
+          aria-label="Delete receipt"
+          className="text-stone-300 hover:text-red-500 dark:text-stone-600 dark:hover:text-red-400 transition-colors p-1"
+        >
+          <Trash2 size={14} />
+        </button>
+      ) : (
+        <button onClick={() => setOpen(true)} className="btn-danger">
+          <Trash2 size={14} /> Delete
+        </button>
+      )}
 
       {open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 modal-overlay-in" onClick={() => !loading && setOpen(false)}>

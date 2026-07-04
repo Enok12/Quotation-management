@@ -10,6 +10,7 @@ import {
   Package,
   ClipboardList,
   Wallet,
+  Banknote,
   type LucideIcon,
 } from "lucide-react";
 
@@ -20,6 +21,7 @@ const ICONS = {
   Package,
   ClipboardList,
   Wallet,
+  Banknote,
 } satisfies Record<string, LucideIcon>;
 
 export type NavIcon = keyof typeof ICONS;

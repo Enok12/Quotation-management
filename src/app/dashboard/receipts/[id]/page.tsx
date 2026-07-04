@@ -12,6 +12,8 @@ import { TrackingLinkButton } from "@/components/receipts/tracking-link-button";
 import { LinkButton } from "@/components/ui/link-button";
 import { OrderStatusChanger } from "@/components/receipts/order-status-changer";
 import { RecordPaymentButton } from "@/components/receipts/record-payment-button";
+import { AddExpenseButton } from "@/components/receipts/add-expense-button";
+import { ExpenseList } from "@/components/receipts/expense-list";
 import { VersionHistory } from "@/components/receipts/version-history";
 
 interface Props { params: Promise<{ id: string }> }
@@ -29,9 +31,12 @@ export default async function ReceiptDetailPage({ params }: Props) {
       versions: { orderBy: { versionNumber: "desc" }, select: { id: true, versionNumber: true, changeSummary: true, createdAt: true } },
       orderHistory: { orderBy: { createdAt: "desc" }, take: 5, select: { toStatus: true, fromStatus: true, note: true, createdAt: true } },
       payments: { orderBy: { paidAt: "desc" }, select: { id: true, amount: true, method: true, note: true, paidAt: true } },
+      expenses: { orderBy: { createdAt: "desc" }, select: { id: true, description: true, amount: true, createdAt: true } },
     },
   });
   if (!receipt) notFound();
+
+  const totalExpenses = receipt.expenses.reduce((s, e) => s + Number(e.amount), 0);
 
   return (
     <div className="px-8 py-8 max-w-5xl">
@@ -199,6 +204,23 @@ export default async function ReceiptDetailPage({ params }: Props) {
               )}
             </div>
           )}
+
+          {/* Expenses */}
+          <div className="card card-body">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="heading-2">Expenses</h2>
+              <AddExpenseButton receiptId={id} />
+            </div>
+            {receipt.expenses.length > 0 && (
+              <div className="flex justify-between text-sm mb-3">
+                <span className="text-stone-500">Total Expenses</span>
+                <span className="font-mono text-red-600 dark:text-red-400 font-semibold">{fmtMoney(totalExpenses)}</span>
+              </div>
+            )}
+            <ExpenseList
+              expenses={receipt.expenses.map((e) => ({ ...e, amount: Number(e.amount) }))}
+            />
+          </div>
 
           {/* Meta */}
           <div className="card card-body space-y-3">

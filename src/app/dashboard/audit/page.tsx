@@ -15,6 +15,10 @@ const ACTION_LABELS: Record<string, string> = {
   ORDER_STATUS_CHANGED: "Order status changed",
   VERSION_CREATED: "Version created",
   PAYMENT_RECORDED: "Payment recorded",
+  RECEIPT_DELETED: "Receipt deleted",
+  CUSTOMER_DELETED: "Customer deleted",
+  EXPENSE_RECORDED: "Expense recorded",
+  EXPENSE_DELETED: "Expense deleted",
 };
 
 export default async function AuditPage({ searchParams }: Props) {

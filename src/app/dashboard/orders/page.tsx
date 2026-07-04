@@ -5,9 +5,10 @@ import { fmtMoney, fmtDate } from "@/lib/utils/format";
 import { OrderStatusSelect } from "@/components/receipts/order-status-select";
 import { FilterTableShell } from "@/components/dashboard/filter-table-shell";
 import { DateRangeFilter } from "@/components/dashboard/date-range-filter";
+import { CustomerSearch } from "@/components/customers/customer-search";
 import { dateRangeFilter, buildQuery } from "@/lib/utils/date-range";
 
-interface Props { searchParams: Promise<{ status?: string; page?: string; from?: string; to?: string }> }
+interface Props { searchParams: Promise<{ status?: string; page?: string; from?: string; to?: string; search?: string }> }
 export const metadata = { title: "Production" };
 
 export default async function OrdersPage({ searchParams }: Props) {
@@ -19,11 +20,13 @@ export default async function OrdersPage({ searchParams }: Props) {
     | "FABRIC_SELECTION" | "CUTTING" | "PRODUCTION" | "QUALITY_CHECK" | "IRON_PACKING" | "DELIVERY"
     | undefined;
   const dateWhere = dateRangeFilter(sp.from, sp.to);
+  const search = sp.search?.trim() ?? "";
 
   const where = {
     status: "FINALIZED" as const,
     ...(orderStatus ? { orderStatus } : {}),
     ...(dateWhere ? { date: dateWhere } : {}),
+    ...(search ? { custName: { contains: search, mode: "insensitive" as const } } : {}),
   };
 
   const [total, orders] = await Promise.all([
@@ -41,7 +44,7 @@ export default async function OrdersPage({ searchParams }: Props) {
   ]);
   const totalPages = Math.ceil(total / pageSize);
 
-  const tabHref = (status?: string) => `/dashboard/orders?${buildQuery({ status, from: sp.from, to: sp.to })}`;
+  const tabHref = (status?: string) => `/dashboard/orders?${buildQuery({ status, from: sp.from, to: sp.to, search: sp.search })}`;
   const tabs = [
     { label: "All", href: tabHref(), active: !orderStatus },
     { label: "Fabric Selection", href: tabHref("FABRIC_SELECTION"), active: orderStatus === "FABRIC_SELECTION" },
@@ -59,7 +62,8 @@ export default async function OrdersPage({ searchParams }: Props) {
         <p className="text-stone-500 text-sm mt-1">{total.toLocaleString()} orders in production</p>
       </div>
 
-      <div className="flex justify-end mb-4">
+      <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+        <CustomerSearch defaultValue={search} placeholder="Search by customer name…" />
         <DateRangeFilter />
       </div>
 
@@ -100,8 +104,8 @@ export default async function OrdersPage({ searchParams }: Props) {
           <div className="px-6 py-4 border-t border-stone-100 dark:border-stone-700 flex items-center justify-between text-sm">
             <span className="text-stone-500">Page {page} of {totalPages}</span>
             <div className="flex gap-2">
-              {page > 1 && <Link href={`/dashboard/orders?${buildQuery({ page: String(page - 1), status: orderStatus, from: sp.from, to: sp.to })}`} className="btn-outline text-xs py-1.5">Previous</Link>}
-              {page < totalPages && <Link href={`/dashboard/orders?${buildQuery({ page: String(page + 1), status: orderStatus, from: sp.from, to: sp.to })}`} className="btn-outline text-xs py-1.5">Next</Link>}
+              {page > 1 && <Link href={`/dashboard/orders?${buildQuery({ page: String(page - 1), status: orderStatus, from: sp.from, to: sp.to, search: sp.search })}`} className="btn-outline text-xs py-1.5">Previous</Link>}
+              {page < totalPages && <Link href={`/dashboard/orders?${buildQuery({ page: String(page + 1), status: orderStatus, from: sp.from, to: sp.to, search: sp.search })}`} className="btn-outline text-xs py-1.5">Next</Link>}
             </div>
           </div>
         )}

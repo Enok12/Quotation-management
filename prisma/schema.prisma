@@ -65,6 +65,8 @@ enum AuditAction {
   PAYMENT_RECORDED
   RECEIPT_DELETED
   CUSTOMER_DELETED
+  EXPENSE_RECORDED
+  EXPENSE_DELETED
 }
 
 // ----------------------------- Users -----------------------------
@@ -86,6 +88,7 @@ model User {
   auditLogs         AuditLog[]
   customerInvites   CustomerInvite[]
   payments          Payment[]
+  expenses          Expense[]
 }
 
 // --------------------------- Customers ---------------------------
@@ -184,6 +187,7 @@ model Receipt {
   versions      ReceiptVersion[]
   orderHistory  OrderStatusHistory[]
   payments      Payment[]
+  expenses      Expense[]
 
   @@index([status])
   @@index([orderStatus])
@@ -211,6 +215,24 @@ model Payment {
   createdAt    DateTime       @default(now())
 
   @@index([receiptId])
+}
+
+// ------------------------- Expense ledger -------------------------
+// Costs incurred against a specific receipt/order — recording only for now
+// (no effect on balance/paymentStatus). A future income/profit module will
+// read these to compute margins.
+model Expense {
+  id           String   @id @default(cuid())
+  receiptId    String
+  receipt      Receipt  @relation(fields: [receiptId], references: [id], onDelete: Cascade)
+  description  String
+  amount       Decimal  @db.Decimal(12, 2)
+  recordedById String
+  recordedBy   User     @relation(fields: [recordedById], references: [id])
+  createdAt    DateTime @default(now())
+
+  @@index([receiptId])
+  @@index([createdAt])
 }
 
 model ReceiptItem {

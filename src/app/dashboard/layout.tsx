@@ -32,6 +32,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
               { href: "/dashboard/receipts", icon: "FileText", label: "Receipts" },
               { href: "/dashboard/payments", icon: "Wallet", label: "Orders" },
               { href: "/dashboard/orders", icon: "Package", label: "Production" },
+              { href: "/dashboard/expenses", icon: "Banknote", label: "Expenses" },
               { href: "/dashboard/audit", icon: "ClipboardList", label: "Audit Log" },
             ]}
           />
