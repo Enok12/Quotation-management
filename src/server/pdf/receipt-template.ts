@@ -95,18 +95,32 @@ export async function generateReceiptPdf(
   cell(page, C, colMid, tableTop - rowH, innerR - colMid, rowH);
   center(page, "CUSTOMER DETAILS", innerL, colMid, tableTop - rowH + 8, sansBold, 10, C.ink);
   center(page, "PAYMENT INFORMATION", colMid, innerR, tableTop - rowH + 8, sansBold, 10, C.ink);
+
+  // Row height grows with wrapped lines (e.g. a long address) so text never
+  // overlaps the row below — the last line always lands where a single-line
+  // value would (ry+8), matching the original layout when nothing wraps.
+  const custValueW = colMid - innerL - custLabelW - 12;
+  const lineH = 11.5;
+  let rowTop = tableTop - rowH;
   for (let i = 0; i < nRows; i++) {
-    const ry = tableTop - rowH * (i + 2);
-    cell(page, C, innerL, ry, custLabelW, rowH);
-    cell(page, C, innerL + custLabelW, ry, colMid - innerL - custLabelW, rowH);
-    page.drawText(cust[i][0], { x: innerL + 6, y: ry + 8, size: 9.5, font: sansBold, color: C.ink });
-    wrap(page, cust[i][1] ?? "", innerL + custLabelW + 6, ry + 8, colMid - innerL - custLabelW - 12, sans, 9.5, C.ink);
-    cell(page, C, colMid, ry, payLabelW, rowH);
-    cell(page, C, colMid + payLabelW, ry, innerR - colMid - payLabelW, rowH);
-    page.drawText(pay[i][0], { x: colMid + 6, y: ry + 8, size: 9.5, font: sansBold, color: C.ink });
-    if (pay[i][1]) page.drawText("X", { x: colMid + payLabelW + 10, y: ry + 7, size: 11, font: sansBold, color: C.ink });
+    const lines = wrapLines(cust[i][1] ?? "", custValueW, sans, 9.5);
+    const thisRowH = rowH + (Math.max(1, lines.length) - 1) * lineH;
+    const ry = rowTop - thisRowH;
+    const firstLineY = ry + thisRowH - 18;
+
+    cell(page, C, innerL, ry, custLabelW, thisRowH);
+    cell(page, C, innerL + custLabelW, ry, colMid - innerL - custLabelW, thisRowH);
+    page.drawText(cust[i][0], { x: innerL + 6, y: firstLineY, size: 9.5, font: sansBold, color: C.ink });
+    drawLines(page, lines, innerL + custLabelW + 6, firstLineY, lineH, sans, 9.5, C.ink);
+
+    cell(page, C, colMid, ry, payLabelW, thisRowH);
+    cell(page, C, colMid + payLabelW, ry, innerR - colMid - payLabelW, thisRowH);
+    page.drawText(pay[i][0], { x: colMid + 6, y: firstLineY, size: 9.5, font: sansBold, color: C.ink });
+    if (pay[i][1]) page.drawText("X", { x: colMid + payLabelW + 10, y: firstLineY - 1, size: 11, font: sansBold, color: C.ink });
+
+    rowTop = ry;
   }
-  y = tableTop - rowH * (nRows + 1) - 24;
+  y = rowTop - 24;
 
   // Items table
   const qtyW = 46, totalW = 96, priceW = 110, descW = contentW - qtyW - priceW - totalW, ih = 26;
@@ -154,14 +168,26 @@ function center(page: PDFPage, t: string, x1: number, x2: number, y: number, f: 
   const tw = f.widthOfTextAtSize(t, s);
   page.drawText(t, { x: x1 + (x2 - x1 - tw) / 2, y, size: s, font: f, color: c });
 }
-function wrap(page: PDFPage, text: string, x: number, y: number, maxW: number, f: PDFFont, s: number, c: Colors["ink"]) {
-  let line = "", yy = y;
-  for (const w of String(text).split(" ")) {
+// Splits text into lines that fit maxW, without drawing — lets the caller
+// measure the required row height before committing to a layout.
+function wrapLines(text: string, maxW: number, f: PDFFont, s: number): string[] {
+  const lines: string[] = [];
+  let line = "";
+  for (const w of String(text ?? "").split(" ")) {
+    if (!w) continue;
     const test = line ? `${line} ${w}` : w;
     if (f.widthOfTextAtSize(test, s) > maxW && line) {
-      page.drawText(line, { x, y: yy, size: s, font: f, color: c });
-      line = w; yy -= s + 2;
+      lines.push(line);
+      line = w;
     } else line = test;
   }
-  if (line) page.drawText(line, { x, y: yy, size: s, font: f, color: c });
+  if (line) lines.push(line);
+  return lines;
+}
+function drawLines(page: PDFPage, lines: string[], x: number, yTop: number, lineH: number, f: PDFFont, s: number, c: Colors["ink"]) {
+  let yy = yTop;
+  for (const line of lines) {
+    page.drawText(line, { x, y: yy, size: s, font: f, color: c });
+    yy -= lineH;
+  }
 }
