@@ -7,24 +7,40 @@ import { cn } from "@/lib/utils/cn";
 
 // Reads/writes ?from=&to= on the current URL. Preserves every other existing
 // query param and resets ?page so a new date range starts at page 1.
-export function DateRangeFilter() {
+//
+// defaultFrom/defaultTo let a page show an implied range (e.g. "this month")
+// without redirecting to write it into the URL first — a server-side
+// redirect for that would cost an extra round trip and cause a visible
+// flash between the loading skeleton and the real content.
+export function DateRangeFilter({
+  defaultFrom,
+  defaultTo,
+}: {
+  defaultFrom?: string;
+  defaultTo?: string;
+} = {}) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();
 
-  const from = searchParams.get("from") ?? "";
-  const to = searchParams.get("to") ?? "";
+  const from = searchParams.get("from") ?? defaultFrom ?? "";
+  const to = searchParams.get("to") ?? defaultTo ?? "";
 
   const setParam = useCallback(
     (key: "from" | "to", value: string) => {
       const params = new URLSearchParams(searchParams.toString());
+      // Commit the other field's implied default too, so the resulting range
+      // matches what was actually showing on screen.
+      if (!params.has("from") && defaultFrom && key !== "from") params.set("from", defaultFrom);
+      if (!params.has("to") && defaultTo && key !== "to") params.set("to", defaultTo);
+
       if (value) params.set(key, value);
       else params.delete(key);
       params.delete("page");
       startTransition(() => router.replace(`${pathname}?${params.toString()}`));
     },
-    [router, pathname, searchParams],
+    [router, pathname, searchParams, defaultFrom, defaultTo],
   );
 
   const clear = useCallback(() => {

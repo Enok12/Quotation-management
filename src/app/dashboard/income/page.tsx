@@ -1,6 +1,5 @@
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
-import { redirect } from "next/navigation";
 import { fmtMoney, fmtDate } from "@/lib/utils/format";
 import { DateRangeFilter } from "@/components/dashboard/date-range-filter";
 import { PrintButton } from "@/components/income/print-button";
@@ -15,15 +14,15 @@ export default async function IncomePage({ searchParams }: Props) {
   await requireUser();
   const sp = await searchParams;
 
-  // Default to "this month" on first visit so the report always opens with
-  // a sensible period instead of an empty picker.
-  if (!sp.from && !sp.to) {
-    const now = new Date();
-    const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    redirect(`/dashboard/income?from=${toISODate(firstOfMonth)}&to=${toISODate(now)}`);
-  }
+  // Default to "this month" without redirecting to write it into the URL —
+  // a server-side redirect here would cost an extra round trip and cause a
+  // visible flash between the loading skeleton and the real content.
+  const now = new Date();
+  const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const effectiveFrom = sp.from ?? toISODate(firstOfMonth);
+  const effectiveTo = sp.to ?? toISODate(now);
 
-  const dateWhere = dateRangeFilter(sp.from, sp.to);
+  const dateWhere = dateRangeFilter(effectiveFrom, effectiveTo);
 
   const receipts = await prisma.receipt.findMany({
     where: { status: "FINALIZED", ...(dateWhere ? { date: dateWhere } : {}) },
@@ -64,7 +63,7 @@ export default async function IncomePage({ searchParams }: Props) {
           <p className="text-stone-500 text-sm mt-1">Profit &amp; loss for a date range</p>
         </div>
         <div className="flex items-center gap-2">
-          <DateRangeFilter />
+          <DateRangeFilter defaultFrom={effectiveFrom} defaultTo={effectiveTo} />
           <PrintButton />
         </div>
       </div>
@@ -73,12 +72,12 @@ export default async function IncomePage({ searchParams }: Props) {
       <div className="hidden print:block text-center mb-8">
         <h1 className="font-serif text-2xl text-ink">MONTRA — Profit &amp; Loss Statement</h1>
         <p className="text-stone-500 text-sm mt-1">
-          {sp.from ? fmtDate(sp.from) : ""} – {sp.to ? fmtDate(sp.to) : ""}
+          {fmtDate(effectiveFrom)} – {fmtDate(effectiveTo)}
         </p>
       </div>
 
       <p className="text-sm text-stone-500 mb-4 print:hidden">
-        Period: {sp.from ? fmtDate(sp.from) : "—"} – {sp.to ? fmtDate(sp.to) : "—"}
+        Period: {fmtDate(effectiveFrom)} – {fmtDate(effectiveTo)}
       </p>
 
       {/* Summary */}
