@@ -11,6 +11,7 @@ import {
   ClipboardList,
   Wallet,
   Banknote,
+  TrendingUp,
   type LucideIcon,
 } from "lucide-react";
 
@@ -22,6 +23,7 @@ const ICONS = {
   ClipboardList,
   Wallet,
   Banknote,
+  TrendingUp,
 } satisfies Record<string, LucideIcon>;
 
 export type NavIcon = keyof typeof ICONS;

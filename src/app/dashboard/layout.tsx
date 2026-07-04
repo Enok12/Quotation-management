@@ -10,9 +10,9 @@ export default async function DashboardLayout({ children }: { children: React.Re
   if (!userId) redirect("/sign-in");
 
   return (
-    <div className="flex h-screen overflow-hidden bg-canvas">
-      {/* Sidebar */}
-      <aside className="w-56 flex-none bg-stone-900 flex flex-col">
+    <div className="flex h-screen overflow-hidden bg-canvas print:h-auto print:overflow-visible">
+      {/* Sidebar (hidden when printing) */}
+      <aside className="w-56 flex-none bg-stone-900 flex flex-col print:hidden">
         {/* Brand */}
         <div className="px-5 pt-6 pb-5 border-b border-white/10">
           <Link href="/dashboard" className="block">
@@ -33,6 +33,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
               { href: "/dashboard/payments", icon: "Wallet", label: "Orders" },
               { href: "/dashboard/orders", icon: "Package", label: "Production" },
               { href: "/dashboard/expenses", icon: "Banknote", label: "Expenses" },
+              { href: "/dashboard/income", icon: "TrendingUp", label: "Income" },
               { href: "/dashboard/audit", icon: "ClipboardList", label: "Audit Log" },
             ]}
           />
@@ -57,8 +58,8 @@ export default async function DashboardLayout({ children }: { children: React.Re
       </aside>
 
       {/* Main */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <main className="flex-1 overflow-y-auto">{children}</main>
+      <div className="flex-1 flex flex-col overflow-hidden print:overflow-visible">
+        <main className="flex-1 overflow-y-auto print:overflow-visible">{children}</main>
       </div>
     </div>
   );
