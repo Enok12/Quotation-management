@@ -18,7 +18,10 @@ export default function SignInPage() {
               headerSubtitle: "text-stone-500",
               formButtonPrimary: "bg-amber-400 text-stone-900 hover:bg-amber-300 font-semibold",
               formFieldLabel: "text-stone-600",
-              footerActionLink: "text-amber-600 hover:text-amber-500",
+              // Sign-up is disabled (staff-only, admin-provisioned) — hide the
+              // "Don't have an account? Sign up" prompt (but not the whole
+              // footer, which also carries Clerk's required branding badge).
+              footerAction: "hidden",
             },
           }}
         />
