@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -70,6 +70,27 @@ export function ReceiptBuilder({ customer, defaultValues, mode = "create" }: Pro
   const router = useRouter();
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Mobile (< lg) shows one panel at a time via a tab switcher instead of the
+  // desktop side-by-side split. The preview is zoomed to fit whatever width
+  // it's given, so the print-accurate 595px page never needs sideways scrolling.
+  const [mobileTab, setMobileTab] = useState<"form" | "preview">("form");
+  const mobilePreviewWrapRef = useRef<HTMLDivElement>(null);
+  const [mobileScale, setMobileScale] = useState(1);
+  useEffect(() => {
+    const el = mobilePreviewWrapRef.current;
+    if (!el) return;
+    const PAGE_WIDTH = 595;
+    const HORIZONTAL_PADDING = 32; // px-4 on both sides
+    const update = () => {
+      const available = el.clientWidth - HORIZONTAL_PADDING;
+      if (available > 0) setMobileScale(Math.min(1, available / PAGE_WIDTH));
+    };
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   const today = new Date().toISOString().slice(0, 10);
 
@@ -194,8 +215,32 @@ export function ReceiptBuilder({ customer, defaultValues, mode = "create" }: Pro
 
   return (
     <div className="flex flex-col lg:flex-row h-full lg:overflow-hidden overflow-y-auto">
+      {/* Mobile tab switcher: one panel at a time below lg, both side-by-side at lg+ */}
+      <div className="lg:hidden flex items-center gap-1 p-2 border-b border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 flex-none">
+        <button
+          type="button"
+          onClick={() => setMobileTab("form")}
+          className={cn(
+            "flex-1 py-2 text-sm font-medium rounded transition-colors",
+            mobileTab === "form" ? "bg-ink text-white dark:bg-white dark:text-stone-900" : "text-stone-500 hover:bg-stone-100 dark:hover:bg-white/10",
+          )}
+        >
+          Form
+        </button>
+        <button
+          type="button"
+          onClick={() => setMobileTab("preview")}
+          className={cn(
+            "flex-1 py-2 text-sm font-medium rounded transition-colors",
+            mobileTab === "preview" ? "bg-ink text-white dark:bg-white dark:text-stone-900" : "text-stone-500 hover:bg-stone-100 dark:hover:bg-white/10",
+          )}
+        >
+          Preview
+        </button>
+      </div>
+
       {/* ---- LEFT: Form ---- */}
-      <div className="w-full lg:w-[420px] flex-none border-b lg:border-b-0 lg:border-r border-stone-200 dark:border-stone-700 lg:overflow-y-auto bg-stone-25 dark:bg-stone-900 flex flex-col">
+      <div className={cn(mobileTab === "form" ? "flex" : "hidden", "lg:flex w-full lg:w-[420px] flex-none border-b lg:border-b-0 lg:border-r border-stone-200 dark:border-stone-700 lg:overflow-y-auto bg-stone-25 dark:bg-stone-900 flex-col")}>
         <form onSubmit={handleSubmit(onSubmit)} className="flex-1 flex flex-col">
           <div className="px-6 pt-6 pb-4 border-b border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800">
             <h2 className="font-serif text-xl text-ink">
@@ -399,13 +444,35 @@ export function ReceiptBuilder({ customer, defaultValues, mode = "create" }: Pro
         </form>
       </div>
 
-      {/* ---- RIGHT: Live preview ---- */}
-      <div className="flex-1 lg:overflow-auto overflow-x-auto bg-stone-100 dark:bg-stone-950 flex items-start justify-center py-6 px-4 lg:py-8 lg:px-8">
+      {/* ---- RIGHT: Live preview (desktop, true size, side-by-side) ---- */}
+      <div className="hidden lg:flex flex-1 overflow-auto bg-stone-100 dark:bg-stone-950 items-start justify-center py-8 px-8">
         <div
           // Always mimics printed paper (white page, black ink) — intentionally
           // NOT theme-aware, regardless of site dark mode.
           className="bg-white text-black shadow-lg flex-none"
           style={{ width: 595, minHeight: 841, fontFamily: "Times New Roman, serif", fontSize: 10 }}
+        >
+          <ReceiptPreview
+            customer={customer}
+            date={date}
+            items={items.map((i) => ({ ...i, quantity: Number(i.quantity), unitPrice: Number(i.unitPrice) }))}
+            adjustments={allAdjustments.map((a) => ({ ...a, amount: Number(a.amount) }))}
+            paymentMethods={paymentMethods}
+            totals={totals}
+            advanceAmount={Number(watchedValues.advanceAmount) || 0}
+            amountPaid={Number(watchedValues.amountPaid) || 0}
+          />
+        </div>
+      </div>
+
+      {/* ---- RIGHT: Live preview (mobile, zoomed to fit width, tab-controlled) ---- */}
+      <div
+        ref={mobilePreviewWrapRef}
+        className={cn(mobileTab === "preview" ? "flex" : "hidden", "lg:hidden flex-1 overflow-y-auto bg-stone-100 dark:bg-stone-950 justify-center py-6 px-4")}
+      >
+        <div
+          className="bg-white text-black shadow-lg flex-none"
+          style={{ width: 595, minHeight: 841, fontFamily: "Times New Roman, serif", fontSize: 10, zoom: mobileScale }}
         >
           <ReceiptPreview
             customer={customer}
