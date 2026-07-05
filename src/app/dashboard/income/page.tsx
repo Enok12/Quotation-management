@@ -55,7 +55,7 @@ export default async function IncomePage({ searchParams }: Props) {
   const profitClass = profit >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400";
 
   return (
-    <div className="px-8 py-8 max-w-6xl">
+    <div className="px-4 py-6 sm:px-8 sm:py-8 max-w-6xl">
       {/* Screen-only controls */}
       <div className="flex items-start justify-between mb-6 flex-wrap gap-4 print:hidden">
         <div>
@@ -81,7 +81,7 @@ export default async function IncomePage({ searchParams }: Props) {
       </p>
 
       {/* Summary */}
-      <div className="grid grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
         <div className="card p-5">
           <span className="text-xs font-semibold uppercase tracking-wider text-stone-400">Orders</span>
           <div className="font-serif text-3xl text-ink mt-2">{rows.length}</div>

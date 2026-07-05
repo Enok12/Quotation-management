@@ -28,14 +28,14 @@ const ICONS = {
 
 export type NavIcon = keyof typeof ICONS;
 
-interface NavItem {
+export interface NavItem {
   href: string;
   icon: NavIcon;
   label: string;
   exact?: boolean;
 }
 
-export function SidebarNav({ items }: { items: NavItem[] }) {
+export function SidebarNav({ items, onNavigate }: { items: NavItem[]; onNavigate?: () => void }) {
   const pathname = usePathname();
   return (
     <>
@@ -46,6 +46,7 @@ export function SidebarNav({ items }: { items: NavItem[] }) {
           <Link
             key={item.href}
             href={item.href}
+            onClick={onNavigate}
             className={cn("nav-item", active && "nav-item-active")}
           >
             <Icon size={16} strokeWidth={1.8} />

@@ -57,7 +57,7 @@ export default async function DashboardPage() {
   ];
 
   return (
-    <div className="px-8 py-8 max-w-6xl">
+    <div className="px-4 py-6 sm:px-8 sm:py-8 max-w-6xl">
       {/* Header */}
       <div className="mb-8">
         <h1 className="font-serif text-3xl text-ink">Dashboard</h1>
@@ -65,7 +65,7 @@ export default async function DashboardPage() {
       </div>
 
       {/* Stats grid */}
-      <div className="grid grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 mb-8">
         {statCards.map((s) => (
           <Link
             key={s.label}

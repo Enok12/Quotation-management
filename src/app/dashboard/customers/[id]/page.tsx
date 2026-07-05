@@ -31,17 +31,17 @@ export default async function CustomerDetailPage({ params }: Props) {
   const totalSpend = customer.receipts.reduce((s, r) => s + Number(r.totalDue), 0);
 
   return (
-    <div className="px-8 py-8 max-w-5xl">
+    <div className="px-4 py-6 sm:px-8 sm:py-8 max-w-5xl">
       <Link href="/dashboard/customers" className="btn-ghost text-xs mb-6 inline-flex">
         <ArrowLeft size={14} /> Customers
       </Link>
 
-      <div className="flex items-start justify-between mb-8">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between mb-8">
         <div>
           <h1 className="font-serif text-3xl text-ink">{customer.name}</h1>
           <p className="text-stone-500 text-sm mt-1">Customer since {fmtDate(customer.createdAt)}</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <LinkButton href={`/dashboard/receipts/new?customerId=${customer.id}`} className="btn-primary" icon={<Plus size={15} />}>
             New Receipt
           </LinkButton>
@@ -49,11 +49,11 @@ export default async function CustomerDetailPage({ params }: Props) {
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-6 mb-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
         {/* Info card */}
-        <div className="col-span-2 card card-body space-y-4">
+        <div className="lg:col-span-2 card card-body space-y-4">
           <h2 className="heading-2">Contact Details</h2>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {[
               { label: "Phone", value: customer.phone },
               { label: "Email", value: customer.email },
@@ -93,40 +93,42 @@ export default async function CustomerDetailPage({ params }: Props) {
         <div className="card-header">
           <h2 className="text-sm font-semibold text-ink">Receipts</h2>
         </div>
-        <table className="w-full">
-          <thead>
-            <tr>
-              <th className="th text-left w-20">#</th>
-              <th className="th text-left">Date</th>
-              <th className="th text-right">Total Due</th>
-              <th className="th text-right">Balance</th>
-              <th className="th text-left">Payment</th>
-              <th className="th text-left">Order</th>
-            </tr>
-          </thead>
-          <tbody>
-            {customer.receipts.length === 0 && (
-              <tr><td colSpan={6} className="td text-center text-stone-400 py-8">No receipts yet.</td></tr>
-            )}
-            {customer.receipts.map((r) => (
-              <tr key={r.id} className="hover:bg-stone-25 dark:hover:bg-white/5 transition-colors">
-                <td className="td font-mono text-xs text-stone-500">#{r.receiptNumber}</td>
-                <td className="td text-stone-600">{fmtDate(r.date)}</td>
-                <td className="td text-right font-mono text-sm">{fmtMoney(r.totalDue)}</td>
-                <td className="td text-right font-mono text-sm">{fmtMoney(r.balance)}</td>
-                <td className="td"><PaymentStatusBadge status={r.paymentStatus} /></td>
-                <td className="td">
-                  <div className="flex items-center gap-3">
-                    <OrderStatusBadge status={r.orderStatus} />
-                    <Link href={`/dashboard/receipts/${r.id}`} className="text-xs text-amber-600 hover:underline">
-                      View →
-                    </Link>
-                  </div>
-                </td>
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr>
+                <th className="th text-left w-20">#</th>
+                <th className="th text-left">Date</th>
+                <th className="th text-right">Total Due</th>
+                <th className="th text-right">Balance</th>
+                <th className="th text-left">Payment</th>
+                <th className="th text-left">Order</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {customer.receipts.length === 0 && (
+                <tr><td colSpan={6} className="td text-center text-stone-400 py-8">No receipts yet.</td></tr>
+              )}
+              {customer.receipts.map((r) => (
+                <tr key={r.id} className="hover:bg-stone-25 dark:hover:bg-white/5 transition-colors">
+                  <td className="td font-mono text-xs text-stone-500">#{r.receiptNumber}</td>
+                  <td className="td text-stone-600">{fmtDate(r.date)}</td>
+                  <td className="td text-right font-mono text-sm">{fmtMoney(r.totalDue)}</td>
+                  <td className="td text-right font-mono text-sm">{fmtMoney(r.balance)}</td>
+                  <td className="td"><PaymentStatusBadge status={r.paymentStatus} /></td>
+                  <td className="td">
+                    <div className="flex items-center gap-3">
+                      <OrderStatusBadge status={r.orderStatus} />
+                      <Link href={`/dashboard/receipts/${r.id}`} className="text-xs text-amber-600 hover:underline">
+                        View →
+                      </Link>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );

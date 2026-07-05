@@ -50,11 +50,11 @@ export default async function EditReceiptPage({ params }: Props) {
 
   return (
     <div className="flex flex-col h-screen">
-      <div className="flex items-center gap-4 px-6 py-3 border-b border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 flex-none">
+      <div className="flex items-center gap-3 sm:gap-4 px-4 py-3 sm:px-6 border-b border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 flex-none flex-wrap">
         <Link href={`/dashboard/receipts/${id}`} className="btn-ghost text-xs py-1">
           <ArrowLeft size={14} /> Receipt #{receipt.receiptNumber}
         </Link>
-        <span className="text-stone-300">|</span>
+        <span className="text-stone-300 hidden sm:inline">|</span>
         <span className="text-sm text-stone-500">
           Editing receipt for <span className="font-semibold text-ink">{receipt.custName}</span>
           {receipt.status === "FINALIZED" && (

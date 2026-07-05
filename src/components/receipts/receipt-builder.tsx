@@ -193,9 +193,9 @@ export function ReceiptBuilder({ customer, defaultValues, mode = "create" }: Pro
   const paymentMethods = watchedValues.paymentMethods ?? [];
 
   return (
-    <div className="flex h-full overflow-hidden">
+    <div className="flex flex-col lg:flex-row h-full lg:overflow-hidden overflow-y-auto">
       {/* ---- LEFT: Form ---- */}
-      <div className="w-[420px] flex-none border-r border-stone-200 dark:border-stone-700 overflow-y-auto bg-stone-25 dark:bg-stone-900 flex flex-col">
+      <div className="w-full lg:w-[420px] flex-none border-b lg:border-b-0 lg:border-r border-stone-200 dark:border-stone-700 lg:overflow-y-auto bg-stone-25 dark:bg-stone-900 flex flex-col">
         <form onSubmit={handleSubmit(onSubmit)} className="flex-1 flex flex-col">
           <div className="px-6 pt-6 pb-4 border-b border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800">
             <h2 className="font-serif text-xl text-ink">
@@ -204,7 +204,7 @@ export function ReceiptBuilder({ customer, defaultValues, mode = "create" }: Pro
             <p className="text-sm text-stone-500 mt-0.5">For {customer.name}</p>
           </div>
 
-          <div className="flex-1 px-6 py-5 space-y-6 overflow-y-auto">
+          <div className="flex-1 px-6 py-5 space-y-6 lg:overflow-y-auto">
             {/* Date */}
             <div>
               <label className="field-label">Date</label>
@@ -400,11 +400,11 @@ export function ReceiptBuilder({ customer, defaultValues, mode = "create" }: Pro
       </div>
 
       {/* ---- RIGHT: Live preview ---- */}
-      <div className="flex-1 overflow-auto bg-stone-100 dark:bg-stone-950 flex items-start justify-center py-8 px-8">
+      <div className="flex-1 lg:overflow-auto overflow-x-auto bg-stone-100 dark:bg-stone-950 flex items-start justify-center py-6 px-4 lg:py-8 lg:px-8">
         <div
           // Always mimics printed paper (white page, black ink) — intentionally
           // NOT theme-aware, regardless of site dark mode.
-          className="bg-white text-black shadow-lg"
+          className="bg-white text-black shadow-lg flex-none"
           style={{ width: 595, minHeight: 841, fontFamily: "Times New Roman, serif", fontSize: 10 }}
         >
           <ReceiptPreview

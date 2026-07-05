@@ -2,7 +2,7 @@ import { PageHeaderSkeleton, TabsSkeleton, TableSkeleton, Skeleton } from "@/com
 
 export default function PaymentsLoading() {
   return (
-    <div className="px-8 py-8 max-w-6xl">
+    <div className="px-4 py-6 sm:px-8 sm:py-8 max-w-6xl">
       <PageHeaderSkeleton />
       <div className="card card-body mb-6">
         <Skeleton className="h-10 w-full" />

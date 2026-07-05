@@ -50,13 +50,13 @@ export default async function CustomersPage({ searchParams }: Props) {
   const totalPages = Math.ceil(total / pageSize);
 
   return (
-    <div className="px-8 py-8 max-w-6xl">
-      <div className="flex items-center justify-between mb-8">
+    <div className="px-4 py-6 sm:px-8 sm:py-8 max-w-6xl">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-8">
         <div>
           <h1 className="font-serif text-3xl text-ink">Customers</h1>
           <p className="text-stone-500 text-sm mt-1">{total.toLocaleString()} total</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <GenerateInviteButton />
           <LinkButton href="/dashboard/receipts/new" className="btn-primary" icon={<Plus size={15} />}>
             New Receipt

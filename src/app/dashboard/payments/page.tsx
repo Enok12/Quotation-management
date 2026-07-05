@@ -90,7 +90,7 @@ export default async function OrdersFolderPage({ searchParams }: Props) {
   }));
 
   return (
-    <div className="px-8 py-8 max-w-6xl">
+    <div className="px-4 py-6 sm:px-8 sm:py-8 max-w-6xl">
       <div className="mb-6">
         <h1 className="font-serif text-3xl text-ink">Orders</h1>
         <p className="text-stone-500 text-sm mt-1">Bulk Orders · Sample Orders · Completed</p>

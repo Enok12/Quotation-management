@@ -39,14 +39,14 @@ export default async function ReceiptDetailPage({ params }: Props) {
   const totalExpenses = receipt.expenses.reduce((s, e) => s + Number(e.amount), 0);
 
   return (
-    <div className="px-8 py-8 max-w-5xl">
+    <div className="px-4 py-6 sm:px-8 sm:py-8 max-w-5xl">
       {/* Header */}
-      <div className="flex items-center gap-4 mb-8">
-        <Link href="/dashboard/receipts" className="btn-ghost text-xs">
+      <div className="flex flex-col gap-4 mb-8 sm:flex-row sm:items-center">
+        <Link href="/dashboard/receipts" className="btn-ghost text-xs self-start">
           <ArrowLeft size={14} /> Receipts
         </Link>
-        <div className="flex-1">
-          <div className="flex items-center gap-3">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-3 flex-wrap">
             <h1 className="font-serif text-3xl text-ink">Receipt #{receipt.receiptNumber}</h1>
             <OrderTypeBadge type={receipt.orderType} />
             <OrderStatusBadge status={receipt.orderStatus} />
@@ -54,7 +54,7 @@ export default async function ReceiptDetailPage({ params }: Props) {
           </div>
           <p className="text-stone-500 text-sm mt-1">{receipt.custName} · {fmtDate(receipt.date)}</p>
         </div>
-        <div className="flex items-center gap-2 flex-wrap justify-end">
+        <div className="flex items-center gap-2 flex-wrap sm:justify-end">
           {/* Available for every sample, paid or not — payment status is unrelated to conversion. */}
           {receipt.orderType === "SAMPLE" && (
             <ConvertToBulkButton receiptId={id} custName={receipt.custName} />
@@ -81,13 +81,13 @@ export default async function ReceiptDetailPage({ params }: Props) {
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main content */}
-        <div className="col-span-2 space-y-6">
+        <div className="lg:col-span-2 space-y-6">
           {/* Customer + Payment */}
           <div className="card">
             <div className="card-header"><h2 className="text-sm font-semibold text-ink">Customer Details</h2></div>
-            <div className="card-body grid grid-cols-2 gap-4">
+            <div className="card-body grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-3">
                 {[
                   { label: "Name", value: receipt.custName },
@@ -117,26 +117,28 @@ export default async function ReceiptDetailPage({ params }: Props) {
           {/* Items */}
           <div className="card">
             <div className="card-header"><h2 className="text-sm font-semibold text-ink">Items</h2></div>
-            <table className="w-full">
-              <thead>
-                <tr>
-                  <th className="th text-center w-16">Qty</th>
-                  <th className="th text-left">Description</th>
-                  <th className="th text-right">Unit Price</th>
-                  <th className="th text-right">Total</th>
-                </tr>
-              </thead>
-              <tbody>
-                {receipt.items.map((item) => (
-                  <tr key={item.id}>
-                    <td className="td text-center font-mono">{item.quantity}</td>
-                    <td className="td">{item.description}</td>
-                    <td className="td text-right font-mono">{fmtMoney(item.unitPrice)}</td>
-                    <td className="td text-right font-mono font-semibold">{fmtMoney(item.lineTotal)}</td>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr>
+                    <th className="th text-center w-16">Qty</th>
+                    <th className="th text-left">Description</th>
+                    <th className="th text-right">Unit Price</th>
+                    <th className="th text-right">Total</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {receipt.items.map((item) => (
+                    <tr key={item.id}>
+                      <td className="td text-center font-mono">{item.quantity}</td>
+                      <td className="td">{item.description}</td>
+                      <td className="td text-right font-mono">{fmtMoney(item.unitPrice)}</td>
+                      <td className="td text-right font-mono font-semibold">{fmtMoney(item.lineTotal)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
             {/* Totals block */}
             <div className="border-t border-stone-100 dark:border-stone-700">
               {receipt.adjustments.map((a) => (

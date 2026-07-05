@@ -2,7 +2,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 export default function DashboardLoading() {
   return (
-    <div className="px-8 py-8 max-w-6xl">
+    <div className="px-4 py-6 sm:px-8 sm:py-8 max-w-6xl">
       {/* Header */}
       <div className="mb-8">
         <Skeleton className="h-9 w-44" />
@@ -10,7 +10,7 @@ export default function DashboardLoading() {
       </div>
 
       {/* Stats grid */}
-      <div className="grid grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 mb-8">
         {Array.from({ length: 8 }).map((_, i) => (
           <div key={i} className="card p-5">
             <div className="flex items-start justify-between mb-3">

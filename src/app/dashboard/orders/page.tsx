@@ -56,7 +56,7 @@ export default async function OrdersPage({ searchParams }: Props) {
   ];
 
   return (
-    <div className="px-8 py-8 max-w-6xl">
+    <div className="px-4 py-6 sm:px-8 sm:py-8 max-w-6xl">
       <div className="mb-6">
         <h1 className="font-serif text-3xl text-ink">Production</h1>
         <p className="text-stone-500 text-sm mt-1">{total.toLocaleString()} orders in production</p>
@@ -69,37 +69,39 @@ export default async function OrdersPage({ searchParams }: Props) {
 
       <FilterTableShell groups={[tabs]}>
       <div className="card">
-        <table className="w-full">
-          <thead>
-            <tr>
-              <th className="th text-left w-20">#</th>
-              <th className="th text-left">Customer</th>
-              <th className="th text-left">Date</th>
-              <th className="th text-right">Total Due</th>
-              <th className="th text-right">Balance</th>
-              <th className="th text-left">Order Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {orders.length === 0 && (
-              <tr><td colSpan={6} className="td text-center text-stone-400 py-10">No orders found.</td></tr>
-            )}
-            {orders.map((r) => (
-              <tr key={r.id} className="hover:bg-stone-25 dark:hover:bg-white/5 transition-colors">
-                <td className="td font-mono text-xs text-stone-500">#{r.receiptNumber}</td>
-                <td className="td font-medium">
-                  <Link href={`/dashboard/receipts/${r.id}`} className="hover:text-amber-600 transition-colors">
-                    {r.custName}
-                  </Link>
-                </td>
-                <td className="td text-stone-500">{fmtDate(r.date)}</td>
-                <td className="td text-right font-mono">{fmtMoney(r.totalDue)}</td>
-                <td className="td text-right font-mono">{fmtMoney(r.balance)}</td>
-                <td className="td"><OrderStatusSelect receiptId={r.id} status={r.orderStatus} /></td>
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr>
+                <th className="th text-left w-20">#</th>
+                <th className="th text-left">Customer</th>
+                <th className="th text-left">Date</th>
+                <th className="th text-right">Total Due</th>
+                <th className="th text-right">Balance</th>
+                <th className="th text-left">Order Status</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {orders.length === 0 && (
+                <tr><td colSpan={6} className="td text-center text-stone-400 py-10">No orders found.</td></tr>
+              )}
+              {orders.map((r) => (
+                <tr key={r.id} className="hover:bg-stone-25 dark:hover:bg-white/5 transition-colors">
+                  <td className="td font-mono text-xs text-stone-500">#{r.receiptNumber}</td>
+                  <td className="td font-medium">
+                    <Link href={`/dashboard/receipts/${r.id}`} className="hover:text-amber-600 transition-colors">
+                      {r.custName}
+                    </Link>
+                  </td>
+                  <td className="td text-stone-500">{fmtDate(r.date)}</td>
+                  <td className="td text-right font-mono">{fmtMoney(r.totalDue)}</td>
+                  <td className="td text-right font-mono">{fmtMoney(r.balance)}</td>
+                  <td className="td"><OrderStatusSelect receiptId={r.id} status={r.orderStatus} /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
         {totalPages > 1 && (
           <div className="px-6 py-4 border-t border-stone-100 dark:border-stone-700 flex items-center justify-between text-sm">
             <span className="text-stone-500">Page {page} of {totalPages}</span>

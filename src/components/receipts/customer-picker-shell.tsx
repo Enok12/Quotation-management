@@ -19,7 +19,7 @@ export function CustomerPickerShell({ customers }: { customers: Customer[] }) {
   );
 
   return (
-    <div className="px-8 py-8 max-w-2xl">
+    <div className="px-4 py-6 sm:px-8 sm:py-8 max-w-2xl">
       <div className="mb-8">
         <h1 className="font-serif text-3xl text-ink">New Receipt</h1>
         <p className="text-stone-500 text-sm mt-1">Select a customer to continue</p>
