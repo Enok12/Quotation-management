@@ -24,17 +24,26 @@ export default async function IncomePage({ searchParams }: Props) {
 
   const dateWhere = dateRangeFilter(effectiveFrom, effectiveTo);
 
+  // Only orders whose expense record has been finalized by an admin show up
+  // here — until then they're invisible to the Income statement.
   const receipts = await prisma.receipt.findMany({
-    where: { status: "FINALIZED", ...(dateWhere ? { date: dateWhere } : {}) },
+    where: {
+      status: "FINALIZED",
+      expenseRecord: { finalized: true },
+      ...(dateWhere ? { date: dateWhere } : {}),
+    },
     orderBy: { date: "asc" },
     select: {
       id: true, receiptNumber: true, custName: true, date: true, orderType: true, totalDue: true,
-      expenses: { select: { amount: true } },
+      expenseRecord: {
+        select: { fabricExpense: true, sewingExpense: true, accessoryExpense: true, otherExpense: true, profit: true },
+      },
     },
   });
 
   const rows = receipts.map((r) => {
-    const expenseTotal = r.expenses.reduce((s, e) => s + Number(e.amount), 0);
+    const rec = r.expenseRecord!;
+    const expenseTotal = Number(rec.fabricExpense) + Number(rec.sewingExpense) + Number(rec.accessoryExpense) + Number(rec.otherExpense);
     return {
       id: r.id,
       receiptNumber: r.receiptNumber,
@@ -43,7 +52,8 @@ export default async function IncomePage({ searchParams }: Props) {
       orderType: r.orderType,
       revenue: Number(r.totalDue),
       expenseTotal,
-      profit: Number(r.totalDue) - expenseTotal,
+      // Stored profit, not recomputed — it may have been overridden manually.
+      profit: Number(rec.profit),
     };
   });
 
@@ -51,7 +61,9 @@ export default async function IncomePage({ searchParams }: Props) {
   const sampleCount = rows.filter((r) => r.orderType === "SAMPLE").length;
   const totalRevenue = rows.reduce((s, r) => s + r.revenue, 0);
   const totalExpenses = rows.reduce((s, r) => s + r.expenseTotal, 0);
-  const profit = totalRevenue - totalExpenses;
+  // Sum of each row's stored profit — not revenue minus expenses, since a
+  // row's profit may have been manually overridden and no longer match that.
+  const profit = rows.reduce((s, r) => s + r.profit, 0);
   const profitClass = profit >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400";
 
   return (

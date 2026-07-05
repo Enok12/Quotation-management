@@ -67,6 +67,9 @@ enum AuditAction {
   CUSTOMER_DELETED
   EXPENSE_RECORDED
   EXPENSE_DELETED
+  EXPENSE_UPDATED
+  EXPENSE_FINALIZED
+  EXPENSE_UNFINALIZED
 }
 
 // ----------------------------- Users -----------------------------
@@ -88,7 +91,8 @@ model User {
   auditLogs         AuditLog[]
   customerInvites   CustomerInvite[]
   payments          Payment[]
-  expenses          Expense[]
+  expenseRecords    ExpenseRecord[] @relation("ExpenseRecordedBy")
+  finalizedExpenses ExpenseRecord[] @relation("ExpenseFinalizedBy")
 }
 
 // --------------------------- Customers ---------------------------
@@ -187,7 +191,7 @@ model Receipt {
   versions      ReceiptVersion[]
   orderHistory  OrderStatusHistory[]
   payments      Payment[]
-  expenses      Expense[]
+  expenseRecord ExpenseRecord?
 
   @@index([status])
   @@index([orderStatus])
@@ -218,21 +222,34 @@ model Payment {
 }
 
 // ------------------------- Expense ledger -------------------------
-// Costs incurred against a specific receipt/order — recording only for now
-// (no effect on balance/paymentStatus). A future income/profit module will
-// read these to compute margins.
-model Expense {
-  id           String   @id @default(cuid())
-  receiptId    String
-  receipt      Receipt  @relation(fields: [receiptId], references: [id], onDelete: Cascade)
-  description  String
-  amount       Decimal  @db.Decimal(12, 2)
-  recordedById String
-  recordedBy   User     @relation(fields: [recordedById], references: [id])
-  createdAt    DateTime @default(now())
+// One structured cost record per receipt (fabric/sewing/accessory/other).
+// Profit is stored (auto-calculated client-side, but overridable) rather
+// than always recomputed, so a manual override survives. Only finalized
+// records are picked up by the Income/P&L page — unfinalized ones are
+// invisible there until an admin locks them in.
+model ExpenseRecord {
+  id               String    @id @default(cuid())
+  receiptId        String    @unique
+  receipt          Receipt   @relation(fields: [receiptId], references: [id], onDelete: Cascade)
 
-  @@index([receiptId])
-  @@index([createdAt])
+  fabricExpense    Decimal   @default(0) @db.Decimal(12, 2)
+  sewingExpense    Decimal   @default(0) @db.Decimal(12, 2)
+  accessoryExpense Decimal   @default(0) @db.Decimal(12, 2)
+  otherExpense     Decimal   @default(0) @db.Decimal(12, 2)
+
+  profit           Decimal   @default(0) @db.Decimal(12, 2)
+
+  finalized        Boolean   @default(false)
+  finalizedAt      DateTime?
+  finalizedById    String?
+  finalizedBy      User?     @relation("ExpenseFinalizedBy", fields: [finalizedById], references: [id])
+
+  recordedById     String
+  recordedBy       User      @relation("ExpenseRecordedBy", fields: [recordedById], references: [id])
+  updatedAt        DateTime  @updatedAt
+  createdAt        DateTime  @default(now())
+
+  @@index([finalized])
 }
 
 model ReceiptItem {

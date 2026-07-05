@@ -10,7 +10,7 @@ import { FilterTableShell } from "@/components/dashboard/filter-table-shell";
 import { DateRangeFilter } from "@/components/dashboard/date-range-filter";
 import { CustomerSearch } from "@/components/customers/customer-search";
 import { DeleteReceiptButton } from "@/components/receipts/delete-receipt-button";
-import { AddExpenseButton } from "@/components/receipts/add-expense-button";
+import { ExpenseRecordButton } from "@/components/receipts/expense-record-button";
 import { deriveFolder, FOLDER_NAMES, type FolderKey } from "@/lib/order-folder";
 import { dateRangeFilter, buildQuery } from "@/lib/utils/date-range";
 
@@ -28,7 +28,8 @@ function whereForFolder(folder?: FolderKey): Prisma.ReceiptWhereInput {
 }
 
 export default async function OrdersFolderPage({ searchParams }: Props) {
-  await requireUser();
+  const user = await requireUser();
+  const isAdmin = user.role === "ADMIN";
   const sp = await searchParams;
   const page = Math.max(1, Number(sp.page ?? 1));
   const pageSize = 25;
@@ -58,6 +59,12 @@ export default async function OrdersFolderPage({ searchParams }: Props) {
       select: {
         id: true, receiptNumber: true, custName: true, date: true,
         totalDue: true, amountPaid: true, balance: true, paymentStatus: true, orderType: true,
+        expenseRecord: {
+          select: {
+            fabricExpense: true, sewingExpense: true, accessoryExpense: true, otherExpense: true,
+            profit: true, finalized: true,
+          },
+        },
       },
     }),
     // Lightweight list of every receipt for the "Sync all" reconcile (unfiltered by date/search).
@@ -152,7 +159,24 @@ export default async function OrdersFolderPage({ searchParams }: Props) {
                       >
                         <Edit size={14} />
                       </Link>
-                      <AddExpenseButton receiptId={r.id} iconOnly />
+                      <ExpenseRecordButton
+                        receiptId={r.id}
+                        receiptNumber={r.receiptNumber}
+                        billAmount={Number(r.totalDue)}
+                        initial={
+                          r.expenseRecord
+                            ? {
+                                fabricExpense: Number(r.expenseRecord.fabricExpense),
+                                sewingExpense: Number(r.expenseRecord.sewingExpense),
+                                accessoryExpense: Number(r.expenseRecord.accessoryExpense),
+                                otherExpense: Number(r.expenseRecord.otherExpense),
+                                profit: Number(r.expenseRecord.profit),
+                                finalized: r.expenseRecord.finalized,
+                              }
+                            : null
+                        }
+                        isAdmin={isAdmin}
+                      />
                       <DeleteReceiptButton receiptId={r.id} receiptNumber={r.receiptNumber} iconOnly />
                     </div>
                   </td>

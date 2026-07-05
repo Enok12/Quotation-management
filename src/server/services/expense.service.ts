@@ -1,46 +1,69 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
-import { NotFoundError } from "@/lib/api/errors";
+import { NotFoundError, ForbiddenError } from "@/lib/api/errors";
 import { auditService } from "./audit.service";
 
 const D = (n: number) => new Prisma.Decimal(n);
 
-// Expense ledger — costs recorded against a receipt. Record-only for now: no
-// effect on the receipt's balance/paymentStatus (a future income/profit
-// module will read these to compute margins).
-export const expenseService = {
-  async record(receiptId: string, input: { description: string; amount: number }, actorId: string) {
+export interface ExpenseRecordInput {
+  fabricExpense: number;
+  sewingExpense: number;
+  accessoryExpense: number;
+  otherExpense: number;
+  profit: number;
+}
+
+// Structured, one-row-per-receipt cost ledger (fabric/sewing/accessory/other).
+// Profit is stored as submitted — the client auto-calculates it until the
+// user types over it, so the server just trusts whatever number arrives.
+// Finalizing locks the record and is what makes it visible to the Income page.
+export const expenseRecordService = {
+  async upsert(receiptId: string, input: ExpenseRecordInput, actorId: string) {
     const receipt = await prisma.receipt.findUnique({ where: { id: receiptId }, select: { id: true } });
     if (!receipt) throw new NotFoundError("Receipt");
 
+    const existing = await prisma.expenseRecord.findUnique({ where: { receiptId } });
+    if (existing?.finalized) throw new ForbiddenError("Unlock this record before editing it");
+
+    const data = {
+      fabricExpense: D(input.fabricExpense),
+      sewingExpense: D(input.sewingExpense),
+      accessoryExpense: D(input.accessoryExpense),
+      otherExpense: D(input.otherExpense),
+      profit: D(input.profit),
+    };
+
     return prisma.$transaction(async (tx) => {
-      const expense = await tx.expense.create({
-        data: {
-          receiptId,
-          description: input.description,
-          amount: D(input.amount),
-          recordedById: actorId,
-        },
+      const record = await tx.expenseRecord.upsert({
+        where: { receiptId },
+        create: { receiptId, recordedById: actorId, ...data },
+        update: data,
       });
       await auditService.log(tx, {
-        actorId, action: "EXPENSE_RECORDED", entityType: "Expense", entityId: expense.id,
-        metadata: { receiptId, description: input.description, amount: input.amount },
+        actorId, action: "EXPENSE_UPDATED", entityType: "ExpenseRecord", entityId: record.id,
+        metadata: { receiptId, ...input },
       });
-      return expense;
+      return record;
     });
   },
 
-  async remove(expenseId: string, actorId: string) {
-    const expense = await prisma.expense.findUnique({ where: { id: expenseId } });
-    if (!expense) throw new NotFoundError("Expense");
+  async setFinalized(receiptId: string, finalized: boolean, actorId: string) {
+    const record = await prisma.expenseRecord.findUnique({ where: { receiptId } });
+    if (!record) throw new NotFoundError("Expense record");
 
     return prisma.$transaction(async (tx) => {
-      await tx.expense.delete({ where: { id: expenseId } });
-      await auditService.log(tx, {
-        actorId, action: "EXPENSE_DELETED", entityType: "Expense", entityId: expenseId,
-        metadata: { receiptId: expense.receiptId, description: expense.description, amount: Number(expense.amount) },
+      const updated = await tx.expenseRecord.update({
+        where: { receiptId },
+        data: finalized
+          ? { finalized: true, finalizedAt: new Date(), finalizedById: actorId }
+          : { finalized: false, finalizedAt: null, finalizedById: null },
       });
-      return expense;
+      await auditService.log(tx, {
+        actorId, action: finalized ? "EXPENSE_FINALIZED" : "EXPENSE_UNFINALIZED",
+        entityType: "ExpenseRecord", entityId: updated.id,
+        metadata: { receiptId },
+      });
+      return updated;
     });
   },
 };
