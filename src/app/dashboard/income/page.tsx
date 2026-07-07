@@ -52,8 +52,10 @@ export default async function IncomePage({ searchParams }: Props) {
       orderType: r.orderType,
       revenue: Number(r.totalDue),
       expenseTotal,
+      // Plain formula, ignoring any manual override.
+      netProfit: Number(r.totalDue) - expenseTotal,
       // Stored profit, not recomputed — it may have been overridden manually.
-      profit: Number(rec.profit),
+      actualProfit: Number(rec.profit),
     };
   });
 
@@ -61,10 +63,12 @@ export default async function IncomePage({ searchParams }: Props) {
   const sampleCount = rows.filter((r) => r.orderType === "SAMPLE").length;
   const totalRevenue = rows.reduce((s, r) => s + r.revenue, 0);
   const totalExpenses = rows.reduce((s, r) => s + r.expenseTotal, 0);
-  // Sum of each row's stored profit — not revenue minus expenses, since a
-  // row's profit may have been manually overridden and no longer match that.
-  const profit = rows.reduce((s, r) => s + r.profit, 0);
-  const profitClass = profit >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400";
+  // Net Profit: the plain formula, ignoring any manual overrides.
+  const netProfit = totalRevenue - totalExpenses;
+  // Actual Profit: sum of each row's stored profit, which reflects manual
+  // overrides where a row's Profit field was edited directly.
+  const actualProfit = rows.reduce((s, r) => s + r.actualProfit, 0);
+  const profitClass = (v: number) => (v >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400");
 
   return (
     <div className="px-4 py-6 sm:px-8 sm:py-8 max-w-6xl">
@@ -93,7 +97,7 @@ export default async function IncomePage({ searchParams }: Props) {
       </p>
 
       {/* Summary */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
         <div className="card p-5">
           <span className="text-xs font-semibold uppercase tracking-wider text-stone-400">Orders</span>
           <div className="font-serif text-3xl text-ink mt-2">{rows.length}</div>
@@ -109,7 +113,13 @@ export default async function IncomePage({ searchParams }: Props) {
         </div>
         <div className="card p-5">
           <span className="text-xs font-semibold uppercase tracking-wider text-stone-400">Net Profit</span>
-          <div className={`font-serif text-3xl mt-2 ${profitClass}`}>{fmtMoney(profit)}</div>
+          <div className={`font-serif text-3xl mt-2 ${profitClass(netProfit)}`}>{fmtMoney(netProfit)}</div>
+          <p className="text-xs text-stone-400 mt-1">Revenue − Expenses</p>
+        </div>
+        <div className="card p-5">
+          <span className="text-xs font-semibold uppercase tracking-wider text-stone-400">Actual Profit</span>
+          <div className={`font-serif text-3xl mt-2 ${profitClass(actualProfit)}`}>{fmtMoney(actualProfit)}</div>
+          <p className="text-xs text-stone-400 mt-1">Includes manual overrides</p>
         </div>
       </div>
 
@@ -128,12 +138,13 @@ export default async function IncomePage({ searchParams }: Props) {
                 <th className="th text-left">Type</th>
                 <th className="th text-right">Revenue</th>
                 <th className="th text-right">Expenses</th>
-                <th className="th text-right">Profit</th>
+                <th className="th text-right">Net Profit</th>
+                <th className="th text-right">Actual Profit</th>
               </tr>
             </thead>
             <tbody>
               {rows.length === 0 && (
-                <tr><td colSpan={7} className="td text-center text-stone-400 py-10">No orders in this period.</td></tr>
+                <tr><td colSpan={8} className="td text-center text-stone-400 py-10">No orders in this period.</td></tr>
               )}
               {rows.map((r) => (
                 <tr key={r.id} className="hover:bg-stone-25 dark:hover:bg-white/5 transition-colors">
@@ -143,8 +154,11 @@ export default async function IncomePage({ searchParams }: Props) {
                   <td className="td text-xs text-stone-500">{r.orderType === "BULK" ? "Bulk" : "Sample"}</td>
                   <td className="td text-right font-mono text-sm">{fmtMoney(r.revenue)}</td>
                   <td className="td text-right font-mono text-sm text-red-600 dark:text-red-400">{fmtMoney(r.expenseTotal)}</td>
-                  <td className={`td text-right font-mono text-sm font-semibold ${r.profit >= 0 ? "text-emerald-700 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}`}>
-                    {fmtMoney(r.profit)}
+                  <td className={`td text-right font-mono text-sm font-semibold ${profitClass(r.netProfit)}`}>
+                    {fmtMoney(r.netProfit)}
+                  </td>
+                  <td className={`td text-right font-mono text-sm font-semibold ${profitClass(r.actualProfit)}`}>
+                    {fmtMoney(r.actualProfit)}
                   </td>
                 </tr>
               ))}
@@ -155,7 +169,8 @@ export default async function IncomePage({ searchParams }: Props) {
                   <td colSpan={4} className="td text-right text-ink">Total</td>
                   <td className="td text-right font-mono">{fmtMoney(totalRevenue)}</td>
                   <td className="td text-right font-mono text-red-600 dark:text-red-400">{fmtMoney(totalExpenses)}</td>
-                  <td className={`td text-right font-mono ${profitClass}`}>{fmtMoney(profit)}</td>
+                  <td className={`td text-right font-mono ${profitClass(netProfit)}`}>{fmtMoney(netProfit)}</td>
+                  <td className={`td text-right font-mono ${profitClass(actualProfit)}`}>{fmtMoney(actualProfit)}</td>
                 </tr>
               </tfoot>
             )}

@@ -11,6 +11,7 @@ import { DateRangeFilter } from "@/components/dashboard/date-range-filter";
 import { CustomerSearch } from "@/components/customers/customer-search";
 import { DeleteReceiptButton } from "@/components/receipts/delete-receipt-button";
 import { ExpenseRecordButton } from "@/components/receipts/expense-record-button";
+import { TimeTakenBadge } from "@/components/receipts/time-taken-badge";
 import { deriveFolder, FOLDER_NAMES, type FolderKey } from "@/lib/order-folder";
 import { dateRangeFilter, buildQuery } from "@/lib/utils/date-range";
 
@@ -65,6 +66,9 @@ export default async function OrdersFolderPage({ searchParams }: Props) {
             profit: true, finalized: true,
           },
         },
+        // Most recent payment only — when paid in full, that's the payment
+        // that pushed it over the line, so it marks when counting stopped.
+        payments: { orderBy: { paidAt: "desc" }, take: 1, select: { paidAt: true } },
       },
     }),
     // Lightweight list of every receipt for the "Sync all" reconcile (unfiltered by date/search).
@@ -128,12 +132,13 @@ export default async function OrdersFolderPage({ searchParams }: Props) {
                 <th className="th text-right">Paid</th>
                 <th className="th text-right">Balance</th>
                 <th className="th text-left">Payment</th>
+                <th className="th text-left">Time Taken</th>
                 <th className="th text-center w-24">Actions</th>
               </tr>
             </thead>
             <tbody>
               {receipts.length === 0 && (
-                <tr><td colSpan={9} className="td text-center text-stone-400 py-10">No orders in this folder.</td></tr>
+                <tr><td colSpan={10} className="td text-center text-stone-400 py-10">No orders in this folder.</td></tr>
               )}
               {receipts.map((r) => (
                 <tr key={r.id} className="hover:bg-stone-25 dark:hover:bg-white/5 transition-colors">
@@ -149,6 +154,12 @@ export default async function OrdersFolderPage({ searchParams }: Props) {
                   <td className="td text-right font-mono text-sm text-emerald-700">{fmtMoney(r.amountPaid)}</td>
                   <td className="td text-right font-mono text-sm">{fmtMoney(r.balance)}</td>
                   <td className="td"><PaymentStatusBadge status={r.paymentStatus} /></td>
+                  <td className="td">
+                    <TimeTakenBadge
+                      startDate={r.date}
+                      completedAt={r.paymentStatus === "PAID" ? (r.payments[0]?.paidAt ?? r.date) : null}
+                    />
+                  </td>
                   <td className="td">
                     <div className="flex items-center justify-center gap-2">
                       <Link
