@@ -5,6 +5,7 @@ import { Plus, Search } from "lucide-react";
 import { fmtDate } from "@/lib/utils/format";
 import { CustomerSearch } from "@/components/customers/customer-search";
 import { GenerateInviteButton } from "@/components/customers/generate-invite-button";
+import { AddCustomerButton } from "@/components/customers/add-customer-button";
 import { LinkButton } from "@/components/ui/link-button";
 import { DeleteCustomerButton } from "@/components/customers/delete-customer-button";
 
@@ -57,8 +58,9 @@ export default async function CustomersPage({ searchParams }: Props) {
           <p className="text-stone-500 text-sm mt-1">{total.toLocaleString()} total</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
+          <AddCustomerButton />
           <GenerateInviteButton />
-          <LinkButton href="/dashboard/receipts/new" className="btn-primary" icon={<Plus size={15} />}>
+          <LinkButton href="/dashboard/receipts/new" className="btn-outline" icon={<Plus size={15} />}>
             New Receipt
           </LinkButton>
         </div>
