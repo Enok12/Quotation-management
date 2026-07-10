@@ -5,11 +5,12 @@ import { useRouter } from "next/navigation";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Plus, Trash2, Download, Check, Loader2 } from "lucide-react";
+import { Plus, Trash2, Download, Check, Loader2, X } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { fmtMoney } from "@/lib/utils/format";
 import { moveInvoiceIfConnected } from "@/lib/folder-sync";
 import { deriveFolder } from "@/lib/order-folder";
+import { popReceiptDraft } from "@/lib/receipt-draft";
 
 // ---- Types ----
 const itemSchema = z.object({
@@ -101,7 +102,7 @@ export function ReceiptBuilder({ customer, defaultValues, mode = "create" }: Pro
   const otherAdjustments = rawAdjustments.filter((a) => a.label !== PATTERN_LABEL);
 
   const {
-    register, control, watch, setValue, handleSubmit,
+    register, control, watch, setValue, handleSubmit, reset,
     formState: { errors },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -121,6 +122,33 @@ export function ReceiptBuilder({ customer, defaultValues, mode = "create" }: Pro
 
   // Advance auto-fills to 60% of the total until the user overrides it.
   const [advanceTouched, setAdvanceTouched] = useState(mode === "edit" || (defaultValues?.advanceAmount ?? 0) > 0);
+
+  // If a receipt was just uploaded-and-extracted, apply the stashed draft on
+  // first mount (create mode only) — replaces the blank defaults with the
+  // parsed fields so staff lands on a pre-filled, still-editable form.
+  const [draftApplied, setDraftApplied] = useState(false);
+  useEffect(() => {
+    if (mode !== "create" || defaultValues?.receiptId) return;
+    const draft = popReceiptDraft();
+    if (!draft) return;
+
+    const patternRow = draft.adjustments.find((a) => a.label === PATTERN_LABEL);
+    reset({
+      date: draft.date ?? today,
+      items: draft.items.length > 0 ? draft.items : [{ description: "", quantity: 1, unitPrice: 0 }],
+      paymentMethods: draft.paymentMethods,
+      adjustments: draft.adjustments.filter((a) => a.label !== PATTERN_LABEL),
+      advanceAmount: draft.advanceAmount ?? 0,
+      amountPaid: draft.amountPaid ?? 0,
+      isSample: false,
+      patternDeductionEnabled: !!patternRow,
+      patternDeductionAmount: patternRow ? Math.abs(Number(patternRow.amount)) : 2000,
+    });
+    if (draft.advanceAmount != null) setAdvanceTouched(true);
+    setDraftApplied(true);
+    // Runs once on mount only.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const { fields: itemFields, append: addItem, remove: removeItem } = useFieldArray({ control, name: "items" });
   const { fields: adjFields, append: addAdj, remove: removeAdj } = useFieldArray({ control, name: "adjustments" });
@@ -248,6 +276,15 @@ export function ReceiptBuilder({ customer, defaultValues, mode = "create" }: Pro
             </h2>
             <p className="text-sm text-stone-500 mt-0.5">For {customer.name}</p>
           </div>
+
+          {draftApplied && (
+            <div className="mx-6 mt-4 flex items-start justify-between gap-2 rounded-md border border-amber-200 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
+              <span>Auto-filled from an uploaded receipt — please review before saving.</span>
+              <button type="button" onClick={() => setDraftApplied(false)} className="text-amber-500 hover:text-amber-700 flex-none">
+                <X size={13} />
+              </button>
+            </div>
+          )}
 
           <div className="flex-1 px-6 py-5 space-y-6 lg:overflow-y-auto">
             {/* Date */}
