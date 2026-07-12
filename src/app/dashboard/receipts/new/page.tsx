@@ -6,13 +6,14 @@ import Link from "next/link";
 import { ReceiptBuilder } from "@/components/receipts/receipt-builder";
 import { CustomerPickerShell } from "@/components/receipts/customer-picker-shell";
 
-interface Props { searchParams: Promise<{ customerId?: string }> }
+interface Props { searchParams: Promise<{ customerId?: string; batchItem?: string }> }
 
 export const metadata = { title: "New Receipt" };
 
 export default async function NewReceiptPage({ searchParams }: Props) {
   await requireUser();
-  const { customerId } = await searchParams;
+  const { customerId, batchItem } = await searchParams;
+  const returnTo = batchItem ? `/dashboard/receipts/new/bulk?completed=${encodeURIComponent(batchItem)}` : undefined;
 
   if (!customerId) {
     // Show customer picker first
@@ -39,7 +40,7 @@ export default async function NewReceiptPage({ searchParams }: Props) {
         <span className="text-sm text-stone-500">New receipt for <span className="font-semibold text-ink">{customer.name}</span></span>
       </div>
       <div className="flex-1 overflow-hidden">
-        <ReceiptBuilder customer={customer} mode="create" />
+        <ReceiptBuilder customer={customer} mode="create" returnTo={returnTo} />
       </div>
     </div>
   );

@@ -2,31 +2,15 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Search, ArrowRight, Upload, Loader2, X } from "lucide-react";
+import Link from "next/link";
+import { Search, ArrowRight, Upload, Loader2, X, Layers } from "lucide-react";
 import { AddCustomerForm, type CustomerFormValues } from "@/components/customers/add-customer-form";
 import { stashReceiptDraft } from "@/lib/receipt-draft";
+import { findCustomerMatch } from "@/lib/customer-match";
+import { MAX_UPLOAD_BYTES, isAcceptedReceiptFile } from "@/lib/receipt-upload-limits";
 import type { ReceiptExtractResult } from "@/lib/validation/receipt-extract.schema";
 
 interface Customer { id: string; name: string; phone?: string | null; email?: string | null }
-
-const digitsOnly = (s?: string | null) => (s ?? "").replace(/\D/g, "");
-
-// Prefer a confident phone match (last 9 digits, ignoring country-code/
-// formatting differences); fall back to an exact case-insensitive name match
-// only when it's unambiguous.
-function findMatch(customers: Customer[], extracted: { phone: string | null; customerName: string | null }) {
-  const phone = digitsOnly(extracted.phone).slice(-9);
-  if (phone) {
-    const byPhone = customers.filter((c) => digitsOnly(c.phone).slice(-9) === phone);
-    if (byPhone.length === 1) return byPhone[0];
-  }
-  const name = extracted.customerName?.trim().toLowerCase();
-  if (name) {
-    const byName = customers.filter((c) => c.name.trim().toLowerCase() === name);
-    if (byName.length === 1) return byName[0];
-  }
-  return null;
-}
 
 type Stage =
   | { kind: "browse" }
@@ -62,12 +46,12 @@ export function CustomerPickerShell({ customers }: { customers: Customer[] }) {
   };
 
   const onFileSelected = async (file: File) => {
-    if (!file.type.startsWith("image/")) {
-      setStage({ kind: "error", message: "Please upload an image (JPG or PNG)." });
+    if (!isAcceptedReceiptFile(file)) {
+      setStage({ kind: "error", message: "Please upload an image (JPG or PNG) or a PDF." });
       return;
     }
-    if (file.size > 8 * 1024 * 1024) {
-      setStage({ kind: "error", message: "Image is too large (max 8MB)." });
+    if (file.size > MAX_UPLOAD_BYTES) {
+      setStage({ kind: "error", message: "File is too large (max 12MB)." });
       return;
     }
 
@@ -77,10 +61,10 @@ export function CustomerPickerShell({ customers }: { customers: Customer[] }) {
       formData.append("file", file);
       const res = await fetch("/api/v1/receipts/extract", { method: "POST", body: formData });
       const json = await res.json();
-      if (!json.success) throw new Error(json.message ?? "Couldn't read that receipt image.");
+      if (!json.success) throw new Error(json.message ?? "Couldn't read that receipt.");
 
       const extracted = json.data as ReceiptExtractResult;
-      const match = findMatch(customers, extracted);
+      const match = findCustomerMatch(customers, extracted);
       if (match) {
         goToBuilder(match.id, extracted);
       } else {
@@ -144,12 +128,12 @@ export function CustomerPickerShell({ customers }: { customers: Customer[] }) {
         </div>
       ) : (
         <>
-          {/* Upload a photo to auto-fill */}
+          {/* Upload a photo or PDF to auto-fill */}
           <div className="card card-body mb-4">
             <input
               ref={fileInputRef}
               type="file"
-              accept="image/*"
+              accept="image/*,application/pdf"
               className="hidden"
               onChange={(e) => {
                 const file = e.target.files?.[0];
@@ -169,12 +153,14 @@ export function CustomerPickerShell({ customers }: { customers: Customer[] }) {
                 </>
               ) : (
                 <>
-                  <Upload size={16} /> Upload a receipt photo to auto-fill
+                  <Upload size={16} /> Upload a receipt photo or PDF to auto-fill
                 </>
               )}
             </button>
             {stage.kind !== "extracting" && (
-              <p className="text-xs text-stone-400 text-center mt-2">or paste an image (Ctrl+V)</p>
+              <p className="text-xs text-stone-400 text-center mt-2">
+                or paste an image (Ctrl+V) — for a PDF where the receipt isn't the first page, that's fine, it'll be found automatically
+              </p>
             )}
             {stage.kind === "error" && (
               <p className="flex items-center justify-between text-xs text-red-500 mt-2">
@@ -184,6 +170,12 @@ export function CustomerPickerShell({ customers }: { customers: Customer[] }) {
                 </button>
               </p>
             )}
+            <Link
+              href="/dashboard/receipts/new/bulk"
+              className="flex items-center justify-center gap-1.5 text-xs text-stone-400 hover:text-amber-600 transition-colors mt-3"
+            >
+              <Layers size={12} /> Upload multiple receipts at once
+            </Link>
           </div>
 
           <div className="card">

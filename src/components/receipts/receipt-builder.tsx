@@ -45,6 +45,10 @@ interface Props {
   customer: Customer;
   defaultValues?: Partial<FormValues> & { receiptId?: string };
   mode?: "create" | "edit";
+  /** Where to navigate after a successful save, instead of the new receipt's
+   * detail page — used when opened from the bulk-upload queue, so staff lands
+   * back on the queue to review the next item. */
+  returnTo?: string;
 }
 
 const PAYMENT_OPTIONS = [
@@ -67,7 +71,7 @@ function calcTotals(items: { quantity: number; unitPrice: number }[], adjs: { am
   return { lineTotals, subtotal, adjTotal, totalDue, balance };
 }
 
-export function ReceiptBuilder({ customer, defaultValues, mode = "create" }: Props) {
+export function ReceiptBuilder({ customer, defaultValues, mode = "create", returnTo }: Props) {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -230,13 +234,13 @@ export function ReceiptBuilder({ customer, defaultValues, mode = "create" }: Pro
         deriveFolder(saved.orderType, saved.paymentStatus),
       );
 
-      router.push(`/dashboard/receipts/${json.data.id}`);
+      router.push(returnTo ?? `/dashboard/receipts/${json.data.id}`);
       router.refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong");
       setSaving(false);
     }
-  }, [customer.id, mode, defaultValues?.receiptId, router]);
+  }, [customer.id, mode, defaultValues?.receiptId, returnTo, router]);
 
   const date = watchedValues.date ?? today;
   const paymentMethods = watchedValues.paymentMethods ?? [];

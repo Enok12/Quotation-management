@@ -8,14 +8,22 @@ const MODEL = "gemini-flash-lite-latest";
 const ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`;
 
 // Describes MONTRA's own fixed receipt layout so the model can map regions of
-// the photo to fields instead of guessing at an unfamiliar format.
-const PROMPT = `You are reading a photo of a printed business receipt from "MONTRA", a clothing manufacturer. The receipt always has this layout:
+// the photo (or PDF page) to fields instead of guessing at an unfamiliar
+// format. Also covers the multi-page-PDF case: some uploads are a PDF where
+// the first pages are unrelated Terms & Conditions and the actual receipt is
+// further in (often the last page) — the model is told to locate that page
+// itself rather than assume page 1.
+const PROMPT = `You are reading a photo or PDF of a printed business receipt from "MONTRA", a clothing manufacturer.
+
+If this is a multi-page PDF, the receipt is not necessarily on the first page — earlier pages may be unrelated Terms & Conditions or other content. Scan every page and find the one that matches this layout, then extract only from that page:
 - A header line "Date: DD/MM/YYYY".
 - A two-column table: the left side is "CUSTOMER DETAILS" (rows: Name, Address, Phone, Email), the right side is "PAYMENT INFORMATION" (rows: Cash, Debit/Credit Card, Bank Transfer, Other — each has a checkmark if that method was used).
 - An items table with columns Qty, Description, Unit Price, Total.
 - Below the items, summary rows for any extra adjustment (e.g. a discount or a named deduction), then "Total Due", "Advance Payment", "Amount Paid", "Balance".
 
-Read the photo and return ONLY a JSON object with this exact shape (no prose, no markdown fences):
+If no page matches this layout, return every field as null/empty rather than guessing from an unrelated page.
+
+Read the matching page and return ONLY a JSON object with this exact shape (no prose, no markdown fences):
 {
   "customerName": string or null,
   "address": string or null,
