@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Search, ArrowRight, Upload, Loader2, X } from "lucide-react";
 import { AddCustomerForm, type CustomerFormValues } from "@/components/customers/add-customer-form";
@@ -91,6 +91,24 @@ export function CustomerPickerShell({ customers }: { customers: Customer[] }) {
     }
   };
 
+  // Let staff paste a screenshotted/copied receipt image (Ctrl+V) straight
+  // in, as an alternative to picking a file — only while browsing, so a
+  // stray paste doesn't interrupt the customer-confirmation step.
+  useEffect(() => {
+    if (stage.kind !== "browse") return;
+    const onPaste = (e: ClipboardEvent) => {
+      const item = Array.from(e.clipboardData?.items ?? []).find((i) => i.type.startsWith("image/"));
+      const file = item?.getAsFile();
+      if (file) {
+        e.preventDefault();
+        onFileSelected(file);
+      }
+    };
+    document.addEventListener("paste", onPaste);
+    return () => document.removeEventListener("paste", onPaste);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stage.kind]);
+
   const extractedDefaults = (extracted: ReceiptExtractResult): Partial<CustomerFormValues> => ({
     name: extracted.customerName ?? "",
     phone: extracted.phone ?? "",
@@ -155,6 +173,9 @@ export function CustomerPickerShell({ customers }: { customers: Customer[] }) {
                 </>
               )}
             </button>
+            {stage.kind !== "extracting" && (
+              <p className="text-xs text-stone-400 text-center mt-2">or paste an image (Ctrl+V)</p>
+            )}
             {stage.kind === "error" && (
               <p className="flex items-center justify-between text-xs text-red-500 mt-2">
                 {stage.message}
