@@ -170,12 +170,21 @@ export function CustomerPickerShell({ customers }: { customers: Customer[] }) {
                 </button>
               </p>
             )}
-            <Link
-              href="/dashboard/receipts/new/bulk"
-              className="flex items-center justify-center gap-1.5 text-xs text-stone-400 hover:text-amber-600 transition-colors mt-3"
-            >
-              <Layers size={12} /> Upload multiple receipts at once
-            </Link>
+            <div className="flex items-center justify-center gap-4 mt-3">
+              <Link
+                href="/dashboard/receipts/new/bulk"
+                className="flex items-center gap-1.5 text-xs text-stone-400 hover:text-amber-600 transition-colors"
+              >
+                <Layers size={12} /> Upload multiple Bulk Orders
+              </Link>
+              <span className="text-stone-200 dark:text-stone-700">·</span>
+              <Link
+                href="/dashboard/receipts/new/bulk-sample"
+                className="flex items-center gap-1.5 text-xs text-stone-400 hover:text-amber-600 transition-colors"
+              >
+                <Layers size={12} /> Upload multiple Sample Orders
+              </Link>
+            </div>
           </div>
 
           <div className="card">

@@ -144,7 +144,7 @@ export function ReceiptBuilder({ customer, defaultValues, mode = "create", retur
       adjustments: draft.adjustments.filter((a) => a.label !== PATTERN_LABEL),
       advanceAmount: draft.advanceAmount ?? 0,
       amountPaid: draft.amountPaid ?? 0,
-      isSample: false,
+      isSample: draft.isSample ?? false,
       patternDeductionEnabled: !!patternRow,
       patternDeductionAmount: patternRow ? Math.abs(Number(patternRow.amount)) : 2000,
     });

@@ -7,7 +7,7 @@ import { Upload, Loader2, X, Check, RefreshCw, ArrowRight, ArrowLeft, Trash2 } f
 import { AddCustomerForm } from "@/components/customers/add-customer-form";
 import { stashReceiptDraft } from "@/lib/receipt-draft";
 import { findCustomerMatch, type MatchableCustomer } from "@/lib/customer-match";
-import { loadBatch, saveBatch, clearBatch, type BatchItem } from "@/lib/receipt-batch";
+import { loadBatch, saveBatch, clearBatch, type BatchItem, type BatchKind } from "@/lib/receipt-batch";
 import { runWithConcurrency } from "@/lib/utils/concurrency";
 import { MAX_UPLOAD_BYTES, MAX_BATCH_FILES, isAcceptedReceiptFile } from "@/lib/receipt-upload-limits";
 import type { ReceiptExtractResult } from "@/lib/validation/receipt-extract.schema";
@@ -21,11 +21,19 @@ const STAGGER_MS = 400;
 export function BulkUploadShell({
   customers,
   completedItemId,
+  orderType,
 }: {
   customers: MatchableCustomer[];
   completedItemId?: string;
+  /** Every receipt reviewed from this queue is created as this order type —
+   * there's no per-item toggle, since the two queues are entered separately. */
+  orderType: "BULK" | "SAMPLE";
 }) {
   const router = useRouter();
+  const isSample = orderType === "SAMPLE";
+  const kind: BatchKind = isSample ? "sample" : "bulk";
+  const basePath = isSample ? "/dashboard/receipts/new/bulk-sample" : "/dashboard/receipts/new/bulk";
+
   const [items, setItems] = useState<BatchItem[]>([]);
   const [sessionCustomers, setSessionCustomers] = useState<MatchableCustomer[]>([]);
   const filesRef = useRef<Map<string, File>>(new Map());
@@ -37,12 +45,12 @@ export function BulkUploadShell({
   // to/from the builder, so it doesn't survive in React state alone), and
   // mark whichever item we just came back from as done.
   useEffect(() => {
-    const loaded = loadBatch();
+    const loaded = loadBatch(kind);
     if (completedItemId) {
       const next = loaded.map((it) => (it.id === completedItemId ? { ...it, status: "done" as const } : it));
       setItems(next);
-      saveBatch(next);
-      router.replace("/dashboard/receipts/new/bulk");
+      saveBatch(kind, next);
+      router.replace(basePath);
     } else {
       setItems(loaded);
     }
@@ -52,7 +60,7 @@ export function BulkUploadShell({
   const updateItem = (id: string, patch: Partial<BatchItem>) => {
     setItems((prev) => {
       const next = prev.map((it) => (it.id === id ? { ...it, ...patch } : it));
-      saveBatch(next);
+      saveBatch(kind, next);
       return next;
     });
   };
@@ -113,7 +121,7 @@ export function BulkUploadShell({
 
     setItems((prev) => {
       const next = [...prev, ...newItems];
-      saveBatch(next);
+      saveBatch(kind, next);
       return next;
     });
     runExtraction(newItems);
@@ -126,7 +134,7 @@ export function BulkUploadShell({
     filesRef.current.delete(id);
     setItems((prev) => {
       const next = prev.filter((it) => it.id !== id);
-      saveBatch(next);
+      saveBatch(kind, next);
       return next;
     });
   };
@@ -140,9 +148,12 @@ export function BulkUploadShell({
         advanceAmount: item.extracted.advanceAmount,
         amountPaid: item.extracted.amountPaid,
         paymentMethods: item.extracted.paymentMethods,
+        isSample,
       });
     }
-    router.push(`/dashboard/receipts/new?customerId=${customerId}&batchItem=${item.id}`);
+    router.push(
+      `/dashboard/receipts/new?customerId=${customerId}&batchItem=${item.id}&batchReturn=${encodeURIComponent(basePath)}`,
+    );
   };
 
   const review = (item: BatchItem) => {
@@ -153,7 +164,7 @@ export function BulkUploadShell({
   const clearAll = () => {
     filesRef.current.clear();
     setItems([]);
-    clearBatch();
+    clearBatch(kind);
   };
 
   const promptItem = items.find((it) => it.id === customerPromptId) ?? null;
@@ -166,9 +177,10 @@ export function BulkUploadShell({
       </Link>
 
       <div className="mb-6">
-        <h1 className="font-serif text-3xl text-ink">Bulk Upload Receipts</h1>
+        <h1 className="font-serif text-3xl text-ink">Bulk Upload {isSample ? "Sample" : "Bulk"} Orders</h1>
         <p className="text-stone-500 text-sm mt-1">
-          Upload several receipt photos or PDFs at once. Each is read and matched to a customer independently, then reviewed and saved one at a time.
+          Upload several receipt photos or PDFs at once — every one is created as a {isSample ? "sample" : "bulk"} order.
+          Each is read and matched to a customer independently, then reviewed and saved one at a time.
         </p>
       </div>
 

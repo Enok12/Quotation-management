@@ -6,14 +6,24 @@ import Link from "next/link";
 import { ReceiptBuilder } from "@/components/receipts/receipt-builder";
 import { CustomerPickerShell } from "@/components/receipts/customer-picker-shell";
 
-interface Props { searchParams: Promise<{ customerId?: string; batchItem?: string }> }
+// Whitelisted so `batchReturn` (which comes back from the client as a plain
+// query param) can only ever point at one of the two known bulk-upload
+// queues — never an arbitrary redirect target.
+const KNOWN_BATCH_RETURN_PATHS = new Set([
+  "/dashboard/receipts/new/bulk",
+  "/dashboard/receipts/new/bulk-sample",
+]);
+
+interface Props { searchParams: Promise<{ customerId?: string; batchItem?: string; batchReturn?: string }> }
 
 export const metadata = { title: "New Receipt" };
 
 export default async function NewReceiptPage({ searchParams }: Props) {
   await requireUser();
-  const { customerId, batchItem } = await searchParams;
-  const returnTo = batchItem ? `/dashboard/receipts/new/bulk?completed=${encodeURIComponent(batchItem)}` : undefined;
+  const { customerId, batchItem, batchReturn } = await searchParams;
+  const returnBase =
+    batchReturn && KNOWN_BATCH_RETURN_PATHS.has(batchReturn) ? batchReturn : "/dashboard/receipts/new/bulk";
+  const returnTo = batchItem ? `${returnBase}?completed=${encodeURIComponent(batchItem)}` : undefined;
 
   if (!customerId) {
     // Show customer picker first

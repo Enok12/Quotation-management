@@ -10,6 +10,9 @@ export interface ReceiptDraft {
   advanceAmount: number | null;
   amountPaid: number | null;
   paymentMethods: string[];
+  /** Set by the Sample-Orders bulk-upload queue so the builder opens with the
+   * Sample toggle already on (which also locks quantities to 1). */
+  isSample?: boolean;
 }
 
 export function stashReceiptDraft(draft: ReceiptDraft) {
