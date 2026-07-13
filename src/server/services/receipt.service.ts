@@ -22,9 +22,7 @@ export const receiptService = {
     const customer = await prisma.customer.findUnique({ where: { id: input.customerId } });
     if (!customer) throw new NotFoundError("Customer");
 
-    // Sample orders are single-unit — force every line to quantity 1.
-    const items = input.orderType === "SAMPLE" ? input.items.map((i) => ({ ...i, quantity: 1 })) : input.items;
-    const totals = calcReceiptTotals({ ...input, items });
+    const totals = calcReceiptTotals(input);
 
     return prisma.$transaction(async (tx) => {
       const receipt = await tx.receipt.create({
@@ -54,7 +52,7 @@ export const receiptService = {
           orderStatus: "FABRIC_SELECTION",
           createdById: actorId,
           items: {
-            create: items.map((it, i) => ({
+            create: input.items.map((it, i) => ({
               description: it.description, quantity: it.quantity,
               unitPrice: D(it.unitPrice), lineTotal: D(totals.lineTotals[i]), sortOrder: i,
             })),
@@ -79,8 +77,7 @@ export const receiptService = {
   // first (admin-only enforcement lives in the route).
   async update(id: string, input: ReceiptCreateInput, actorId: string) {
     const existing = await this.getFull(id);
-    const items = input.orderType === "SAMPLE" ? input.items.map((i) => ({ ...i, quantity: 1 })) : input.items;
-    const totals = calcReceiptTotals({ ...input, items });
+    const totals = calcReceiptTotals(input);
 
     return prisma.$transaction(async (tx) => {
       if (existing.status === "FINALIZED") {
@@ -112,7 +109,7 @@ export const receiptService = {
               : null,
           currentVersion: existing.status === "FINALIZED" ? existing.currentVersion + 1 : existing.currentVersion,
           items: {
-            create: items.map((it, i) => ({
+            create: input.items.map((it, i) => ({
               description: it.description, quantity: it.quantity,
               unitPrice: D(it.unitPrice), lineTotal: D(totals.lineTotals[i]), sortOrder: i,
             })),

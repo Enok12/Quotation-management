@@ -160,7 +160,6 @@ export function ReceiptBuilder({ customer, defaultValues, mode = "create", retur
   const watchedValues = watch();
   const items = watchedValues.items ?? [];
   const adjs = watchedValues.adjustments ?? [];
-  const isSample = watchedValues.isSample ?? false;
   const patternDeductionEnabled = watchedValues.patternDeductionEnabled ?? false;
   const patternDeductionAmount = Number(watchedValues.patternDeductionAmount) || 0;
 
@@ -169,11 +168,6 @@ export function ReceiptBuilder({ customer, defaultValues, mode = "create", retur
     ? [...adjs, { label: PATTERN_LABEL, amount: -patternDeductionAmount }]
     : adjs;
 
-  // Sample orders are single-unit — force every item quantity to 1.
-  useEffect(() => {
-    if (!isSample) return;
-    items.forEach((_, i) => setValue(`items.${i}.quantity`, 1, { shouldDirty: false }));
-  }, [isSample, items.length, setValue]);
   const totals = calcTotals(
     items.map((i) => ({ quantity: Number(i.quantity) || 0, unitPrice: Number(i.unitPrice) || 0 })),
     allAdjustments.map((a) => ({ amount: Number(a.amount) || 0 })),
@@ -200,7 +194,7 @@ export function ReceiptBuilder({ customer, defaultValues, mode = "create", retur
         orderType: data.isSample ? "SAMPLE" : "BULK",
         items: data.items.map((i) => ({
           description: i.description,
-          quantity: data.isSample ? 1 : Number(i.quantity),
+          quantity: Number(i.quantity),
           unitPrice: Number(i.unitPrice),
         })),
         adjustments: [
@@ -304,7 +298,7 @@ export function ReceiptBuilder({ customer, defaultValues, mode = "create", retur
               <span>
                 <span className="text-sm font-medium text-ink">Sample order</span>
                 <span className="block text-xs text-stone-500 mt-0.5">
-                  Single-unit development for quality check. Quantity is locked to 1; convert to a bulk order later if the customer approves.
+                  Development pieces for quality check, usually just 1–2 units. Convert to a bulk order later if the customer approves.
                 </span>
               </span>
             </label>
@@ -346,9 +340,7 @@ export function ReceiptBuilder({ customer, defaultValues, mode = "create", retur
                         <input
                           {...register(`items.${i}.quantity`)}
                           type="number" min="1" placeholder="Qty"
-                          disabled={isSample}
-                          title={isSample ? "Sample orders are single-unit" : undefined}
-                          className="field-input text-xs disabled:bg-stone-100 disabled:text-stone-400 dark:disabled:bg-stone-700 dark:disabled:text-stone-500"
+                          className="field-input text-xs"
                         />
                         {errors.items?.[i]?.quantity && (
                           <p className="field-error">{errors.items[i]?.quantity?.message}</p>
