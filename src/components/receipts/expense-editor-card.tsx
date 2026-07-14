@@ -9,12 +9,15 @@ interface Props {
   billAmount: number;
   initial: ExpenseRecordValues | null;
   isAdmin: boolean;
+  /** Bulk orders show all six cost fields; Sample orders only fabric/pattern
+   * making/production. */
+  orderType: "BULK" | "SAMPLE";
 }
 
-// Card-style editor for the receipt detail page's Expenses section: the four
-// cost fields, an auto-calculated (but editable) Profit field, and a
-// Finalize/Unlock action. Locked once finalized.
-export function ExpenseEditorCard({ receiptId, billAmount, initial, isAdmin }: Props) {
+// Card-style editor for the receipt detail page's Expenses section: the
+// order-type-appropriate cost fields, an auto-calculated (but editable)
+// Profit field, and a Finalize/Unlock action. Locked once finalized.
+export function ExpenseEditorCard({ receiptId, billAmount, initial, isAdmin, orderType }: Props) {
   const e = useExpenseEditor(receiptId, billAmount, initial);
   const disabled = e.finalized || e.saving;
 
@@ -38,10 +41,12 @@ export function ExpenseEditorCard({ receiptId, billAmount, initial, isAdmin }: P
       </div>
 
       <div className="grid grid-cols-2 gap-3">
-        {field("Fabric Expense", e.fabricExpense, e.setFabricExpense)}
-        {field("Sewing Expense", e.sewingExpense, e.setSewingExpense)}
-        {field("Accessory Expense", e.accessoryExpense, e.setAccessoryExpense)}
-        {field("Other Expense", e.otherExpense, e.setOtherExpense)}
+        {field("Fabric Cost", e.fabricExpense, e.setFabricExpense)}
+        {field("Pattern Making Cost", e.patternMakingExpense, e.setPatternMakingExpense)}
+        {orderType === "BULK" && field("Cutting Cost", e.cuttingExpense, e.setCuttingExpense)}
+        {field("Production Cost", e.productionExpense, e.setProductionExpense)}
+        {orderType === "BULK" && field("Accessories Cost", e.accessoryExpense, e.setAccessoryExpense)}
+        {orderType === "BULK" && field("Other", e.otherExpense, e.setOtherExpense)}
       </div>
 
       <div>

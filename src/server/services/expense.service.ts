@@ -7,13 +7,18 @@ const D = (n: number) => new Prisma.Decimal(n);
 
 export interface ExpenseRecordInput {
   fabricExpense: number;
-  sewingExpense: number;
+  patternMakingExpense: number;
+  cuttingExpense: number;
+  productionExpense: number;
   accessoryExpense: number;
   otherExpense: number;
   profit: number;
 }
 
-// Structured, one-row-per-receipt cost ledger (fabric/sewing/accessory/other).
+// Structured, one-row-per-receipt cost ledger. Bulk orders use all six cost
+// categories; Sample orders only use fabric/patternMaking/production — the
+// other three are simply submitted as 0 by the client for a sample and never
+// shown for editing there, but the row shape is the same either way.
 // Profit is stored as submitted — the client auto-calculates it until the
 // user types over it, so the server just trusts whatever number arrives.
 // Finalizing locks the record and is what makes it visible to the Income page.
@@ -27,7 +32,9 @@ export const expenseRecordService = {
 
     const data = {
       fabricExpense: D(input.fabricExpense),
-      sewingExpense: D(input.sewingExpense),
+      patternMakingExpense: D(input.patternMakingExpense),
+      cuttingExpense: D(input.cuttingExpense),
+      productionExpense: D(input.productionExpense),
       accessoryExpense: D(input.accessoryExpense),
       otherExpense: D(input.otherExpense),
       profit: D(input.profit),

@@ -5,7 +5,9 @@ import { useRouter } from "next/navigation";
 
 export interface ExpenseRecordValues {
   fabricExpense: number;
-  sewingExpense: number;
+  patternMakingExpense: number;
+  cuttingExpense: number;
+  productionExpense: number;
   accessoryExpense: number;
   otherExpense: number;
   profit: number;
@@ -14,7 +16,9 @@ export interface ExpenseRecordValues {
 
 const defaults = (billAmount: number): ExpenseRecordValues => ({
   fabricExpense: 0,
-  sewingExpense: 0,
+  patternMakingExpense: 0,
+  cuttingExpense: 0,
+  productionExpense: 0,
   accessoryExpense: 0,
   otherExpense: 0,
   profit: billAmount,
@@ -22,18 +26,21 @@ const defaults = (billAmount: number): ExpenseRecordValues => ({
 });
 
 /**
- * Shared editing state for a receipt's expense record: the four cost fields,
- * a Profit field that auto-recalculates from them until the user types over
- * it directly (same pattern as Advance Payment in the receipt builder), and
- * finalize/unlock actions. Used by both the receipt-detail card and the
- * global Expenses table row.
+ * Shared editing state for a receipt's expense record: the six cost fields
+ * (a Bulk order uses all six; a Sample order only fabric/patternMaking/
+ * production — the caller decides which to render), a Profit field that
+ * auto-recalculates from all six until the user types over it directly (same
+ * pattern as Advance Payment in the receipt builder), and finalize/unlock
+ * actions. Used by both the receipt-detail card and the global Expenses table row.
  */
 export function useExpenseEditor(receiptId: string, billAmount: number, initial: ExpenseRecordValues | null) {
   const router = useRouter();
   const base = initial ?? defaults(billAmount);
 
   const [fabricExpense, setFabricExpense] = useState(String(base.fabricExpense));
-  const [sewingExpense, setSewingExpense] = useState(String(base.sewingExpense));
+  const [patternMakingExpense, setPatternMakingExpense] = useState(String(base.patternMakingExpense));
+  const [cuttingExpense, setCuttingExpense] = useState(String(base.cuttingExpense));
+  const [productionExpense, setProductionExpense] = useState(String(base.productionExpense));
   const [accessoryExpense, setAccessoryExpense] = useState(String(base.accessoryExpense));
   const [otherExpense, setOtherExpense] = useState(String(base.otherExpense));
   const [profit, setProfit] = useState(String(base.profit));
@@ -46,10 +53,11 @@ export function useExpenseEditor(receiptId: string, billAmount: number, initial:
   useEffect(() => {
     if (profitTouched || finalized) return;
     const total =
-      (Number(fabricExpense) || 0) + (Number(sewingExpense) || 0) + (Number(accessoryExpense) || 0) + (Number(otherExpense) || 0);
+      (Number(fabricExpense) || 0) + (Number(patternMakingExpense) || 0) + (Number(cuttingExpense) || 0) +
+      (Number(productionExpense) || 0) + (Number(accessoryExpense) || 0) + (Number(otherExpense) || 0);
     setProfit(String(Math.round((billAmount - total) * 100) / 100));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fabricExpense, sewingExpense, accessoryExpense, otherExpense, billAmount, profitTouched, finalized]);
+  }, [fabricExpense, patternMakingExpense, cuttingExpense, productionExpense, accessoryExpense, otherExpense, billAmount, profitTouched, finalized]);
 
   const onProfitChange = (v: string) => {
     setProfitTouched(true);
@@ -65,7 +73,9 @@ export function useExpenseEditor(receiptId: string, billAmount: number, initial:
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           fabricExpense: Number(fabricExpense) || 0,
-          sewingExpense: Number(sewingExpense) || 0,
+          patternMakingExpense: Number(patternMakingExpense) || 0,
+          cuttingExpense: Number(cuttingExpense) || 0,
+          productionExpense: Number(productionExpense) || 0,
           accessoryExpense: Number(accessoryExpense) || 0,
           otherExpense: Number(otherExpense) || 0,
           profit: Number(profit) || 0,
@@ -107,7 +117,9 @@ export function useExpenseEditor(receiptId: string, billAmount: number, initial:
 
   return {
     fabricExpense, setFabricExpense,
-    sewingExpense, setSewingExpense,
+    patternMakingExpense, setPatternMakingExpense,
+    cuttingExpense, setCuttingExpense,
+    productionExpense, setProductionExpense,
     accessoryExpense, setAccessoryExpense,
     otherExpense, setOtherExpense,
     profit, onProfitChange,

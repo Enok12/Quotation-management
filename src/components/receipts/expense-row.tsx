@@ -13,12 +13,15 @@ interface Props {
   billAmount: number;
   initial: ExpenseRecordValues | null;
   isAdmin: boolean;
+  /** Bulk rows show all six cost cells; Sample rows only fabric/pattern
+   * making/production — must match whichever <thead> the parent renders. */
+  orderType: "BULK" | "SAMPLE";
 }
 
-// One editable row in the global Expenses table: four cost cells, an
-// auto-calculated (but overridable) Profit cell, and a Finalize/Unlock cell.
-// Locked once finalized.
-export function ExpenseRow({ receiptId, receiptNumber, custName, date, billAmount, initial, isAdmin }: Props) {
+// One editable row in the global Expenses table: order-type-appropriate cost
+// cells, an auto-calculated (but overridable) Profit cell, and a
+// Finalize/Unlock cell. Locked once finalized.
+export function ExpenseRow({ receiptId, receiptNumber, custName, date, billAmount, initial, isAdmin, orderType }: Props) {
   const e = useExpenseEditor(receiptId, billAmount, initial);
   const disabled = e.finalized || e.saving;
 
@@ -42,9 +45,11 @@ export function ExpenseRow({ receiptId, receiptNumber, custName, date, billAmoun
       </td>
       <td className="td text-right font-mono text-sm">{fmtMoney(billAmount)}</td>
       <td className="td text-right">{cellInput(e.fabricExpense, e.setFabricExpense)}</td>
-      <td className="td text-right">{cellInput(e.sewingExpense, e.setSewingExpense)}</td>
-      <td className="td text-right">{cellInput(e.accessoryExpense, e.setAccessoryExpense)}</td>
-      <td className="td text-right">{cellInput(e.otherExpense, e.setOtherExpense)}</td>
+      <td className="td text-right">{cellInput(e.patternMakingExpense, e.setPatternMakingExpense)}</td>
+      {orderType === "BULK" && <td className="td text-right">{cellInput(e.cuttingExpense, e.setCuttingExpense)}</td>}
+      <td className="td text-right">{cellInput(e.productionExpense, e.setProductionExpense)}</td>
+      {orderType === "BULK" && <td className="td text-right">{cellInput(e.accessoryExpense, e.setAccessoryExpense)}</td>}
+      {orderType === "BULK" && <td className="td text-right">{cellInput(e.otherExpense, e.setOtherExpense)}</td>}
       <td className="td text-right">
         <input
           type="number" step="0.01" value={e.profit} placeholder="0.00"

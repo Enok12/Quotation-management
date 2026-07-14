@@ -11,11 +11,12 @@ interface Props {
   billAmount: number;
   initial: ExpenseRecordValues | null;
   isAdmin: boolean;
+  orderType: "BULK" | "SAMPLE";
 }
 
 // Compact icon trigger (used in dense table rows, e.g. the Orders page) that
 // opens the same expense editor shown on the receipt detail page, in a modal.
-export function ExpenseRecordButton({ receiptId, receiptNumber, billAmount, initial, isAdmin }: Props) {
+export function ExpenseRecordButton({ receiptId, receiptNumber, billAmount, initial, isAdmin, orderType }: Props) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -36,7 +37,7 @@ export function ExpenseRecordButton({ receiptId, receiptNumber, billAmount, init
               <h3 className="font-serif text-xl text-ink">Expenses — Receipt #{receiptNumber}</h3>
               <button onClick={() => setOpen(false)} className="text-stone-400 hover:text-ink"><X size={18} /></button>
             </div>
-            <ExpenseEditorCard receiptId={receiptId} billAmount={billAmount} initial={initial} isAdmin={isAdmin} />
+            <ExpenseEditorCard receiptId={receiptId} billAmount={billAmount} initial={initial} isAdmin={isAdmin} orderType={orderType} />
           </div>
         </div>
       )}

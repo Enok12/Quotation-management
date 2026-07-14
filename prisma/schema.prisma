@@ -240,10 +240,14 @@ model ExpenseRecord {
   receiptId        String    @unique
   receipt          Receipt   @relation(fields: [receiptId], references: [id], onDelete: Cascade)
 
-  fabricExpense    Decimal   @default(0) @db.Decimal(12, 2)
-  sewingExpense    Decimal   @default(0) @db.Decimal(12, 2)
-  accessoryExpense Decimal   @default(0) @db.Decimal(12, 2)
-  otherExpense     Decimal   @default(0) @db.Decimal(12, 2)
+  // Bulk orders track all six; Sample orders only use fabric/patternMaking/
+  // production — the other three simply stay 0 and unedited for a sample.
+  fabricExpense        Decimal @default(0) @db.Decimal(12, 2)
+  patternMakingExpense Decimal @default(0) @db.Decimal(12, 2)
+  cuttingExpense       Decimal @default(0) @db.Decimal(12, 2) // Bulk only
+  productionExpense    Decimal @default(0) @db.Decimal(12, 2)
+  accessoryExpense     Decimal @default(0) @db.Decimal(12, 2) // Bulk only
+  otherExpense         Decimal @default(0) @db.Decimal(12, 2) // Bulk only
 
   profit           Decimal   @default(0) @db.Decimal(12, 2)
 

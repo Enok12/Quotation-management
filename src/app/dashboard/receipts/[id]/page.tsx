@@ -33,8 +33,8 @@ export default async function ReceiptDetailPage({ params }: Props) {
       payments: { orderBy: { paidAt: "desc" }, select: { id: true, amount: true, method: true, note: true, paidAt: true } },
       expenseRecord: {
         select: {
-          fabricExpense: true, sewingExpense: true, accessoryExpense: true, otherExpense: true,
-          profit: true, finalized: true,
+          fabricExpense: true, patternMakingExpense: true, cuttingExpense: true, productionExpense: true,
+          accessoryExpense: true, otherExpense: true, profit: true, finalized: true,
         },
       },
     },
@@ -223,7 +223,9 @@ export default async function ReceiptDetailPage({ params }: Props) {
                 receipt.expenseRecord
                   ? {
                       fabricExpense: Number(receipt.expenseRecord.fabricExpense),
-                      sewingExpense: Number(receipt.expenseRecord.sewingExpense),
+                      patternMakingExpense: Number(receipt.expenseRecord.patternMakingExpense),
+                      cuttingExpense: Number(receipt.expenseRecord.cuttingExpense),
+                      productionExpense: Number(receipt.expenseRecord.productionExpense),
                       accessoryExpense: Number(receipt.expenseRecord.accessoryExpense),
                       otherExpense: Number(receipt.expenseRecord.otherExpense),
                       profit: Number(receipt.expenseRecord.profit),
@@ -232,6 +234,7 @@ export default async function ReceiptDetailPage({ params }: Props) {
                   : null
               }
               isAdmin={isAdmin}
+              orderType={receipt.orderType}
             />
           </div>
 

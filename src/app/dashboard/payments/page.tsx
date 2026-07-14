@@ -62,8 +62,8 @@ export default async function OrdersFolderPage({ searchParams }: Props) {
         totalDue: true, amountPaid: true, balance: true, paymentStatus: true, orderType: true,
         expenseRecord: {
           select: {
-            fabricExpense: true, sewingExpense: true, accessoryExpense: true, otherExpense: true,
-            profit: true, finalized: true,
+            fabricExpense: true, patternMakingExpense: true, cuttingExpense: true, productionExpense: true,
+            accessoryExpense: true, otherExpense: true, profit: true, finalized: true,
           },
         },
         // Most recent payment only — when paid in full, that's the payment
@@ -179,7 +179,9 @@ export default async function OrdersFolderPage({ searchParams }: Props) {
                           r.expenseRecord
                             ? {
                                 fabricExpense: Number(r.expenseRecord.fabricExpense),
-                                sewingExpense: Number(r.expenseRecord.sewingExpense),
+                                patternMakingExpense: Number(r.expenseRecord.patternMakingExpense),
+                                cuttingExpense: Number(r.expenseRecord.cuttingExpense),
+                                productionExpense: Number(r.expenseRecord.productionExpense),
                                 accessoryExpense: Number(r.expenseRecord.accessoryExpense),
                                 otherExpense: Number(r.expenseRecord.otherExpense),
                                 profit: Number(r.expenseRecord.profit),
@@ -188,6 +190,7 @@ export default async function OrdersFolderPage({ searchParams }: Props) {
                             : null
                         }
                         isAdmin={isAdmin}
+                        orderType={r.orderType}
                       />
                       <DeleteReceiptButton receiptId={r.id} receiptNumber={r.receiptNumber} iconOnly />
                     </div>

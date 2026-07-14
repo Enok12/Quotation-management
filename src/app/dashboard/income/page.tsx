@@ -36,14 +36,19 @@ export default async function IncomePage({ searchParams }: Props) {
     select: {
       id: true, receiptNumber: true, custName: true, date: true, orderType: true, totalDue: true,
       expenseRecord: {
-        select: { fabricExpense: true, sewingExpense: true, accessoryExpense: true, otherExpense: true, profit: true },
+        select: {
+          fabricExpense: true, patternMakingExpense: true, cuttingExpense: true, productionExpense: true,
+          accessoryExpense: true, otherExpense: true, profit: true,
+        },
       },
     },
   });
 
   const rows = receipts.map((r) => {
     const rec = r.expenseRecord!;
-    const expenseTotal = Number(rec.fabricExpense) + Number(rec.sewingExpense) + Number(rec.accessoryExpense) + Number(rec.otherExpense);
+    const expenseTotal =
+      Number(rec.fabricExpense) + Number(rec.patternMakingExpense) + Number(rec.cuttingExpense) +
+      Number(rec.productionExpense) + Number(rec.accessoryExpense) + Number(rec.otherExpense);
     return {
       id: r.id,
       receiptNumber: r.receiptNumber,
