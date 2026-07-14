@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Upload, Loader2, X, Check, RefreshCw, ArrowRight, ArrowLeft, Trash2 } from "lucide-react";
+import { Upload, Loader2, X, Check, RefreshCw, ArrowRight, ArrowLeft, Trash2, Search } from "lucide-react";
 import { AddCustomerForm } from "@/components/customers/add-customer-form";
 import { stashReceiptDraft } from "@/lib/receipt-draft";
 import { findCustomerMatch, type MatchableCustomer } from "@/lib/customer-match";
@@ -40,7 +40,13 @@ export function BulkUploadShell({
   const filesRef = useRef<Map<string, File>>(new Map());
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [customerPromptId, setCustomerPromptId] = useState<string | null>(null);
+  const [pickerSearch, setPickerSearch] = useState("");
   const [batchError, setBatchError] = useState<string | null>(null);
+
+  const closePrompt = () => {
+    setCustomerPromptId(null);
+    setPickerSearch("");
+  };
 
   // Restore any in-progress/completed batch (this is a real page navigation
   // to/from the builder, so it doesn't survive in React state alone), and
@@ -159,8 +165,23 @@ export function BulkUploadShell({
   };
 
   const review = (item: BatchItem) => {
-    if (item.status === "matched" && item.matchedCustomerId) goToBuilder(item.matchedCustomerId, item);
-    else if (item.status === "needsCustomer") setCustomerPromptId(item.id);
+    if (item.status === "matched" && item.matchedCustomerId) {
+      goToBuilder(item.matchedCustomerId, item);
+      return;
+    }
+    if (item.status === "needsCustomer") {
+      // Re-check now, not just at extraction time — a customer created from
+      // an earlier item in this same batch (e.g. the same person's other
+      // receipts) may match even though it didn't exist yet when this item
+      // was first read.
+      const recheck = item.extracted && findCustomerMatch([...customers, ...sessionCustomers], item.extracted);
+      if (recheck) {
+        updateItem(item.id, { status: "matched", matchedCustomerId: recheck.id, matchedCustomerName: recheck.name });
+        goToBuilder(recheck.id, item);
+        return;
+      }
+      setCustomerPromptId(item.id);
+    }
   };
 
   const clearAll = () => {
@@ -289,15 +310,63 @@ export function BulkUploadShell({
       )}
 
       {promptItem && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 modal-overlay-in" onClick={() => setCustomerPromptId(null)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 modal-overlay-in" onClick={closePrompt}>
           <div className="bg-white dark:bg-stone-800 rounded-lg shadow-xl w-full max-w-lg p-6 modal-panel-in" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-start justify-between mb-4">
               <div>
                 <h3 className="font-serif text-xl text-ink">Confirm customer details</h3>
                 <p className="text-sm text-stone-500 mt-0.5">{promptItem.fileName} — couldn't match to an existing customer.</p>
               </div>
-              <button onClick={() => setCustomerPromptId(null)} className="text-stone-400 hover:text-ink"><X size={18} /></button>
+              <button onClick={closePrompt} className="text-stone-400 hover:text-ink"><X size={18} /></button>
             </div>
+
+            {/* Manual fallback — e.g. the same person's other receipts in this
+                batch didn't auto-match (phone read slightly differently). */}
+            <div className="mb-4">
+              <label className="field-label">Or pick an existing customer</label>
+              <div className="relative">
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" />
+                <input
+                  type="text"
+                  value={pickerSearch}
+                  onChange={(e) => setPickerSearch(e.target.value)}
+                  placeholder="Search by name or phone…"
+                  className="field-input pl-9 text-sm"
+                />
+              </div>
+              {pickerSearch.trim() && (
+                <ul className="mt-2 border border-stone-200 dark:border-stone-700 rounded-md divide-y divide-stone-100 dark:divide-stone-700 max-h-40 overflow-y-auto">
+                  {[...customers, ...sessionCustomers]
+                    .filter((c) => c.name.toLowerCase().includes(pickerSearch.trim().toLowerCase()) || (c.phone ?? "").includes(pickerSearch.trim()))
+                    .slice(0, 6)
+                    .map((c) => (
+                      <li key={c.id}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            closePrompt();
+                            goToBuilder(c.id, promptItem);
+                          }}
+                          className="w-full flex items-center justify-between px-3 py-2 text-sm hover:bg-stone-50 dark:hover:bg-white/5 transition-colors text-left"
+                        >
+                          <span className="text-ink">{c.name}</span>
+                          <span className="text-xs text-stone-400">{c.phone}</span>
+                        </button>
+                      </li>
+                    ))}
+                  {[...customers, ...sessionCustomers].filter((c) => c.name.toLowerCase().includes(pickerSearch.trim().toLowerCase()) || (c.phone ?? "").includes(pickerSearch.trim())).length === 0 && (
+                    <li className="px-3 py-2 text-sm text-stone-400">No matches</li>
+                  )}
+                </ul>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2 my-4">
+              <div className="flex-1 h-px bg-stone-100 dark:bg-stone-700" />
+              <span className="text-xs text-stone-400">or create a new customer</span>
+              <div className="flex-1 h-px bg-stone-100 dark:bg-stone-700" />
+            </div>
+
             <AddCustomerForm
               defaultValues={{
                 name: promptItem.extracted?.customerName ?? "",
@@ -308,7 +377,7 @@ export function BulkUploadShell({
               submitLabel="Continue"
               onCreated={(customer) => {
                 setSessionCustomers((prev) => [...prev, customer]);
-                setCustomerPromptId(null);
+                closePrompt();
                 goToBuilder(customer.id, promptItem);
               }}
             />
