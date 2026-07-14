@@ -13,6 +13,9 @@ export interface ReceiptDraft {
   /** Set by the Sample-Orders bulk-upload queue so the builder opens with the
    * Sample toggle already on (which also locks quantities to 1). */
   isSample?: boolean;
+  /** Best-effort guess inferred from the item descriptions — null/absent
+   * falls back to the builder's own default (Men's). Always still editable. */
+  category?: "MEN" | "WOMEN" | null;
 }
 
 export function stashReceiptDraft(draft: ReceiptDraft) {

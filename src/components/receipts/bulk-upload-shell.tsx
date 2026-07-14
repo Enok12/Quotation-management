@@ -10,6 +10,7 @@ import { findCustomerMatch, type MatchableCustomer } from "@/lib/customer-match"
 import { loadBatch, saveBatch, clearBatch, type BatchItem, type BatchKind } from "@/lib/receipt-batch";
 import { runWithConcurrency } from "@/lib/utils/concurrency";
 import { MAX_UPLOAD_BYTES, MAX_BATCH_FILES, isAcceptedReceiptFile } from "@/lib/receipt-upload-limits";
+import { CATEGORY_NAMES } from "@/lib/order-folder";
 import type { ReceiptExtractResult } from "@/lib/validation/receipt-extract.schema";
 
 // Kept low deliberately — this is what keeps a batch of many files from
@@ -149,6 +150,7 @@ export function BulkUploadShell({
         amountPaid: item.extracted.amountPaid,
         paymentMethods: item.extracted.paymentMethods,
         isSample,
+        category: item.extracted.category,
       });
     }
     router.push(
@@ -238,10 +240,16 @@ export function BulkUploadShell({
                     {item.status === "pending" && "Waiting…"}
                     {item.status === "extracting" && "Reading receipt…"}
                     {item.status === "matched" && (
-                      <>Matched to <span className="text-ink">{item.matchedCustomerName}</span> · {item.extracted?.items.length ?? 0} item{item.extracted?.items.length === 1 ? "" : "s"}</>
+                      <>
+                        Matched to <span className="text-ink">{item.matchedCustomerName}</span> · {item.extracted?.items.length ?? 0} item{item.extracted?.items.length === 1 ? "" : "s"}
+                        {item.extracted?.category && ` · ${CATEGORY_NAMES[item.extracted.category]} (guessed)`}
+                      </>
                     )}
                     {item.status === "needsCustomer" && (
-                      <>New customer{item.extracted?.customerName ? `: ${item.extracted.customerName}` : ""} · {item.extracted?.items.length ?? 0} item{item.extracted?.items.length === 1 ? "" : "s"}</>
+                      <>
+                        New customer{item.extracted?.customerName ? `: ${item.extracted.customerName}` : ""} · {item.extracted?.items.length ?? 0} item{item.extracted?.items.length === 1 ? "" : "s"}
+                        {item.extracted?.category && ` · ${CATEGORY_NAMES[item.extracted.category]} (guessed)`}
+                      </>
                     )}
                     {item.status === "failed" && <span className="text-red-500">{item.error ?? "Failed to read"}</span>}
                     {item.status === "done" && "Saved"}

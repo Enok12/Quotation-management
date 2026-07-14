@@ -3,35 +3,23 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronDown, Loader2 } from "lucide-react";
+import { ORDER_STAGES, ORDER_STAGE_LABELS, type OrderStage } from "@/lib/order-stage";
 
-const ORDER_STATUSES = [
-  "FABRIC_SELECTION", "CUTTING", "PRODUCTION", "QUALITY_CHECK", "IRON_PACKING", "DELIVERY",
-] as const;
-type OS = (typeof ORDER_STATUSES)[number];
-
-const LABELS: Record<OS, string> = {
-  FABRIC_SELECTION: "Fabric Selection",
-  CUTTING: "Cutting",
-  PRODUCTION: "Production",
-  QUALITY_CHECK: "Quality Check",
-  IRON_PACKING: "Iron / Packing",
-  DELIVERY: "Delivery",
-};
-
-// Inline dropdown for updating a receipt's order status directly from a table
-// row — no navigation, updates in place.
-export function OrderStatusSelect({ receiptId, status }: { receiptId: string; status: string }) {
+// Inline dropdown for updating a status directly from a table/list row — no
+// navigation, updates in place. `statusUrl` is whatever endpoint accepts
+// `{ status }` — the receipt-item route for a single item's status.
+export function OrderStatusSelect({ statusUrl, status }: { statusUrl: string; status: string }) {
   const router = useRouter();
-  const [value, setValue] = useState<OS>(status as OS);
+  const [value, setValue] = useState<OrderStage>(status as OrderStage);
   const [saving, setSaving] = useState(false);
 
-  const change = async (to: OS) => {
+  const change = async (to: OrderStage) => {
     if (to === value) return;
     const prev = value;
     setValue(to); // optimistic
     setSaving(true);
     try {
-      const res = await fetch(`/api/v1/orders/${receiptId}/status`, {
+      const res = await fetch(statusUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: to }),
@@ -52,11 +40,11 @@ export function OrderStatusSelect({ receiptId, status }: { receiptId: string; st
       <select
         value={value}
         disabled={saving}
-        onChange={(e) => change(e.target.value as OS)}
+        onChange={(e) => change(e.target.value as OrderStage)}
         className="appearance-none bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 rounded px-2 py-1.5 pr-7 text-xs text-ink hover:border-amber-400 focus:border-amber-400 focus:ring-1 focus:ring-amber-400 outline-none transition-colors disabled:opacity-60 cursor-pointer"
       >
-        {ORDER_STATUSES.map((s) => (
-          <option key={s} value={s}>{LABELS[s]}</option>
+        {ORDER_STAGES.map((s) => (
+          <option key={s} value={s}>{ORDER_STAGE_LABELS[s]}</option>
         ))}
       </select>
       {saving ? (

@@ -40,6 +40,7 @@ export function CustomerPickerShell({ customers }: { customers: Customer[] }) {
         advanceAmount: extracted.advanceAmount,
         amountPaid: extracted.amountPaid,
         paymentMethods: extracted.paymentMethods,
+        category: extracted.category,
       });
     }
     router.push(`/dashboard/receipts/new?customerId=${customerId}`);

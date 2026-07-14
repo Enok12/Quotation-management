@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/db";
 import { fmtDate } from "@/lib/utils/format";
 import { TrackingInvalid } from "../_components/tracking-invalid";
-import { StageTimeline } from "../_components/stage-timeline";
+import { ItemTrackingGrid } from "../_components/item-tracking-grid";
 
 interface Props { params: Promise<{ token: string }> }
 export const metadata = { title: "Order Tracking" };
@@ -15,22 +15,24 @@ export default async function TrackingPage({ params }: Props) {
       receiptNumber: true,
       custName: true,
       date: true,
-      orderStatus: true,
       orderType: true,
-      orderHistory: {
-        orderBy: { createdAt: "asc" },
-        select: { toStatus: true, createdAt: true },
+      items: {
+        orderBy: { sortOrder: "asc" },
+        select: {
+          id: true,
+          description: true,
+          orderStatus: true,
+          history: {
+            orderBy: { createdAt: "asc" },
+            select: { toStatus: true, createdAt: true },
+          },
+        },
       },
     },
   });
 
   // Only bulk orders have tracking tokens, but guard defensively anyway.
   if (!receipt || receipt.orderType !== "BULK") return <TrackingInvalid />;
-
-  // Latest date each stage was reached (later entries overwrite earlier ones
-  // in case the status was ever moved back and forward again).
-  const stageDates: Partial<Record<string, Date>> = {};
-  for (const h of receipt.orderHistory) stageDates[h.toStatus] = h.createdAt;
 
   return (
     <main className="min-h-screen bg-stone-50 dark:bg-stone-950 px-4 py-12">
@@ -44,9 +46,15 @@ export default async function TrackingPage({ params }: Props) {
           </p>
         </div>
 
-        <div className="card card-body">
-          <StageTimeline currentStatus={receipt.orderStatus} stageDates={stageDates} />
-        </div>
+        <ItemTrackingGrid
+          items={receipt.items.map((item) => {
+            // Latest date each stage was reached (later entries overwrite
+            // earlier ones in case a status was ever moved back and forward).
+            const stageDates: Partial<Record<string, Date>> = {};
+            for (const h of item.history) stageDates[h.toStatus] = h.createdAt;
+            return { id: item.id, description: item.description, orderStatus: item.orderStatus, stageDates };
+          })}
+        />
 
         <p className="text-center text-xs text-stone-400 mt-6">
           Questions about your order? Contact MONTRA directly.

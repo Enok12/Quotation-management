@@ -34,10 +34,11 @@ Read the matching page and return ONLY a JSON object with this exact shape (no p
   "adjustments": [{ "label": string, "amount": number }] (any extra named row before Total Due that is NOT Total Due/Advance Payment/Amount Paid/Balance),
   "advanceAmount": number or null,
   "amountPaid": number or null,
-  "paymentMethods": string[] (any of "CASH", "CARD", "BANK_TRANSFER", "OTHER" — only include ones that have a checkmark)
+  "paymentMethods": string[] (any of "CASH", "CARD", "BANK_TRANSFER", "OTHER" — only include ones that have a checkmark),
+  "category": "MEN" or "WOMEN" or null (infer from the item descriptions only, e.g. "Men's Shirt"/"Trouser" suggest MEN, "Ladies Blouse"/"Frock"/"Saree" suggest WOMEN — use null if the descriptions don't clearly indicate either)
 }
 
-If a field isn't legible or isn't present, use null (or an empty array for lists) rather than guessing. Do not invent values.`;
+If a field isn't legible or isn't present, use null (or an empty array for lists) rather than guessing. Do not invent values — this applies to every field except "category", which is explicitly an inference from the item text, not a printed value.`;
 
 interface GeminiCandidate {
   content?: { parts?: { text?: string }[] };

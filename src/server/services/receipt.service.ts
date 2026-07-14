@@ -6,6 +6,7 @@ import { auditService } from "./audit.service";
 import { receiptRepository, type FullReceipt } from "../repositories/receipt.repository";
 import type { ReceiptCreateInput } from "@/lib/validation/receipt.schema";
 import { generateToken } from "@/lib/utils/token";
+import { bottleneckStage, type OrderStage } from "@/lib/order-stage";
 
 const D = (n: number) => new Prisma.Decimal(n);
 
@@ -43,6 +44,7 @@ export const receiptService = {
           balance: D(totals.balance),
           paymentStatus: derivePaymentStatus(totals.totalDue, input.amountPaid),
           orderType: input.orderType,
+          category: input.category,
           // Only bulk orders get a public tracking link — samples get none.
           trackingToken: input.orderType === "BULK" ? generateToken() : null,
           // Receipts go live immediately — no separate finalization step.
@@ -61,9 +63,14 @@ export const receiptService = {
             create: input.adjustments.map((a, i) => ({ label: a.label, amount: D(a.amount), sortOrder: i })),
           },
         },
+        include: { items: true },
       });
-      await tx.orderStatusHistory.create({
-        data: { receiptId: receipt.id, fromStatus: null, toStatus: "FABRIC_SELECTION", changedById: actorId, note: "Receipt created" },
+      // One history row per item — tracking is per item from the start.
+      await tx.orderStatusHistory.createMany({
+        data: receipt.items.map((item) => ({
+          receiptId: receipt.id, itemId: item.id, fromStatus: null, toStatus: "FABRIC_SELECTION" as const,
+          changedById: actorId, note: "Receipt created",
+        })),
       });
       await auditService.log(tx, {
         actorId, action: "RECEIPT_CREATED", entityType: "Receipt", entityId: receipt.id,
@@ -75,6 +82,11 @@ export const receiptService = {
   // -------- Update --------
   // DRAFT: edit in place. FINALIZED: snapshot the current state as a new version
   // first (admin-only enforcement lives in the route).
+  //
+  // Items are reconciled by id rather than wholesale-replaced (unlike
+  // adjustments, which carry no state) — an item's orderStatus and history
+  // are meaningful production-tracking state that an unrelated edit (e.g.
+  // fixing a price typo) must not silently reset.
   async update(id: string, input: ReceiptCreateInput, actorId: string) {
     const existing = await this.getFull(id);
     const totals = calcReceiptTotals(input);
@@ -83,9 +95,40 @@ export const receiptService = {
       if (existing.status === "FINALIZED") {
         await this.snapshotVersion(tx, existing, actorId, "Edited after finalization");
       }
-      // Replace child rows wholesale (simplest correct approach for small tables).
-      await tx.receiptItem.deleteMany({ where: { receiptId: id } });
+
+      const keepIds = new Set(input.items.map((it) => it.itemId).filter((v): v is string => !!v));
+      const toRemove = existing.items.filter((it) => !keepIds.has(it.id));
+      if (toRemove.length > 0) {
+        await tx.receiptItem.deleteMany({ where: { id: { in: toRemove.map((it) => it.id) } } });
+      }
+
+      const survivingStatuses: string[] = [];
+      for (const [i, it] of input.items.entries()) {
+        const existingItem = it.itemId ? existing.items.find((e) => e.id === it.itemId) : undefined;
+        if (existingItem) {
+          await tx.receiptItem.update({
+            where: { id: existingItem.id },
+            data: {
+              description: it.description, quantity: it.quantity,
+              unitPrice: D(it.unitPrice), lineTotal: D(totals.lineTotals[i]), sortOrder: i,
+            },
+          });
+          survivingStatuses.push(existingItem.orderStatus);
+        } else {
+          const created = await tx.receiptItem.create({
+            data: {
+              receiptId: id, description: it.description, quantity: it.quantity,
+              unitPrice: D(it.unitPrice), lineTotal: D(totals.lineTotals[i]), sortOrder: i,
+            },
+          });
+          survivingStatuses.push(created.orderStatus);
+        }
+      }
+
       await tx.receiptAdjustment.deleteMany({ where: { receiptId: id } });
+      await tx.receiptAdjustment.createMany({
+        data: input.adjustments.map((a, i) => ({ receiptId: id, label: a.label, amount: D(a.amount), sortOrder: i })),
+      });
 
       const updated = await tx.receipt.update({
         where: { id },
@@ -100,6 +143,7 @@ export const receiptService = {
           balance: D(totals.balance),
           paymentStatus: derivePaymentStatus(totals.totalDue, input.amountPaid),
           orderType: input.orderType,
+          category: input.category,
           // Keep the tracking-token invariant intact if the order type changes
           // on a normal edit (not just via the dedicated convert action):
           // bulk gets a token if it doesn't have one yet; sample never has one.
@@ -108,15 +152,10 @@ export const receiptService = {
               ? (existing.trackingToken ?? generateToken())
               : null,
           currentVersion: existing.status === "FINALIZED" ? existing.currentVersion + 1 : existing.currentVersion,
-          items: {
-            create: input.items.map((it, i) => ({
-              description: it.description, quantity: it.quantity,
-              unitPrice: D(it.unitPrice), lineTotal: D(totals.lineTotals[i]), sortOrder: i,
-            })),
-          },
-          adjustments: {
-            create: input.adjustments.map((a, i) => ({ label: a.label, amount: D(a.amount), sortOrder: i })),
-          },
+          // Adding/removing items can shift the bottleneck even though no
+          // status was explicitly changed (e.g. a brand-new item starts at
+          // Fabric Selection).
+          orderStatus: bottleneckStage(survivingStatuses),
         },
       });
       await auditService.log(tx, {
@@ -126,20 +165,50 @@ export const receiptService = {
     });
   },
 
-  // -------- Order status --------
-  async changeOrderStatus(id: string, to: FullReceipt["orderStatus"], actorId: string, note?: string) {
-    const existing = await this.getFull(id);
-    if (existing.status !== "FINALIZED") throw new ConflictError("Finalize the receipt before tracking order status");
-    if (existing.orderStatus === to) return existing;
+  // -------- Order status (per item) --------
+  async changeItemStatus(itemId: string, to: OrderStage, actorId: string, note?: string) {
+    const item = await prisma.receiptItem.findUnique({ where: { id: itemId }, include: { receipt: true } });
+    if (!item) throw new NotFoundError("Item");
+    if (item.receipt.status !== "FINALIZED") throw new ConflictError("Finalize the receipt before tracking order status");
+    if (item.orderStatus === to) return item;
 
     return prisma.$transaction(async (tx) => {
-      const receipt = await tx.receipt.update({ where: { id }, data: { orderStatus: to } });
+      const updated = await tx.receiptItem.update({ where: { id: itemId }, data: { orderStatus: to } });
       await tx.orderStatusHistory.create({
-        data: { receiptId: id, fromStatus: existing.orderStatus, toStatus: to, changedById: actorId, note },
+        data: { receiptId: item.receiptId, itemId, fromStatus: item.orderStatus, toStatus: to, changedById: actorId, note },
+      });
+      const siblings = await tx.receiptItem.findMany({ where: { receiptId: item.receiptId }, select: { orderStatus: true } });
+      await tx.receipt.update({
+        where: { id: item.receiptId },
+        data: { orderStatus: bottleneckStage(siblings.map((s) => s.orderStatus)) },
       });
       await auditService.log(tx, {
-        actorId, action: "ORDER_STATUS_CHANGED", entityType: "Order", entityId: id,
-        metadata: { from: existing.orderStatus, to },
+        actorId, action: "ORDER_STATUS_CHANGED", entityType: "ReceiptItem", entityId: itemId,
+        metadata: { receiptId: item.receiptId, from: item.orderStatus, to },
+      });
+      return updated;
+    });
+  },
+
+  // -------- Order status (all items at once) --------
+  // Convenience shortcut for the common case where every item on an order
+  // genuinely moves together — per-item changes remain always available too.
+  async setAllItemsStatus(id: string, to: OrderStage, actorId: string, note?: string) {
+    const existing = await this.getFull(id);
+    if (existing.status !== "FINALIZED") throw new ConflictError("Finalize the receipt before tracking order status");
+
+    return prisma.$transaction(async (tx) => {
+      for (const item of existing.items) {
+        if (item.orderStatus === to) continue;
+        await tx.receiptItem.update({ where: { id: item.id }, data: { orderStatus: to } });
+        await tx.orderStatusHistory.create({
+          data: { receiptId: id, itemId: item.id, fromStatus: item.orderStatus, toStatus: to, changedById: actorId, note },
+        });
+      }
+      const receipt = await tx.receipt.update({ where: { id }, data: { orderStatus: to } });
+      await auditService.log(tx, {
+        actorId, action: "ORDER_STATUS_CHANGED", entityType: "Receipt", entityId: id,
+        metadata: { to, bulk: true },
       });
       return receipt;
     });
@@ -234,6 +303,7 @@ export const receiptService = {
           balance: D(totals.balance),
           paymentStatus: derivePaymentStatus(totals.totalDue, 0),
           orderType: "BULK",
+          category: sample.category,
           trackingToken: generateToken(),
           status: "FINALIZED",
           finalizedAt: new Date(),
@@ -250,12 +320,13 @@ export const receiptService = {
             create: adjustments.map((a, i) => ({ label: a.label, amount: D(a.amount), sortOrder: i })),
           },
         },
+        include: { items: true },
       });
-      await tx.orderStatusHistory.create({
-        data: {
-          receiptId: receipt.id, fromStatus: null, toStatus: "FABRIC_SELECTION", changedById: actorId,
-          note: `Created from sample receipt #${sample.receiptNumber}`,
-        },
+      await tx.orderStatusHistory.createMany({
+        data: receipt.items.map((item) => ({
+          receiptId: receipt.id, itemId: item.id, fromStatus: null, toStatus: "FABRIC_SELECTION" as const,
+          changedById: actorId, note: `Created from sample receipt #${sample.receiptNumber}`,
+        })),
       });
       await auditService.log(tx, {
         actorId, action: "RECEIPT_CREATED", entityType: "Receipt", entityId: receipt.id,

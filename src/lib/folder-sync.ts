@@ -1,22 +1,31 @@
 "use client";
 
-import { FOLDER_NAMES, ALL_FOLDER_KEYS, type FolderKey } from "@/lib/order-folder";
+import { FOLDER_NAMES, ALL_FOLDER_KEYS, CATEGORY_NAMES, ALL_CATEGORIES, type FolderKey, type Category } from "@/lib/order-folder";
 import { receiptFileName } from "@/lib/utils/receipt-filename";
 
 // ---------------------------------------------------------------------------
 // Browser → local-disk folder sync (File System Access API, Chrome/Edge only).
 //
-// Mirrors receipts into three folders on the user's computer:
-//   <chosen folder>/BULK ORDERS, /Sample Orders, /Completed
+// Mirrors receipts two levels deep on the user's computer:
+//   <chosen folder>/Men's/BULK ORDERS, /Men's/Sample Orders, /Men's/Completed
+//   <chosen folder>/Women's/BULK ORDERS, /Women's/Sample Orders, /Women's/Completed
 // The user picks the root folder once (e.g. D:\MONTRA); the handle is kept in
 // IndexedDB so it survives reloads. A change moves a receipt's PDF from its
-// old folder to the new one. "Sync all" reconciles every receipt.
+// old path to the new one. "Sync all" reconciles every receipt.
 //
 // Note: the browser cannot target an absolute path itself — the user must pick
 // the folder via the OS chooser. After that, everything is automatic.
 // ---------------------------------------------------------------------------
 
-const ALL_FOLDERS = ALL_FOLDER_KEYS.map((k) => FOLDER_NAMES[k]);
+export interface FolderPath {
+  category: Category;
+  folder: FolderKey;
+}
+export const ALL_PATHS: FolderPath[] = ALL_CATEGORIES.flatMap((category) =>
+  ALL_FOLDER_KEYS.map((folder) => ({ category, folder })),
+);
+const pathKey = (p: FolderPath) => `${p.category}:${p.folder}`;
+const pathLabel = (p: FolderPath) => `${CATEGORY_NAMES[p.category]} / ${FOLDER_NAMES[p.folder]}`;
 
 // Minimal shape of the File System Access API bits we use (not in older TS lib.dom).
 type PermState = "granted" | "denied" | "prompt";
@@ -117,8 +126,11 @@ export async function connectFolder(): Promise<string> {
   // @ts-expect-error showDirectoryPicker is not yet in the TS lib types
   const handle: DirHandle = await window.showDirectoryPicker({ id: "montra-invoices", mode: "readwrite" });
   await handle.requestPermission({ mode: "readwrite" });
-  // Pre-create the three folders so they appear immediately.
-  for (const name of ALL_FOLDERS) await handle.getDirectoryHandle(name, { create: true });
+  // Pre-create all six category/folder combinations so they appear immediately.
+  for (const path of ALL_PATHS) {
+    const categoryDir = await handle.getDirectoryHandle(CATEGORY_NAMES[path.category], { create: true });
+    await categoryDir.getDirectoryHandle(FOLDER_NAMES[path.folder], { create: true });
+  }
   await idbSet(KEY, handle);
   return handle.name;
 }
@@ -144,15 +156,21 @@ async function fetchInvoicePdf(receiptId: string): Promise<ArrayBuffer> {
 
 interface FolderFile { name: string; number: number }
 
-/** List every receipt-numbered PDF currently in one folder (any naming style). */
-async function listFolderFiles(root: DirHandle, folderName: string): Promise<FolderFile[]> {
-  const results: FolderFile[] = [];
-  let dir: DirHandle;
+/** Get the (category, folder) directory two levels down from root. */
+async function getPathDir(root: DirHandle, path: FolderPath, create: boolean): Promise<DirHandle | null> {
   try {
-    dir = await root.getDirectoryHandle(folderName, { create: false });
+    const categoryDir = await root.getDirectoryHandle(CATEGORY_NAMES[path.category], { create });
+    return await categoryDir.getDirectoryHandle(FOLDER_NAMES[path.folder], { create });
   } catch {
-    return results; // folder not created yet
+    return null; // not created yet (and create: false)
   }
+}
+
+/** List every receipt-numbered PDF currently in one (category, folder) path. */
+async function listFolderFiles(root: DirHandle, path: FolderPath): Promise<FolderFile[]> {
+  const results: FolderFile[] = [];
+  const dir = await getPathDir(root, path, false);
+  if (!dir) return results;
   for await (const name of dir.keys()) {
     const m = name.match(RECEIPT_FILE);
     if (m) results.push({ name, number: Number(m[1]) });
@@ -160,14 +178,14 @@ async function listFolderFiles(root: DirHandle, folderName: string): Promise<Fol
   return results;
 }
 
-/** Remove every file for this receipt number across all folders (any naming style). */
+/** Remove every file for this receipt number across all category/folder paths. */
 async function removeAllCopies(root: DirHandle, receiptNumber: number) {
-  for (const folderName of ALL_FOLDERS) {
-    for (const f of await listFolderFiles(root, folderName)) {
+  for (const path of ALL_PATHS) {
+    for (const f of await listFolderFiles(root, path)) {
       if (f.number !== receiptNumber) continue;
       try {
-        const dir = await root.getDirectoryHandle(folderName, { create: false });
-        await dir.removeEntry(f.name);
+        const dir = await getPathDir(root, path, false);
+        await dir?.removeEntry(f.name);
       } catch {
         /* ignore */
       }
@@ -175,14 +193,14 @@ async function removeAllCopies(root: DirHandle, receiptNumber: number) {
   }
 }
 
-async function placeInvoice(root: DirHandle, receiptId: string, receiptNumber: number, custName: string, folder: FolderKey) {
-  const targetName = FOLDER_NAMES[folder];
+async function placeInvoice(root: DirHandle, receiptId: string, receiptNumber: number, custName: string, path: FolderPath) {
   const bytes = await fetchInvoicePdf(receiptId);
 
-  // Clear out any existing copy first (old naming, wrong folder, or both).
+  // Clear out any existing copy first (old naming, wrong path, or both).
   await removeAllCopies(root, receiptNumber);
 
-  const dir = await root.getDirectoryHandle(targetName, { create: true });
+  const dir = await getPathDir(root, path, true);
+  if (!dir) throw new Error(`Could not create ${pathLabel(path)}`);
   const file = await dir.getFileHandle(fileName(receiptNumber, custName), { create: true });
   const writable = await file.createWritable();
   await writable.write(bytes);
@@ -198,12 +216,13 @@ export async function moveInvoiceIfConnected(
   receiptId: string,
   receiptNumber: number,
   custName: string,
+  category: Category,
   folder: FolderKey,
 ): Promise<boolean> {
   try {
     const handle = await getSavedHandle();
     if (!handle || !(await hasPermission(handle))) return false;
-    await placeInvoice(handle, receiptId, receiptNumber, custName, folder);
+    await placeInvoice(handle, receiptId, receiptNumber, custName, { category, folder });
     return true;
   } catch {
     return false;
@@ -226,6 +245,7 @@ export interface SyncItem {
   id: string;
   receiptNumber: number;
   custName: string;
+  category: Category;
   folder: FolderKey;
 }
 
@@ -239,7 +259,7 @@ export interface DiffDetail {
 export interface FolderDiff {
   upToDate: number;
   missing: number;   // app expects it on disk, not there
-  misfiled: number;  // on disk but in the wrong folder
+  misfiled: number;  // on disk but in the wrong path
   orphan: number;    // on disk with no matching invoice
   changes: number;   // missing + misfiled + orphan
   details: DiffDetail[];
@@ -254,40 +274,41 @@ export async function diffFolders(items: SyncItem[]): Promise<FolderDiff> {
   if (!handle) throw new Error("No folder connected");
   if (!(await hasPermission(handle))) throw new Error("Folder permission needed");
 
-  // Snapshot current disk state per folder, by receipt number (naming-agnostic).
+  // Snapshot current disk state per path, by receipt number (naming-agnostic).
   const present: Record<string, Set<number>> = {};
-  for (const folder of ALL_FOLDERS) {
-    present[folder] = new Set((await listFolderFiles(handle, folder)).map((f) => f.number));
+  for (const path of ALL_PATHS) {
+    present[pathKey(path)] = new Set((await listFolderFiles(handle, path)).map((f) => f.number));
   }
 
-  // Expected: receiptNumber → folder it should live in.
-  const expected = new Map<number, string>();
-  for (const it of items) expected.set(it.receiptNumber, FOLDER_NAMES[it.folder]);
+  // Expected: receiptNumber → path it should live in.
+  const expected = new Map<number, FolderPath>();
+  for (const it of items) expected.set(it.receiptNumber, { category: it.category, folder: it.folder });
 
   let upToDate = 0, missing = 0, misfiled = 0, orphan = 0;
   const details: DiffDetail[] = [];
 
-  for (const [num, targetFolder] of expected) {
-    const inTarget = present[targetFolder]?.has(num) ?? false;
-    const elsewhere = ALL_FOLDERS.find((f) => f !== targetFolder && present[f]?.has(num));
+  for (const [num, targetPath] of expected) {
+    const targetKey = pathKey(targetPath);
+    const inTarget = present[targetKey]?.has(num) ?? false;
+    const elsewhere = ALL_PATHS.find((p) => pathKey(p) !== targetKey && present[pathKey(p)]?.has(num));
 
     if (inTarget && !elsewhere) {
       upToDate++;
     } else if (!inTarget && !elsewhere) {
       missing++;
-      details.push({ receiptNumber: num, issue: "missing", to: targetFolder });
+      details.push({ receiptNumber: num, issue: "missing", to: pathLabel(targetPath) });
     } else {
       misfiled++;
-      details.push({ receiptNumber: num, issue: "misfiled", from: elsewhere, to: targetFolder });
+      details.push({ receiptNumber: num, issue: "misfiled", from: elsewhere && pathLabel(elsewhere), to: pathLabel(targetPath) });
     }
   }
 
   // Files on disk for receipts the app doesn't know about.
-  for (const folder of ALL_FOLDERS) {
-    for (const num of present[folder]) {
+  for (const path of ALL_PATHS) {
+    for (const num of present[pathKey(path)]) {
       if (!expected.has(num)) {
         orphan++;
-        details.push({ receiptNumber: num, issue: "orphan", from: folder });
+        details.push({ receiptNumber: num, issue: "orphan", from: pathLabel(path) });
       }
     }
   }
@@ -301,7 +322,7 @@ export interface SyncResult {
   total: number;
 }
 
-/** Reconcile every invoice into the folder matching its current status. */
+/** Reconcile every invoice into the path matching its current status. */
 export async function syncAll(items: SyncItem[], onProgress?: (done: number, total: number) => void): Promise<SyncResult> {
   const handle = await getSavedHandle();
   if (!handle) throw new Error("No folder connected");
@@ -313,7 +334,9 @@ export async function syncAll(items: SyncItem[], onProgress?: (done: number, tot
   let synced = 0, failed = 0;
   for (let i = 0; i < items.length; i++) {
     try {
-      await placeInvoice(handle, items[i].id, items[i].receiptNumber, items[i].custName, items[i].folder);
+      await placeInvoice(handle, items[i].id, items[i].receiptNumber, items[i].custName, {
+        category: items[i].category, folder: items[i].folder,
+      });
       synced++;
     } catch {
       failed++;
@@ -323,12 +346,12 @@ export async function syncAll(items: SyncItem[], onProgress?: (done: number, tot
 
   // Remove orphaned receipt PDFs (no matching invoice in the app anymore).
   const known = new Set(items.map((it) => it.receiptNumber));
-  for (const folder of ALL_FOLDERS) {
-    for (const f of await listFolderFiles(handle, folder)) {
+  for (const path of ALL_PATHS) {
+    for (const f of await listFolderFiles(handle, path)) {
       if (!known.has(f.number)) {
         try {
-          const dir = await handle.getDirectoryHandle(folder, { create: false });
-          await dir.removeEntry(f.name);
+          const dir = await getPathDir(handle, path, false);
+          await dir?.removeEntry(f.name);
         } catch {
           /* ignore */
         }

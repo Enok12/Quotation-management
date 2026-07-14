@@ -62,7 +62,7 @@ export function RecordPaymentButton({
       if (!json.success) throw new Error(json.message ?? "Failed to record payment");
 
       // Mirror the invoice into its new computer folder (no-op if not connected).
-      await moveInvoiceIfConnected(receiptId, receiptNumber, custName, deriveFolder(orderType, json.data.paymentStatus));
+      await moveInvoiceIfConnected(receiptId, receiptNumber, custName, json.data.category, deriveFolder(orderType, json.data.paymentStatus));
 
       setOpen(false);
       setAmount(""); setMethod(""); setNote("");

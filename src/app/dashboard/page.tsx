@@ -12,7 +12,9 @@ async function getStats() {
     prisma.receipt.count({ where: { orderType: "BULK", paymentStatus: { not: "PAID" } } }),
     prisma.receipt.count({ where: { orderType: "SAMPLE" } }),
     prisma.receipt.count({ where: { orderType: "BULK", paymentStatus: "PAID" } }),
-    prisma.receipt.groupBy({ by: ["orderStatus"], _count: true }),
+    // Item-level, not receipt-level — a 5-item order has 5 pieces counted
+    // across whichever stages they're each individually at.
+    prisma.receiptItem.groupBy({ by: ["orderStatus"], _count: true }),
   ]);
   const stage = (s: string) => byStage.find((b) => b.orderStatus === s)?._count ?? 0;
   return {

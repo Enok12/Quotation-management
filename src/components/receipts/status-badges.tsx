@@ -44,3 +44,13 @@ export function OrderTypeBadge({ type }: { type: string }) {
   const s = ORDER_TYPE[type] ?? { label: type, cls: "badge-draft" };
   return <span className={s.cls}>{s.label}</span>;
 }
+
+const CATEGORY: Record<string, { label: string; cls: string }> = {
+  MEN: { label: "Men's", cls: "badge-fabric" },
+  WOMEN: { label: "Women's", cls: "badge-sample" },
+};
+
+export function CategoryBadge({ category }: { category: string }) {
+  const s = CATEGORY[category] ?? { label: category, cls: "badge-draft" };
+  return <span className={s.cls}>{s.label}</span>;
+}

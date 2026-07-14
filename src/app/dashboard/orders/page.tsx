@@ -2,7 +2,7 @@ import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import Link from "next/link";
 import { fmtMoney, fmtDate } from "@/lib/utils/format";
-import { OrderStatusSelect } from "@/components/receipts/order-status-select";
+import { OrderStatusBadge } from "@/components/receipts/status-badges";
 import { FilterTableShell } from "@/components/dashboard/filter-table-shell";
 import { DateRangeFilter } from "@/components/dashboard/date-range-filter";
 import { CustomerSearch } from "@/components/customers/customer-search";
@@ -78,7 +78,7 @@ export default async function OrdersPage({ searchParams }: Props) {
                 <th className="th text-left">Date</th>
                 <th className="th text-right">Total Due</th>
                 <th className="th text-right">Balance</th>
-                <th className="th text-left">Order Status</th>
+                <th className="th text-left">Order Status (bottleneck)</th>
               </tr>
             </thead>
             <tbody>
@@ -96,7 +96,7 @@ export default async function OrdersPage({ searchParams }: Props) {
                   <td className="td text-stone-500">{fmtDate(r.date)}</td>
                   <td className="td text-right font-mono">{fmtMoney(r.totalDue)}</td>
                   <td className="td text-right font-mono">{fmtMoney(r.balance)}</td>
-                  <td className="td"><OrderStatusSelect receiptId={r.id} status={r.orderStatus} /></td>
+                  <td className="td"><OrderStatusBadge status={r.orderStatus} /></td>
                 </tr>
               ))}
             </tbody>

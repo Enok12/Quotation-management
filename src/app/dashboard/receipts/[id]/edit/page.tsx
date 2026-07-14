@@ -35,6 +35,7 @@ export default async function EditReceiptPage({ params }: Props) {
     notes: receipt.notes ?? undefined,
     paymentMethods: receipt.paymentMethods,
     items: receipt.items.map((i) => ({
+      itemId: i.id,
       description: i.description,
       quantity: i.quantity,
       unitPrice: Number(i.unitPrice),
@@ -46,6 +47,7 @@ export default async function EditReceiptPage({ params }: Props) {
     advanceAmount: Number(receipt.advanceAmount),
     amountPaid: Number(receipt.amountPaid),
     isSample: receipt.orderType === "SAMPLE",
+    category: receipt.category,
   };
 
   return (

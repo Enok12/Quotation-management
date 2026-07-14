@@ -9,11 +9,15 @@ import { Plus, Trash2, Download, Check, Loader2, X } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { fmtMoney } from "@/lib/utils/format";
 import { moveInvoiceIfConnected } from "@/lib/folder-sync";
-import { deriveFolder } from "@/lib/order-folder";
+import { deriveFolder, CATEGORY_NAMES, type Category } from "@/lib/order-folder";
 import { popReceiptDraft } from "@/lib/receipt-draft";
 
 // ---- Types ----
 const itemSchema = z.object({
+  // Present only for pre-existing items being edited — lets the server
+  // preserve that item's id (and therefore its order status/history)
+  // instead of treating it as a brand-new row. Never shown/edited directly.
+  itemId: z.string().optional(),
   description: z.string().min(1, "Required"),
   quantity: z.coerce.number().int().positive("Must be > 0"),
   unitPrice: z.coerce.number().nonnegative("Must be ≥ 0"),
@@ -31,6 +35,7 @@ const schema = z.object({
   advanceAmount: z.coerce.number().nonnegative().default(0),
   amountPaid: z.coerce.number().nonnegative().default(0),
   isSample: z.boolean().default(false),
+  category: z.enum(["MEN", "WOMEN"]).default("WOMEN"),
   patternDeductionEnabled: z.boolean().default(false),
   patternDeductionAmount: z.coerce.number().nonnegative().default(2000),
 });
@@ -117,6 +122,7 @@ export function ReceiptBuilder({ customer, defaultValues, mode = "create", retur
       advanceAmount: 0,
       amountPaid: 0,
       isSample: false,
+      category: "WOMEN",
       ...defaultValues,
       adjustments: otherAdjustments,
       patternDeductionEnabled: !!existingPattern,
@@ -145,6 +151,10 @@ export function ReceiptBuilder({ customer, defaultValues, mode = "create", retur
       advanceAmount: draft.advanceAmount ?? 0,
       amountPaid: draft.amountPaid ?? 0,
       isSample: draft.isSample ?? false,
+      // Best-effort guess from the item descriptions when the model was
+      // confident; otherwise falls back to Women's, same as a fresh form.
+      // Either way, staff can still change it before saving.
+      category: draft.category ?? "WOMEN",
       patternDeductionEnabled: !!patternRow,
       patternDeductionAmount: patternRow ? Math.abs(Number(patternRow.amount)) : 2000,
     });
@@ -192,7 +202,9 @@ export function ReceiptBuilder({ customer, defaultValues, mode = "create", retur
         notes: data.notes,
         paymentMethods: data.paymentMethods,
         orderType: data.isSample ? "SAMPLE" : "BULK",
+        category: data.category,
         items: data.items.map((i) => ({
+          itemId: i.itemId,
           description: i.description,
           quantity: Number(i.quantity),
           unitPrice: Number(i.unitPrice),
@@ -225,7 +237,7 @@ export function ReceiptBuilder({ customer, defaultValues, mode = "create", retur
       const saved = json.data;
       await moveInvoiceIfConnected(
         saved.id, saved.receiptNumber, saved.custName,
-        deriveFolder(saved.orderType, saved.paymentStatus),
+        saved.category, deriveFolder(saved.orderType, saved.paymentStatus),
       );
 
       router.push(returnTo ?? `/dashboard/receipts/${json.data.id}`);
@@ -290,6 +302,27 @@ export function ReceiptBuilder({ customer, defaultValues, mode = "create", retur
               <label className="field-label">Date</label>
               <input type="date" {...register("date")} className="field-input" />
               {errors.date && <p className="field-error">{errors.date.message}</p>}
+            </div>
+
+            {/* Category (Men's / Women's) — also determines the synced folder */}
+            <div>
+              <label className="field-label">Category</label>
+              <div className="grid grid-cols-2 gap-2">
+                {(["MEN", "WOMEN"] as const).map((c) => (
+                  <label
+                    key={c}
+                    className={cn(
+                      "flex items-center justify-center gap-2 cursor-pointer border rounded-md py-2 text-sm font-medium transition-colors",
+                      watchedValues.category === c
+                        ? "border-amber-400 bg-amber-50 dark:bg-amber-500/10 text-ink"
+                        : "border-stone-200 dark:border-stone-700 text-stone-500 hover:border-stone-300 dark:hover:border-stone-600",
+                    )}
+                  >
+                    <input type="radio" value={c} {...register("category")} className="sr-only" />
+                    {CATEGORY_NAMES[c]}
+                  </label>
+                ))}
+              </div>
             </div>
 
             {/* Sample order toggle */}

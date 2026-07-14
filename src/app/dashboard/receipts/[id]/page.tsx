@@ -4,13 +4,13 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Edit, FileDown } from "lucide-react";
 import { fmtMoney, fmtDate, fmtDateTime } from "@/lib/utils/format";
-import { OrderStatusBadge, PaymentStatusBadge, OrderTypeBadge } from "@/components/receipts/status-badges";
+import { OrderStatusBadge, PaymentStatusBadge, OrderTypeBadge, CategoryBadge } from "@/components/receipts/status-badges";
 import { GeneratePdfButton } from "@/components/receipts/generate-pdf-button";
 import { ConvertToBulkButton } from "@/components/receipts/convert-to-bulk-button";
 import { DeleteReceiptButton } from "@/components/receipts/delete-receipt-button";
 import { TrackingLinkButton } from "@/components/receipts/tracking-link-button";
 import { LinkButton } from "@/components/ui/link-button";
-import { OrderStatusChanger } from "@/components/receipts/order-status-changer";
+import { ItemStatusPanel } from "@/components/receipts/item-status-panel";
 import { RecordPaymentButton } from "@/components/receipts/record-payment-button";
 import { ExpenseEditorCard } from "@/components/receipts/expense-editor-card";
 import { VersionHistory } from "@/components/receipts/version-history";
@@ -51,6 +51,7 @@ export default async function ReceiptDetailPage({ params }: Props) {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-3 flex-wrap">
             <h1 className="font-serif text-3xl text-ink">Receipt #{receipt.receiptNumber}</h1>
+            <CategoryBadge category={receipt.category} />
             <OrderTypeBadge type={receipt.orderType} />
             <OrderStatusBadge status={receipt.orderStatus} />
             <PaymentStatusBadge status={receipt.paymentStatus} />
@@ -128,6 +129,7 @@ export default async function ReceiptDetailPage({ params }: Props) {
                     <th className="th text-left">Description</th>
                     <th className="th text-right">Unit Price</th>
                     <th className="th text-right">Total</th>
+                    <th className="th text-left">Status</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -137,6 +139,7 @@ export default async function ReceiptDetailPage({ params }: Props) {
                       <td className="td">{item.description}</td>
                       <td className="td text-right font-mono">{fmtMoney(item.unitPrice)}</td>
                       <td className="td text-right font-mono font-semibold">{fmtMoney(item.lineTotal)}</td>
+                      <td className="td"><OrderStatusBadge status={item.orderStatus} /></td>
                     </tr>
                   ))}
                 </tbody>
@@ -167,13 +170,13 @@ export default async function ReceiptDetailPage({ params }: Props) {
 
         {/* Sidebar */}
         <div className="space-y-4">
-          {/* Order status */}
+          {/* Order status (per item) */}
           {receipt.status === "FINALIZED" && (
             <div className="card card-body">
               <h2 className="heading-2 mb-3">Order Status</h2>
-              <OrderStatusChanger
+              <ItemStatusPanel
                 receiptId={id}
-                currentStatus={receipt.orderStatus}
+                items={receipt.items.map((it) => ({ id: it.id, description: it.description, orderStatus: it.orderStatus }))}
               />
             </div>
           )}

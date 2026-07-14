@@ -3,6 +3,10 @@ import { z } from "zod";
 const paymentMethod = z.enum(["CASH", "CARD", "BANK_TRANSFER", "OTHER"]);
 
 export const receiptItemSchema = z.object({
+  // Present when editing an existing item — lets the service preserve its
+  // id (and therefore its order status / history) instead of recreating it.
+  // Absent for newly added rows.
+  itemId: z.string().optional(),
   description: z.string().min(1).max(300),
   quantity: z.number().int().positive(),
   unitPrice: z.number().nonnegative(),
@@ -23,6 +27,7 @@ export const receiptCreateSchema = z.object({
   advanceAmount: z.number().nonnegative().default(0),
   amountPaid: z.number().nonnegative().default(0),
   orderType: z.enum(["BULK", "SAMPLE"]).default("BULK"),
+  category: z.enum(["MEN", "WOMEN"]).default("WOMEN"),
 });
 export const receiptUpdateSchema = receiptCreateSchema.partial();
 

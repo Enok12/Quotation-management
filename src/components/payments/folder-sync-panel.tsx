@@ -128,7 +128,7 @@ export function FolderSyncPanel({ items }: { items: SyncItem[] }) {
             </p>
             <p className="text-xs text-stone-500 mt-0.5">
               {state.kind === "disconnected" &&
-                "Pick a folder (e.g. D:\\MONTRA) — orders auto-file into BULK ORDERS / Sample Orders / Completed."}
+                "Pick a folder (e.g. D:\\MONTRA) — orders auto-file into Men's / Women's, then BULK ORDERS / Sample Orders / Completed."}
               {state.kind === "needsPermission" && "Re-grant access to continue writing to this folder."}
               {state.kind === "connected" && "Invoices move automatically when you record a payment on this computer."}
             </p>

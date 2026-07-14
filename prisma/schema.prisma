@@ -46,6 +46,13 @@ enum OrderType {
   SAMPLE
 }
 
+// Which top-level folder (Men's / Women's) a receipt files under, both
+// in-app and in the synced computer folder.
+enum Category {
+  MEN
+  WOMEN
+}
+
 enum PaymentMethod {
   CASH
   CARD
@@ -170,6 +177,7 @@ model Receipt {
   orderStatus   OrderStatus   @default(FABRIC_SELECTION)
   paymentStatus PaymentStatus @default(UNPAID)
   orderType     OrderType     @default(BULK)
+  category      Category      @default(WOMEN)
 
   // Permanent public tracking-page token — set only for BULK orders (null
   // for SAMPLE). Never expires; customers use it to check production status.
@@ -253,14 +261,19 @@ model ExpenseRecord {
 }
 
 model ReceiptItem {
-  id          String  @id @default(cuid())
+  id          String      @id @default(cuid())
   receiptId   String
-  receipt     Receipt @relation(fields: [receiptId], references: [id], onDelete: Cascade)
+  receipt     Receipt     @relation(fields: [receiptId], references: [id], onDelete: Cascade)
   description String
   quantity    Int
-  unitPrice   Decimal @db.Decimal(12, 2)
-  lineTotal   Decimal @db.Decimal(12, 2)
-  sortOrder   Int     @default(0)
+  unitPrice   Decimal     @db.Decimal(12, 2)
+  lineTotal   Decimal     @db.Decimal(12, 2)
+  sortOrder   Int         @default(0)
+
+  // Production tracking is per item, not per receipt — an order's overall
+  // status (on Receipt) is a cached rollup of these.
+  orderStatus OrderStatus @default(FABRIC_SELECTION)
+  history     OrderStatusHistory[]
 
   @@index([receiptId])
 }
@@ -295,18 +308,24 @@ model ReceiptVersion {
 }
 
 // --------------------- Order status history ----------------------
+// itemId is nullable only because rows created before per-item tracking was
+// added are receipt-wide and have no single item to attribute to; every row
+// created from here on always has one.
 model OrderStatusHistory {
-  id          String      @id @default(cuid())
+  id          String       @id @default(cuid())
   receiptId   String
-  receipt     Receipt     @relation(fields: [receiptId], references: [id], onDelete: Cascade)
+  receipt     Receipt      @relation(fields: [receiptId], references: [id], onDelete: Cascade)
+  itemId      String?
+  item        ReceiptItem? @relation(fields: [itemId], references: [id], onDelete: Cascade)
   fromStatus  OrderStatus?
   toStatus    OrderStatus
   note        String?
   changedById String
-  changedBy   User        @relation(fields: [changedById], references: [id])
-  createdAt   DateTime    @default(now())
+  changedBy   User         @relation(fields: [changedById], references: [id])
+  createdAt   DateTime     @default(now())
 
   @@index([receiptId])
+  @@index([itemId])
 }
 
 // ----------------------------- Audit -----------------------------
