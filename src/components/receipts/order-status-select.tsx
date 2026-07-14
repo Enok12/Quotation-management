@@ -8,7 +8,20 @@ import { ORDER_STAGES, ORDER_STAGE_LABELS, type OrderStage } from "@/lib/order-s
 // Inline dropdown for updating a status directly from a table/list row — no
 // navigation, updates in place. `statusUrl` is whatever endpoint accepts
 // `{ status }` — the receipt-item route for a single item's status.
-export function OrderStatusSelect({ statusUrl, status }: { statusUrl: string; status: string }) {
+export function OrderStatusSelect({
+  statusUrl,
+  status,
+  onChanged,
+}: {
+  statusUrl: string;
+  status: string;
+  /** Called after a successful save — lets a caller that caches this item's
+   * status elsewhere (e.g. an expandable row's fetched item list) update its
+   * own copy, so it doesn't show a stale value if this component unmounts
+   * and remounts later (e.g. the row is collapsed and re-expanded) before a
+   * full page refresh happens. */
+  onChanged?: (next: OrderStage) => void;
+}) {
   const router = useRouter();
   const [value, setValue] = useState<OrderStage>(status as OrderStage);
   const [saving, setSaving] = useState(false);
@@ -26,6 +39,7 @@ export function OrderStatusSelect({ statusUrl, status }: { statusUrl: string; st
       });
       const json = await res.json();
       if (!json.success) throw new Error(json.message ?? "Failed to update status");
+      onChanged?.(to);
       router.refresh();
     } catch (e) {
       setValue(prev);

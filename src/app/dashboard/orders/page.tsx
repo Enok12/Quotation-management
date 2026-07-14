@@ -1,8 +1,7 @@
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import Link from "next/link";
-import { fmtMoney, fmtDate } from "@/lib/utils/format";
-import { OrderStatusBadge } from "@/components/receipts/status-badges";
+import { ExpandableOrderRow } from "@/components/receipts/expandable-order-row";
 import { FilterTableShell } from "@/components/dashboard/filter-table-shell";
 import { DateRangeFilter } from "@/components/dashboard/date-range-filter";
 import { CustomerSearch } from "@/components/customers/customer-search";
@@ -73,6 +72,7 @@ export default async function OrdersPage({ searchParams }: Props) {
           <table className="w-full">
             <thead>
               <tr>
+                <th className="th w-8"></th>
                 <th className="th text-left w-20">#</th>
                 <th className="th text-left">Customer</th>
                 <th className="th text-left">Date</th>
@@ -83,21 +83,19 @@ export default async function OrdersPage({ searchParams }: Props) {
             </thead>
             <tbody>
               {orders.length === 0 && (
-                <tr><td colSpan={6} className="td text-center text-stone-400 py-10">No orders found.</td></tr>
+                <tr><td colSpan={7} className="td text-center text-stone-400 py-10">No orders found.</td></tr>
               )}
               {orders.map((r) => (
-                <tr key={r.id} className="hover:bg-stone-25 dark:hover:bg-white/5 transition-colors">
-                  <td className="td font-mono text-xs text-stone-500">#{r.receiptNumber}</td>
-                  <td className="td font-medium">
-                    <Link href={`/dashboard/receipts/${r.id}`} className="hover:text-amber-600 transition-colors">
-                      {r.custName}
-                    </Link>
-                  </td>
-                  <td className="td text-stone-500">{fmtDate(r.date)}</td>
-                  <td className="td text-right font-mono">{fmtMoney(r.totalDue)}</td>
-                  <td className="td text-right font-mono">{fmtMoney(r.balance)}</td>
-                  <td className="td"><OrderStatusBadge status={r.orderStatus} /></td>
-                </tr>
+                <ExpandableOrderRow
+                  key={r.id}
+                  receiptId={r.id}
+                  receiptNumber={r.receiptNumber}
+                  custName={r.custName}
+                  date={r.date}
+                  totalDue={Number(r.totalDue)}
+                  balance={Number(r.balance)}
+                  orderStatus={r.orderStatus}
+                />
               ))}
             </tbody>
           </table>
