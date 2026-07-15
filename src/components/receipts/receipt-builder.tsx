@@ -471,6 +471,13 @@ export function ReceiptBuilder({ customer, defaultValues, mode = "create", retur
               <div>
                 <label className="field-label">Amount Paid</label>
                 <input {...register("amountPaid")} type="number" min="0" step="0.01" className="field-input" />
+                <button
+                  type="button"
+                  onClick={() => setValue("amountPaid", totals.totalDue, { shouldDirty: true })}
+                  className="text-xs text-amber-600 hover:underline mt-1"
+                >
+                  Mark as fully paid ({fmtMoney(totals.totalDue)})
+                </button>
               </div>
             </div>
 
