@@ -37,7 +37,7 @@ export default async function OrdersPage({ searchParams }: Props) {
       take: pageSize,
       select: {
         id: true, receiptNumber: true, custName: true, date: true,
-        totalDue: true, balance: true, orderStatus: true, finalizedAt: true,
+        totalDue: true, balance: true,
       },
     }),
   ]);
@@ -78,12 +78,11 @@ export default async function OrdersPage({ searchParams }: Props) {
                 <th className="th text-left">Date</th>
                 <th className="th text-right">Total Due</th>
                 <th className="th text-right">Balance</th>
-                <th className="th text-left">Order Status (bottleneck)</th>
               </tr>
             </thead>
             <tbody>
               {orders.length === 0 && (
-                <tr><td colSpan={7} className="td text-center text-stone-400 py-10">No orders found.</td></tr>
+                <tr><td colSpan={6} className="td text-center text-stone-400 py-10">No orders found.</td></tr>
               )}
               {orders.map((r) => (
                 <ExpandableOrderRow
@@ -94,7 +93,6 @@ export default async function OrdersPage({ searchParams }: Props) {
                   date={r.date}
                   totalDue={Number(r.totalDue)}
                   balance={Number(r.balance)}
-                  orderStatus={r.orderStatus}
                 />
               ))}
             </tbody>
