@@ -12,6 +12,7 @@ const ORDER_STATUS: Record<string, { label: string; cls: string }> = {
   QUALITY_CHECK: { label: "Quality Check", cls: "badge-qc" },
   IRON_PACKING: { label: "Iron / Packing", cls: "badge-packing" },
   DELIVERY: { label: "Delivery", cls: "badge-delivery" },
+  COMPLETED: { label: "Completed", cls: "badge-order-completed" },
 };
 
 export function ReceiptStatusBadge({ status }: { status: string }) {

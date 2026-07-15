@@ -30,6 +30,11 @@ enum OrderStatus {
   QUALITY_CHECK
   IRON_PACKING
   DELIVERY
+  // Terminal stage, past Delivery — set automatically at creation when a
+  // receipt (e.g. from a bulk-upload review) is already fully paid, since
+  // that's a strong signal the whole order is already done. Can also be set
+  // manually like any other stage.
+  COMPLETED
 }
 
 // Payment progress, derived from amounts paid vs. total due.

@@ -1,4 +1,4 @@
-import { Layers, Scissors, Factory, ShieldCheck, Package, Truck, Check } from "lucide-react";
+import { Layers, Scissors, Factory, ShieldCheck, Package, Truck, PartyPopper, Check } from "lucide-react";
 import { fmtDate } from "@/lib/utils/format";
 import { cn } from "@/lib/utils/cn";
 
@@ -9,6 +9,7 @@ const STAGES = [
   { key: "QUALITY_CHECK", label: "Quality Check", icon: ShieldCheck },
   { key: "IRON_PACKING", label: "Iron / Packing", icon: Package },
   { key: "DELIVERY", label: "Delivery", icon: Truck },
+  { key: "COMPLETED", label: "Completed", icon: PartyPopper },
 ] as const;
 
 export function StageTimeline({
@@ -23,8 +24,10 @@ export function StageTimeline({
   return (
     <ol className="space-y-0">
       {STAGES.map((stage, i) => {
-        const done = i < currentIndex;
-        const active = i === currentIndex;
+        // Completed is a terminal marker, not a stage still "in progress" —
+        // once reached, it (and everything before it) reads as done.
+        const done = i < currentIndex || (i === currentIndex && stage.key === "COMPLETED");
+        const active = i === currentIndex && stage.key !== "COMPLETED";
         const upcoming = i > currentIndex;
         const Icon = stage.icon;
         const date = stageDates[stage.key];

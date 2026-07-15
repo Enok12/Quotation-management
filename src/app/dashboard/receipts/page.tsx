@@ -24,7 +24,7 @@ export default async function ReceiptsPage({ searchParams }: Props) {
   const dateWhere = dateRangeFilter(sp.from, sp.to);
 
   const where = {
-    ...(sp.orderStatus ? { orderStatus: sp.orderStatus as "FABRIC_SELECTION" | "CUTTING" | "PRODUCTION" | "QUALITY_CHECK" | "IRON_PACKING" | "DELIVERY" } : {}),
+    ...(sp.orderStatus ? { orderStatus: sp.orderStatus as "FABRIC_SELECTION" | "CUTTING" | "PRODUCTION" | "QUALITY_CHECK" | "IRON_PACKING" | "DELIVERY" | "COMPLETED" } : {}),
     ...(search ? { custName: { contains: search, mode: "insensitive" as const } } : {}),
     ...(dateWhere ? { date: dateWhere } : {}),
   };
@@ -63,6 +63,7 @@ export default async function ReceiptsPage({ searchParams }: Props) {
     filterTab("Quality Check", "QUALITY_CHECK", "orderStatus"),
     filterTab("Iron / Packing", "IRON_PACKING", "orderStatus"),
     filterTab("Delivery", "DELIVERY", "orderStatus"),
+    filterTab("Completed", "COMPLETED", "orderStatus"),
   ];
 
   return (

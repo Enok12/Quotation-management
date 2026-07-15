@@ -7,6 +7,7 @@ export const ORDER_STAGES = [
   "QUALITY_CHECK",
   "IRON_PACKING",
   "DELIVERY",
+  "COMPLETED",
 ] as const;
 export type OrderStage = (typeof ORDER_STAGES)[number];
 
@@ -17,6 +18,7 @@ export const ORDER_STAGE_LABELS: Record<OrderStage, string> = {
   QUALITY_CHECK: "Quality Check",
   IRON_PACKING: "Iron / Packing",
   DELIVERY: "Delivery",
+  COMPLETED: "Completed",
 };
 
 // A receipt's overall status is a cached rollup of its items: whichever

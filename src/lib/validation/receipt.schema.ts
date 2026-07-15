@@ -28,12 +28,17 @@ export const receiptCreateSchema = z.object({
   amountPaid: z.number().nonnegative().default(0),
   orderType: z.enum(["BULK", "SAMPLE"]).default("BULK"),
   category: z.enum(["MEN", "WOMEN"]).default("WOMEN"),
+  // Set by the builder when a receipt is created from an uploaded/reviewed
+  // draft that's already fully paid — a strong signal the whole order is
+  // already done, so it starts at the terminal stage instead of Fabric
+  // Selection. Only meaningful at creation; ignored on update.
+  startCompleted: z.boolean().default(false),
 });
 export const receiptUpdateSchema = receiptCreateSchema.partial();
 
 export const orderStatusSchema = z.object({
   status: z.enum([
-    "FABRIC_SELECTION", "CUTTING", "PRODUCTION", "QUALITY_CHECK", "IRON_PACKING", "DELIVERY",
+    "FABRIC_SELECTION", "CUTTING", "PRODUCTION", "QUALITY_CHECK", "IRON_PACKING", "DELIVERY", "COMPLETED",
   ]),
   note: z.string().max(500).optional(),
 });

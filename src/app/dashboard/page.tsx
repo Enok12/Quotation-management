@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import Link from "next/link";
-import { Users, FileText, Package, CheckCircle, Layers, Scissors, Factory, ShieldCheck, Truck, Boxes, FlaskConical } from "lucide-react";
+import { Users, FileText, Package, CheckCircle, Layers, Scissors, Factory, ShieldCheck, Truck, Boxes, FlaskConical, PartyPopper } from "lucide-react";
 import { fmtMoney, fmtDate } from "@/lib/utils/format";
 import { PaymentStatusBadge, OrderStatusBadge } from "@/components/receipts/status-badges";
 
@@ -26,6 +26,7 @@ async function getStats() {
     qc: stage("QUALITY_CHECK"),
     packing: stage("IRON_PACKING"),
     delivery: stage("DELIVERY"),
+    orderCompleted: stage("COMPLETED"),
   };
 }
 
@@ -56,6 +57,7 @@ export default async function DashboardPage() {
     { label: "Quality Check", value: stats.qc, icon: ShieldCheck, href: "/dashboard/orders?status=QUALITY_CHECK", color: "text-indigo-500" },
     { label: "Iron / Packing", value: stats.packing, icon: Package, href: "/dashboard/orders?status=IRON_PACKING", color: "text-orange-500" },
     { label: "Delivery", value: stats.delivery, icon: Truck, href: "/dashboard/orders?status=DELIVERY", color: "text-emerald-600" },
+    { label: "Order Completed", value: stats.orderCompleted, icon: PartyPopper, href: "/dashboard/orders?status=COMPLETED", color: "text-teal-600" },
   ];
 
   return (

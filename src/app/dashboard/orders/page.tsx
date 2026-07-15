@@ -16,7 +16,7 @@ export default async function OrdersPage({ searchParams }: Props) {
   const page = Math.max(1, Number(sp.page ?? 1));
   const pageSize = 25;
   const orderStatus = sp.status as
-    | "FABRIC_SELECTION" | "CUTTING" | "PRODUCTION" | "QUALITY_CHECK" | "IRON_PACKING" | "DELIVERY"
+    | "FABRIC_SELECTION" | "CUTTING" | "PRODUCTION" | "QUALITY_CHECK" | "IRON_PACKING" | "DELIVERY" | "COMPLETED"
     | undefined;
   const dateWhere = dateRangeFilter(sp.from, sp.to);
   const search = sp.search?.trim() ?? "";
@@ -52,6 +52,7 @@ export default async function OrdersPage({ searchParams }: Props) {
     { label: "Quality Check", href: tabHref("QUALITY_CHECK"), active: orderStatus === "QUALITY_CHECK" },
     { label: "Iron / Packing", href: tabHref("IRON_PACKING"), active: orderStatus === "IRON_PACKING" },
     { label: "Delivery", href: tabHref("DELIVERY"), active: orderStatus === "DELIVERY" },
+    { label: "Completed", href: tabHref("COMPLETED"), active: orderStatus === "COMPLETED" },
   ];
 
   return (

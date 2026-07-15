@@ -217,6 +217,11 @@ export function ReceiptBuilder({ customer, defaultValues, mode = "create", retur
         ],
         advanceAmount: Number(data.advanceAmount),
         amountPaid: Number(data.amountPaid),
+        // A receipt reviewed from an uploaded draft (single upload or either
+        // bulk queue) that's already fully paid is almost certainly a
+        // historical order being digitized after the fact — start it at the
+        // terminal "Completed" stage instead of Fabric Selection.
+        startCompleted: mode === "create" && draftApplied && totals.totalDue > 0 && Number(data.amountPaid) >= totals.totalDue,
       };
 
       const url = mode === "edit" && defaultValues?.receiptId
@@ -246,7 +251,7 @@ export function ReceiptBuilder({ customer, defaultValues, mode = "create", retur
       setError(e instanceof Error ? e.message : "Something went wrong");
       setSaving(false);
     }
-  }, [customer.id, mode, defaultValues?.receiptId, returnTo, router]);
+  }, [customer.id, mode, defaultValues?.receiptId, returnTo, router, draftApplied, totals.totalDue]);
 
   const date = watchedValues.date ?? today;
   const paymentMethods = watchedValues.paymentMethods ?? [];

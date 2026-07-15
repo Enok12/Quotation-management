@@ -24,6 +24,9 @@ export const receiptService = {
     if (!customer) throw new NotFoundError("Customer");
 
     const totals = calcReceiptTotals(input);
+    // Fully paid at creation (e.g. a bulk-upload review of an already-settled
+    // historical order) is a strong signal the whole order is already done.
+    const initialStatus: OrderStage = input.startCompleted ? "COMPLETED" : "FABRIC_SELECTION";
 
     return prisma.$transaction(async (tx) => {
       const receipt = await tx.receipt.create({
@@ -51,12 +54,13 @@ export const receiptService = {
           status: "FINALIZED",
           finalizedAt: new Date(),
           finalizedById: actorId,
-          orderStatus: "FABRIC_SELECTION",
+          orderStatus: initialStatus,
           createdById: actorId,
           items: {
             create: input.items.map((it, i) => ({
               description: it.description, quantity: it.quantity,
               unitPrice: D(it.unitPrice), lineTotal: D(totals.lineTotals[i]), sortOrder: i,
+              orderStatus: initialStatus,
             })),
           },
           adjustments: {
@@ -68,8 +72,8 @@ export const receiptService = {
       // One history row per item — tracking is per item from the start.
       await tx.orderStatusHistory.createMany({
         data: receipt.items.map((item) => ({
-          receiptId: receipt.id, itemId: item.id, fromStatus: null, toStatus: "FABRIC_SELECTION" as const,
-          changedById: actorId, note: "Receipt created",
+          receiptId: receipt.id, itemId: item.id, fromStatus: null, toStatus: initialStatus,
+          changedById: actorId, note: input.startCompleted ? "Receipt created (already fully paid)" : "Receipt created",
         })),
       });
       await auditService.log(tx, {
