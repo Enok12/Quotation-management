@@ -11,6 +11,7 @@ import { loadBatch, saveBatch, clearBatch, type BatchItem, type BatchKind } from
 import { runWithConcurrency } from "@/lib/utils/concurrency";
 import { MAX_UPLOAD_BYTES, MAX_BATCH_FILES, isAcceptedReceiptFile } from "@/lib/receipt-upload-limits";
 import { CATEGORY_NAMES } from "@/lib/order-folder";
+import { fmtDate } from "@/lib/utils/format";
 import type { ReceiptExtractResult } from "@/lib/validation/receipt-extract.schema";
 
 // Kept low deliberately — this is what keeps a batch of many files from
@@ -193,6 +194,21 @@ export function BulkUploadShell({
   const promptItem = items.find((it) => it.id === customerPromptId) ?? null;
   const doneCount = items.filter((it) => it.status === "done").length;
 
+  // Receipt numbers are assigned in whatever order each item is actually
+  // saved, so showing the queue sorted by the date read off each receipt
+  // (not upload order) means reviewing top-to-bottom, as usual, naturally
+  // produces receipt numbers that increase in date order. Items still being
+  // read (no date yet) or that failed stay at the end, in upload order,
+  // until they resolve.
+  const sortedItems = [...items].sort((a, b) => {
+    const da = a.extracted?.date;
+    const db = b.extracted?.date;
+    if (da && db) return da.localeCompare(db);
+    if (da && !db) return -1;
+    if (!da && db) return 1;
+    return 0;
+  });
+
   return (
     <div className="px-4 py-6 sm:px-8 sm:py-8 max-w-3xl">
       <Link href="/dashboard/receipts/new" className="btn-ghost text-xs mb-4 inline-flex">
@@ -253,7 +269,7 @@ export function BulkUploadShell({
             </div>
           </div>
           <ul className="divide-y divide-stone-100 dark:divide-stone-700">
-            {items.map((item) => (
+            {sortedItems.map((item) => (
               <li key={item.id} className="px-6 py-3.5 flex items-center justify-between gap-3">
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium text-ink truncate">{item.fileName}</p>
@@ -262,12 +278,14 @@ export function BulkUploadShell({
                     {item.status === "extracting" && "Reading receipt…"}
                     {item.status === "matched" && (
                       <>
+                        {item.extracted?.date && <>{fmtDate(item.extracted.date)} · </>}
                         Matched to <span className="text-ink">{item.matchedCustomerName}</span> · {item.extracted?.items.length ?? 0} item{item.extracted?.items.length === 1 ? "" : "s"}
                         {item.extracted?.category && ` · ${CATEGORY_NAMES[item.extracted.category]} (guessed)`}
                       </>
                     )}
                     {item.status === "needsCustomer" && (
                       <>
+                        {item.extracted?.date && <>{fmtDate(item.extracted.date)} · </>}
                         New customer{item.extracted?.customerName ? `: ${item.extracted.customerName}` : ""} · {item.extracted?.items.length ?? 0} item{item.extracted?.items.length === 1 ? "" : "s"}
                         {item.extracted?.category && ` · ${CATEGORY_NAMES[item.extracted.category]} (guessed)`}
                       </>

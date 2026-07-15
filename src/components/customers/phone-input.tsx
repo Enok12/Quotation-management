@@ -33,15 +33,22 @@ export function PhoneInput({
   const rootRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
 
-  // Seed from an existing value (e.g. edit/prefill): "+94 771234567".
+  // Seed from an existing value (e.g. edit/prefill, or an uploaded receipt):
+  // "+94 771234567" with a recognized country code, or a plain local number
+  // like "0771234567" (the common case straight off a printed receipt) —
+  // treated as Sri Lankan, dropping the local trunk "0" prefix.
   useEffect(() => {
     if (!value) return;
+    const trimmed = value.trim();
     const match = [...COUNTRIES]
       .sort((a, b) => b.dial.length - a.dial.length)
-      .find((c) => value.startsWith(c.dial));
+      .find((c) => trimmed.startsWith(c.dial));
     if (match) {
       setCountry(match);
-      setNumber(value.slice(match.dial.length).trim());
+      setNumber(trimmed.slice(match.dial.length).trim());
+    } else {
+      setCountry(DEFAULT);
+      setNumber(trimmed.replace(/^0/, ""));
     }
     // run once on mount
     // eslint-disable-next-line react-hooks/exhaustive-deps
