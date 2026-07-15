@@ -83,7 +83,11 @@ export default async function ExpensesPage({ searchParams }: Props) {
   const colSpan = activeType === "BULK" ? 9 : 6;
 
   return (
-    <div className="px-4 py-6 sm:px-8 sm:py-8 max-w-6xl">
+    <div className="px-4 py-6 sm:px-8 sm:py-8">
+      {/* No max-width here (unlike other list pages) — this table has more
+          columns than any other page in the app, so on wide monitors it
+          should use the extra space to show every column at once, instead
+          of scrolling unnecessarily inside an artificially narrow card. */}
       <div className="flex items-start justify-between mb-6 flex-wrap gap-4">
         <div>
           <h1 className="font-serif text-3xl text-ink">Expenses</h1>
