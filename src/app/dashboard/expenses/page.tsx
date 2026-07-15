@@ -113,8 +113,8 @@ export default async function ExpensesPage({ searchParams }: Props) {
                   <th className="th text-right">Production Cost</th>
                   {activeType === "BULK" && <th className="th text-right">Accessories Cost</th>}
                   {activeType === "BULK" && <th className="th text-right">Other</th>}
-                  <th className="th text-right">Profit</th>
-                  <th className="th text-center w-20">Finalize</th>
+                  <th className="th text-right sticky right-20 z-20 w-28 border-l border-stone-200 dark:border-stone-700">Profit</th>
+                  <th className="th text-center sticky right-0 z-20 w-20">Finalize</th>
                 </tr>
               </thead>
               <tbody>
@@ -159,8 +159,8 @@ export default async function ExpensesPage({ searchParams }: Props) {
                     <td className="td text-right font-mono">{fmtMoney(totals.production)}</td>
                     {activeType === "BULK" && <td className="td text-right font-mono">{fmtMoney(totals.accessory)}</td>}
                     {activeType === "BULK" && <td className="td text-right font-mono">{fmtMoney(totals.other)}</td>}
-                    <td className="td text-right font-mono">{fmtMoney(totals.profit)}</td>
-                    <td className="td" />
+                    <td className="td text-right font-mono sticky right-20 z-10 w-28 border-l border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-800">{fmtMoney(totals.profit)}</td>
+                    <td className="td sticky right-0 z-10 w-20 bg-stone-50 dark:bg-stone-800" />
                   </tr>
                 </tfoot>
               )}

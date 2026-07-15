@@ -25,6 +25,13 @@ export function ExpenseRow({ receiptId, receiptNumber, custName, date, billAmoun
   const e = useExpenseEditor(receiptId, billAmount, initial);
   const disabled = e.finalized || e.saving;
 
+  // Profit and Finalize are pinned to the right edge of the scrollable table
+  // (see the sticky classes below) so they stay visible while scrolling
+  // through the cost columns on narrower screens — they need an opaque
+  // background matching the row's state, or whatever scrolls underneath
+  // would show through.
+  const stickyBg = e.finalized ? "bg-emerald-50 dark:bg-emerald-950" : "bg-white dark:bg-stone-800";
+
   const cellInput = (value: string, onChange: (v: string) => void) => (
     <input
       type="number" min="0" step="0.01" value={value} placeholder="0.00"
@@ -50,7 +57,7 @@ export function ExpenseRow({ receiptId, receiptNumber, custName, date, billAmoun
       <td className="td text-right">{cellInput(e.productionExpense, e.setProductionExpense)}</td>
       {orderType === "BULK" && <td className="td text-right">{cellInput(e.accessoryExpense, e.setAccessoryExpense)}</td>}
       {orderType === "BULK" && <td className="td text-right">{cellInput(e.otherExpense, e.setOtherExpense)}</td>}
-      <td className="td text-right">
+      <td className={`td text-right sticky right-20 z-10 w-28 border-l border-stone-100 dark:border-stone-700 ${stickyBg}`}>
         <input
           type="number" step="0.01" value={e.profit} placeholder="0.00"
           disabled={disabled}
@@ -58,7 +65,7 @@ export function ExpenseRow({ receiptId, receiptNumber, custName, date, billAmoun
           className="w-24 px-2 py-1 text-xs text-right font-semibold bg-transparent border border-transparent rounded hover:border-stone-200 dark:hover:border-stone-600 focus:border-amber-400 focus:ring-1 focus:ring-amber-400 outline-none transition-colors disabled:text-stone-400 dark:disabled:text-stone-500"
         />
       </td>
-      <td className="td">
+      <td className={`td sticky right-0 z-10 w-20 ${stickyBg}`}>
         <div className="flex items-center justify-center gap-1.5">
           {!e.finalized && (
             <button
