@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db";
-import { requireUser } from "@/lib/auth";
+import { requireBusiness } from "@/lib/auth";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
@@ -19,7 +19,7 @@ interface Props { searchParams: Promise<{ customerId?: string; batchItem?: strin
 export const metadata = { title: "New Receipt" };
 
 export default async function NewReceiptPage({ searchParams }: Props) {
-  await requireUser();
+  const { businessId } = await requireBusiness();
   const { customerId, batchItem, batchReturn } = await searchParams;
   const returnBase =
     batchReturn && KNOWN_BATCH_RETURN_PATHS.has(batchReturn) ? batchReturn : "/dashboard/receipts/new/bulk";
@@ -27,15 +27,19 @@ export default async function NewReceiptPage({ searchParams }: Props) {
 
   if (!customerId) {
     // Show customer picker first
-    const customers = await prisma.customer.findMany({
-      orderBy: { name: "asc" },
-      select: { id: true, name: true, phone: true, email: true },
-    });
-    return <CustomerPickerShell customers={customers} />;
+    const [customers, business] = await Promise.all([
+      prisma.customer.findMany({
+        where: { businessId },
+        orderBy: { name: "asc" },
+        select: { id: true, name: true, phone: true, email: true },
+      }),
+      prisma.business.findUnique({ where: { id: businessId }, select: { geminiApiKeyEncrypted: true } }),
+    ]);
+    return <CustomerPickerShell customers={customers} hasApiKey={!!business?.geminiApiKeyEncrypted} />;
   }
 
-  const customer = await prisma.customer.findUnique({
-    where: { id: customerId },
+  const customer = await prisma.customer.findFirst({
+    where: { id: customerId, businessId },
     select: { id: true, name: true, address: true, phone: true, email: true },
   });
   if (!customer) notFound();

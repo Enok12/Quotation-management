@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db";
-import { requireUser } from "@/lib/auth";
+import { requireBusiness } from "@/lib/auth";
 import Link from "next/link";
 import { Plus } from "lucide-react";
 import { fmtMoney, fmtDate } from "@/lib/utils/format";
@@ -16,7 +16,7 @@ interface Props {
 export const metadata = { title: "Receipts" };
 
 export default async function ReceiptsPage({ searchParams }: Props) {
-  await requireUser();
+  const { businessId } = await requireBusiness();
   const sp = await searchParams;
   const page = Math.max(1, Number(sp.page ?? 1));
   const pageSize = 25;
@@ -24,6 +24,7 @@ export default async function ReceiptsPage({ searchParams }: Props) {
   const dateWhere = dateRangeFilter(sp.from, sp.to);
 
   const where = {
+    businessId,
     ...(sp.orderStatus ? { orderStatus: sp.orderStatus as "FABRIC_SELECTION" | "CUTTING" | "PRODUCTION" | "QUALITY_CHECK" | "IRON_PACKING" | "DELIVERY" | "COMPLETED" } : {}),
     ...(search ? { custName: { contains: search, mode: "insensitive" as const } } : {}),
     ...(dateWhere ? { date: dateWhere } : {}),

@@ -11,7 +11,17 @@ import { cn } from "@/lib/utils/cn";
 
 // Fixed, always-visible sidebar at lg+; below that it becomes an off-canvas
 // drawer toggled by a mobile top bar, closing itself whenever the route changes.
-export function DashboardShell({ items, children }: { items: NavItem[]; children: React.ReactNode }) {
+export function DashboardShell({
+  items,
+  businessName,
+  logoUrl,
+  children,
+}: {
+  items: NavItem[];
+  businessName?: string;
+  logoUrl?: string | null;
+  children: React.ReactNode;
+}) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
 
@@ -40,10 +50,16 @@ export function DashboardShell({ items, children }: { items: NavItem[]; children
       >
         {/* Brand */}
         <div className="px-5 pt-6 pb-5 border-b border-white/10 flex items-start justify-between">
-          <Link href="/dashboard" className="block">
-            <span className="font-serif text-2xl text-white tracking-tight">MONTRA</span>
-            <span className="block text-stone-500 text-[10px] tracking-widest uppercase mt-0.5">
-              Clothing & Manufacturing
+          <Link href="/dashboard" className="flex items-center gap-2.5 min-w-0">
+            {logoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={logoUrl} alt={businessName} className="w-9 h-9 rounded object-contain bg-white/5 flex-none" />
+            ) : null}
+            <span className="min-w-0">
+              <span className="block font-serif text-2xl text-white tracking-tight">MONTRA</span>
+              <span className="block text-stone-500 text-[10px] tracking-widest uppercase mt-0.5 truncate">
+                {businessName || "Clothing & Manufacturing"}
+              </span>
             </span>
           </Link>
           <button

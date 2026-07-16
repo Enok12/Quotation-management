@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db";
-import { requireUser } from "@/lib/auth";
+import { requireBusiness } from "@/lib/auth";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Plus } from "lucide-react";
@@ -11,11 +11,11 @@ import { DeleteCustomerButton } from "@/components/customers/delete-customer-but
 interface Props { params: Promise<{ id: string }> }
 
 export default async function CustomerDetailPage({ params }: Props) {
-  await requireUser();
+  const { businessId } = await requireBusiness();
   const { id } = await params;
 
-  const customer = await prisma.customer.findUnique({
-    where: { id },
+  const customer = await prisma.customer.findFirst({
+    where: { id, businessId },
     include: {
       receipts: {
         orderBy: { createdAt: "desc" },

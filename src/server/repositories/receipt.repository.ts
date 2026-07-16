@@ -5,19 +5,24 @@ const fullInclude = {
   items: { orderBy: { sortOrder: "asc" } },
   adjustments: { orderBy: { sortOrder: "asc" } },
   customer: true,
+  business: { select: { name: true, logoUrl: true } },
 } satisfies Prisma.ReceiptInclude;
 
 export const receiptRepository = {
+  // businessId is its own required argument, merged into `where` here rather
+  // than left to each caller to remember — see customer.repository.ts.
   list(args: {
-    where: Prisma.ReceiptWhereInput;
+    businessId: string;
+    where?: Prisma.ReceiptWhereInput;
     skip: number;
     take: number;
     orderBy: Prisma.ReceiptOrderByWithRelationInput;
   }) {
+    const where: Prisma.ReceiptWhereInput = { ...args.where, businessId: args.businessId };
     return Promise.all([
-      prisma.receipt.count({ where: args.where }),
+      prisma.receipt.count({ where }),
       prisma.receipt.findMany({
-        where: args.where,
+        where,
         skip: args.skip,
         take: args.take,
         orderBy: args.orderBy,
@@ -30,13 +35,15 @@ export const receiptRepository = {
     ]);
   },
 
-  findFull(id: string) {
-    return prisma.receipt.findUnique({ where: { id }, include: fullInclude });
+  // findFirst (not findUnique) so a wrong-business id returns null exactly
+  // like a nonexistent one — never distinguishes "not yours" from "not real".
+  findFull(id: string, businessId: string) {
+    return prisma.receipt.findFirst({ where: { id, businessId }, include: fullInclude });
   },
 
-  listVersions(receiptId: string) {
+  listVersions(receiptId: string, businessId: string) {
     return prisma.receiptVersion.findMany({
-      where: { receiptId },
+      where: { receiptId, receipt: { businessId } },
       orderBy: { versionNumber: "desc" },
       select: { id: true, versionNumber: true, changeSummary: true, createdAt: true, modifiedById: true },
     });

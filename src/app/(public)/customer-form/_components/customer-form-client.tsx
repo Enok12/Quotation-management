@@ -15,7 +15,15 @@ const schema = z.object({
 });
 type FormValues = z.infer<typeof schema>;
 
-export function CustomerFormClient({ token }: { token: string }) {
+export function CustomerFormClient({
+  token,
+  businessName,
+  logoUrl,
+}: {
+  token: string;
+  businessName: string;
+  logoUrl: string | null;
+}) {
   const [success, setSuccess] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
 
@@ -43,7 +51,7 @@ export function CustomerFormClient({ token }: { token: string }) {
           <CheckCircle size={48} className="text-emerald-500 mx-auto mb-4" />
           <h2 className="font-serif text-2xl text-ink mb-2">Thank you!</h2>
           <p className="text-stone-500 text-sm">
-            Your details have been received. MONTRA will be in touch with you shortly.
+            Your details have been received. {businessName} will be in touch with you shortly.
           </p>
         </div>
       </main>
@@ -55,8 +63,12 @@ export function CustomerFormClient({ token }: { token: string }) {
       <div className="w-full max-w-lg">
         {/* Header */}
         <div className="text-center mb-10">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/brand/montra-wordmark.png" alt="MONTRA" className="h-10 mx-auto mb-4" />
+          {logoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={logoUrl} alt={businessName} className="h-12 mx-auto mb-4 object-contain" />
+          ) : (
+            <p className="font-serif text-xl text-ink mb-4">{businessName}</p>
+          )}
           <h1 className="font-serif text-2xl text-ink">Customer Registration</h1>
           <p className="text-stone-500 text-sm mt-1">Fill in your details and we'll follow up with you.</p>
         </div>
@@ -101,7 +113,7 @@ export function CustomerFormClient({ token }: { token: string }) {
             </button>
 
             <p className="text-center text-xs text-stone-400">
-              By submitting, you agree to MONTRA's{" "}
+              By submitting, you agree to {businessName}'s{" "}
               <a href="#" className="underline hover:text-stone-600">Terms & Conditions</a>.
             </p>
           </form>

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Upload, Loader2, X, Check, RefreshCw, ArrowRight, ArrowLeft, Trash2, Search } from "lucide-react";
+import { Upload, Loader2, X, Check, RefreshCw, ArrowRight, ArrowLeft, Trash2, Search, KeyRound } from "lucide-react";
 import { AddCustomerForm } from "@/components/customers/add-customer-form";
 import { stashReceiptDraft } from "@/lib/receipt-draft";
 import { findCustomerMatch, type MatchableCustomer } from "@/lib/customer-match";
@@ -24,12 +24,16 @@ export function BulkUploadShell({
   customers,
   completedItemId,
   orderType,
+  hasApiKey,
 }: {
   customers: MatchableCustomer[];
   completedItemId?: string;
   /** Every receipt reviewed from this queue is created as this order type —
    * there's no per-item toggle, since the two queues are entered separately. */
   orderType: "BULK" | "SAMPLE";
+  /** No shared fallback key — this business must have its own configured in
+   * Settings before photo import will work at all. */
+  hasApiKey: boolean;
 }) {
   const router = useRouter();
   const isSample = orderType === "SAMPLE";
@@ -223,35 +227,51 @@ export function BulkUploadShell({
         </p>
       </div>
 
-      <div className="card card-body mb-4">
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*,application/pdf"
-          multiple
-          className="hidden"
-          onChange={(e) => {
-            if (e.target.files && e.target.files.length > 0) addFiles(e.target.files);
-            e.target.value = "";
-          }}
-        />
-        <button
-          type="button"
-          onClick={() => fileInputRef.current?.click()}
-          className="w-full flex items-center justify-center gap-2 border-2 border-dashed border-stone-200 dark:border-stone-700 rounded-lg py-5 text-sm text-stone-500 hover:border-amber-400 hover:text-amber-600 transition-colors"
-        >
-          <Upload size={16} /> Add receipt photos or PDFs
-        </button>
-        <p className="text-xs text-stone-400 text-center mt-2">
-          Up to {MAX_BATCH_FILES} files at a time — processed a couple at a time to stay within the free extraction quota.
-        </p>
-        {batchError && (
-          <p className="flex items-center justify-between text-xs text-red-500 mt-2">
-            {batchError}
-            <button type="button" onClick={() => setBatchError(null)} className="text-stone-400 hover:text-ink"><X size={13} /></button>
+      {!hasApiKey ? (
+        <div className="card card-body mb-4 flex items-start gap-3 border-amber-200 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-500/10">
+          <KeyRound size={18} className="text-amber-600 dark:text-amber-400 mt-0.5 flex-none" />
+          <div>
+            <p className="text-sm font-medium text-ink">Receipt photo import isn't set up yet</p>
+            <p className="text-sm text-stone-600 dark:text-stone-300 mt-0.5">
+              Bulk Upload needs a Gemini API key configured for your business before it can read receipt photos.{" "}
+              <Link href="/dashboard/settings" className="underline hover:text-amber-700 dark:hover:text-amber-300">
+                Add one in Settings
+              </Link>
+              , then come back here.
+            </p>
+          </div>
+        </div>
+      ) : (
+        <div className="card card-body mb-4">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*,application/pdf"
+            multiple
+            className="hidden"
+            onChange={(e) => {
+              if (e.target.files && e.target.files.length > 0) addFiles(e.target.files);
+              e.target.value = "";
+            }}
+          />
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            className="w-full flex items-center justify-center gap-2 border-2 border-dashed border-stone-200 dark:border-stone-700 rounded-lg py-5 text-sm text-stone-500 hover:border-amber-400 hover:text-amber-600 transition-colors"
+          >
+            <Upload size={16} /> Add receipt photos or PDFs
+          </button>
+          <p className="text-xs text-stone-400 text-center mt-2">
+            Up to {MAX_BATCH_FILES} files at a time — processed a couple at a time to stay within the free extraction quota.
           </p>
-        )}
-      </div>
+          {batchError && (
+            <p className="flex items-center justify-between text-xs text-red-500 mt-2">
+              {batchError}
+              <button type="button" onClick={() => setBatchError(null)} className="text-stone-400 hover:text-ink"><X size={13} /></button>
+            </p>
+          )}
+        </div>
+      )}
 
       {items.length > 0 && (
         <div className="card">

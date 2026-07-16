@@ -7,8 +7,8 @@ generator client {
 
 datasource db {
   provider  = "postgresql"
-  url       = env("DATABASE_URL")        // pooled (PgBouncer) for app queries
-  directUrl = env("DIRECT_URL")          // direct for migrations
+  url       = env("DATABASE_URL") // pooled (PgBouncer) for app queries
+  directUrl = env("DIRECT_URL") // direct for migrations
 }
 
 // ----------------------------- Enums -----------------------------
@@ -82,46 +82,126 @@ enum AuditAction {
   EXPENSE_UPDATED
   EXPENSE_FINALIZED
   EXPENSE_UNFINALIZED
+  BUSINESS_REGISTERED
+  BUSINESS_UPDATED
+  BUSINESS_LOGO_UPDATED
+  BUSINESS_API_KEY_UPDATED
+  STAFF_INVITE_CREATED
+  STAFF_INVITE_REVOKED
+  STAFF_INVITE_REDEEMED
 }
 
 // ----------------------------- Users -----------------------------
 // Mirror of the Clerk user. We never trust the client for identity —
-// the Clerk session is the source of truth; this row caches role + display.
+// the Clerk session is the source of truth; this row caches display info.
+// Role is no longer here — a person's role can differ per business (e.g.
+// Admin of their own business, Staff if invited into someone else's), so it
+// lives on BusinessMember instead.
 model User {
   id        String   @id @default(cuid())
   clerkId   String   @unique
   email     String   @unique
   name      String?
-  role      Role     @default(STAFF)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  createdReceipts   Receipt[]            @relation("ReceiptCreatedBy")
-  finalizedReceipts Receipt[]            @relation("ReceiptFinalizedBy")
-  versions          ReceiptVersion[]
-  orderChanges      OrderStatusHistory[]
-  auditLogs         AuditLog[]
-  customerInvites   CustomerInvite[]
-  payments          Payment[]
-  expenseRecords    ExpenseRecord[] @relation("ExpenseRecordedBy")
-  finalizedExpenses ExpenseRecord[] @relation("ExpenseFinalizedBy")
+  // Which business this user is currently acting within. Only meaningful to
+  // read once a membership row confirms they still belong to it — see
+  // requireBusiness() in lib/auth.ts.
+  activeBusinessId String?
+  activeBusiness   Business? @relation("ActiveBusiness", fields: [activeBusinessId], references: [id], onDelete: SetNull)
+
+  memberships         BusinessMember[]
+  staffInvitesCreated StaffInvite[]        @relation("StaffInviteCreatedBy")
+  staffInvitesUsed    StaffInvite[]        @relation("StaffInviteUsedBy")
+  createdReceipts     Receipt[]            @relation("ReceiptCreatedBy")
+  finalizedReceipts   Receipt[]            @relation("ReceiptFinalizedBy")
+  versions            ReceiptVersion[]
+  orderChanges        OrderStatusHistory[]
+  auditLogs           AuditLog[]
+  customerInvites     CustomerInvite[]
+  payments            Payment[]
+  expenseRecords      ExpenseRecord[]      @relation("ExpenseRecordedBy")
+  finalizedExpenses   ExpenseRecord[]      @relation("ExpenseFinalizedBy")
+}
+
+// ---------------------------- Business ----------------------------
+// A tenant. Every Customer/Receipt/CustomerInvite/AuditLog belongs to
+// exactly one — see requireBusiness() for how the active one is resolved
+// per request.
+model Business {
+  id        String   @id @default(cuid())
+  name      String
+  logoUrl   String?
+  // Encrypted (see src/lib/crypto/secret-box.ts) — a business's own Gemini
+  // API key for the receipt-photo OCR import, so heavy usage on one tenant
+  // doesn't exhaust the shared default key's free-tier quota for everyone
+  // else. Null means "use the shared default key".
+  geminiApiKeyEncrypted String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  members         BusinessMember[]
+  staffInvites    StaffInvite[]
+  activeForUsers  User[]           @relation("ActiveBusiness")
+  customers       Customer[]
+  receipts        Receipt[]
+  customerInvites CustomerInvite[]
+  auditLogs       AuditLog[]
+}
+
+// Membership + role, per business — a person can belong to more than one.
+model BusinessMember {
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role       Role     @default(STAFF)
+  createdAt  DateTime @default(now())
+
+  @@unique([businessId, userId])
+  @@index([userId])
+}
+
+// Single-use, expiring invite links for bringing staff into a business —
+// same shape as CustomerInvite, generalized for team members instead.
+model StaffInvite {
+  id          String    @id @default(cuid())
+  businessId  String
+  business    Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  token       String    @unique
+  role        Role      @default(STAFF)
+  usedAt      DateTime?
+  usedById    String?
+  usedBy      User?     @relation("StaffInviteUsedBy", fields: [usedById], references: [id])
+  expiresAt   DateTime?
+  createdById String
+  createdBy   User      @relation("StaffInviteCreatedBy", fields: [createdById], references: [id])
+  createdAt   DateTime  @default(now())
+
+  @@index([token])
+  @@index([businessId])
 }
 
 // --------------------------- Customers ---------------------------
 model Customer {
-  id        String   @id @default(cuid())
-  name      String
-  address   String?
-  phone     String?
-  email     String?
-  nic       String?  // NIC / identification number
-  notes     String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  name       String
+  address    String?
+  phone      String?
+  email      String?
+  nic        String? // NIC / identification number
+  notes      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   receipts Receipt[]
   invite   CustomerInvite?
 
+  @@index([businessId])
   @@index([name])
   @@index([phone])
   @@index([email])
@@ -133,10 +213,12 @@ model Customer {
 // their own details. A token is single-use (usedAt) and time-limited
 // (expiresAt). Sharing a spent link can't create more customers.
 model CustomerInvite {
-  id        String    @id @default(cuid())
-  token     String    @unique
-  usedAt    DateTime?
-  expiresAt DateTime?
+  id         String    @id @default(cuid())
+  businessId String
+  business   Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  token      String    @unique
+  usedAt     DateTime?
+  expiresAt  DateTime?
 
   // The customer this invite produced, once submitted.
   customerId String?   @unique
@@ -146,6 +228,7 @@ model CustomerInvite {
   createdBy   User     @relation(fields: [createdById], references: [id])
   createdAt   DateTime @default(now())
 
+  @@index([businessId])
   @@index([token])
 }
 
@@ -153,6 +236,9 @@ model CustomerInvite {
 model Receipt {
   id            String @id @default(cuid())
   receiptNumber Int    @unique @default(autoincrement())
+
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
 
   customerId String
   customer   Customer @relation(fields: [customerId], references: [id])
@@ -206,6 +292,7 @@ model Receipt {
   payments      Payment[]
   expenseRecord ExpenseRecord?
 
+  @@index([businessId])
   @@index([status])
   @@index([orderStatus])
   @@index([paymentStatus])
@@ -241,9 +328,9 @@ model Payment {
 // records are picked up by the Income/P&L page — unfinalized ones are
 // invisible there until an admin locks them in.
 model ExpenseRecord {
-  id               String    @id @default(cuid())
-  receiptId        String    @unique
-  receipt          Receipt   @relation(fields: [receiptId], references: [id], onDelete: Cascade)
+  id        String  @id @default(cuid())
+  receiptId String  @unique
+  receipt   Receipt @relation(fields: [receiptId], references: [id], onDelete: Cascade)
 
   // Bulk orders track all six; Sample orders only use fabric/patternMaking/
   // production — the other three simply stay 0 and unedited for a sample.
@@ -254,34 +341,34 @@ model ExpenseRecord {
   accessoryExpense     Decimal @default(0) @db.Decimal(12, 2) // Bulk only
   otherExpense         Decimal @default(0) @db.Decimal(12, 2) // Bulk only
 
-  profit           Decimal   @default(0) @db.Decimal(12, 2)
+  profit Decimal @default(0) @db.Decimal(12, 2)
 
-  finalized        Boolean   @default(false)
-  finalizedAt      DateTime?
-  finalizedById    String?
-  finalizedBy      User?     @relation("ExpenseFinalizedBy", fields: [finalizedById], references: [id])
+  finalized     Boolean   @default(false)
+  finalizedAt   DateTime?
+  finalizedById String?
+  finalizedBy   User?     @relation("ExpenseFinalizedBy", fields: [finalizedById], references: [id])
 
-  recordedById     String
-  recordedBy       User      @relation("ExpenseRecordedBy", fields: [recordedById], references: [id])
-  updatedAt        DateTime  @updatedAt
-  createdAt        DateTime  @default(now())
+  recordedById String
+  recordedBy   User     @relation("ExpenseRecordedBy", fields: [recordedById], references: [id])
+  updatedAt    DateTime @updatedAt
+  createdAt    DateTime @default(now())
 
   @@index([finalized])
 }
 
 model ReceiptItem {
-  id          String      @id @default(cuid())
+  id          String  @id @default(cuid())
   receiptId   String
-  receipt     Receipt     @relation(fields: [receiptId], references: [id], onDelete: Cascade)
+  receipt     Receipt @relation(fields: [receiptId], references: [id], onDelete: Cascade)
   description String
   quantity    Int
-  unitPrice   Decimal     @db.Decimal(12, 2)
-  lineTotal   Decimal     @db.Decimal(12, 2)
-  sortOrder   Int         @default(0)
+  unitPrice   Decimal @db.Decimal(12, 2)
+  lineTotal   Decimal @db.Decimal(12, 2)
+  sortOrder   Int     @default(0)
 
   // Production tracking is per item, not per receipt — an order's overall
   // status (on Receipt) is a cached rollup of these.
-  orderStatus OrderStatus @default(FABRIC_SELECTION)
+  orderStatus OrderStatus          @default(FABRIC_SELECTION)
   history     OrderStatusHistory[]
 
   @@index([receiptId])
@@ -306,7 +393,7 @@ model ReceiptVersion {
   receiptId     String
   receipt       Receipt  @relation(fields: [receiptId], references: [id], onDelete: Cascade)
   versionNumber Int
-  snapshot      Json     // full receipt + items + adjustments at this version
+  snapshot      Json // full receipt + items + adjustments at this version
   changeSummary String?
   modifiedById  String
   modifiedBy    User     @relation(fields: [modifiedById], references: [id])
@@ -340,14 +427,17 @@ model OrderStatusHistory {
 // ----------------------------- Audit -----------------------------
 model AuditLog {
   id         String      @id @default(cuid())
+  businessId String
+  business   Business    @relation(fields: [businessId], references: [id], onDelete: Cascade)
   actorId    String
   actor      User        @relation(fields: [actorId], references: [id])
   action     AuditAction
-  entityType String      // "Customer" | "Receipt" | "Order" ...
+  entityType String // "Customer" | "Receipt" | "Order" ...
   entityId   String
   metadata   Json?
   createdAt  DateTime    @default(now())
 
+  @@index([businessId])
   @@index([entityType, entityId])
   @@index([actorId])
   @@index([createdAt])

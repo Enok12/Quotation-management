@@ -11,16 +11,16 @@ import { bottleneckStage, type OrderStage } from "@/lib/order-stage";
 const D = (n: number) => new Prisma.Decimal(n);
 
 export const receiptService = {
-  getFull(id: string) {
-    return receiptRepository.findFull(id).then((r) => {
+  getFull(id: string, businessId: string) {
+    return receiptRepository.findFull(id, businessId).then((r) => {
       if (!r) throw new NotFoundError("Receipt");
       return r;
     });
   },
 
   // -------- Create (always starts as DRAFT) --------
-  async create(input: ReceiptCreateInput, actorId: string) {
-    const customer = await prisma.customer.findUnique({ where: { id: input.customerId } });
+  async create(input: ReceiptCreateInput, actorId: string, businessId: string) {
+    const customer = await prisma.customer.findFirst({ where: { id: input.customerId, businessId } });
     if (!customer) throw new NotFoundError("Customer");
 
     const totals = calcReceiptTotals(input);
@@ -31,6 +31,7 @@ export const receiptService = {
     return prisma.$transaction(async (tx) => {
       const receipt = await tx.receipt.create({
         data: {
+          businessId,
           customerId: customer.id,
           custName: customer.name,
           custAddress: customer.address,
@@ -77,7 +78,7 @@ export const receiptService = {
         })),
       });
       await auditService.log(tx, {
-        actorId, action: "RECEIPT_CREATED", entityType: "Receipt", entityId: receipt.id,
+        businessId, actorId, action: "RECEIPT_CREATED", entityType: "Receipt", entityId: receipt.id,
       });
       return receipt;
     });
@@ -91,8 +92,8 @@ export const receiptService = {
   // adjustments, which carry no state) — an item's orderStatus and history
   // are meaningful production-tracking state that an unrelated edit (e.g.
   // fixing a price typo) must not silently reset.
-  async update(id: string, input: ReceiptCreateInput, actorId: string) {
-    const existing = await this.getFull(id);
+  async update(id: string, input: ReceiptCreateInput, actorId: string, businessId: string) {
+    const existing = await this.getFull(id, businessId);
     const totals = calcReceiptTotals(input);
 
     return prisma.$transaction(async (tx) => {
@@ -163,16 +164,16 @@ export const receiptService = {
         },
       });
       await auditService.log(tx, {
-        actorId, action: "RECEIPT_UPDATED", entityType: "Receipt", entityId: id,
+        businessId: existing.businessId, actorId, action: "RECEIPT_UPDATED", entityType: "Receipt", entityId: id,
       });
       return updated;
     });
   },
 
   // -------- Order status (per item) --------
-  async changeItemStatus(itemId: string, to: OrderStage, actorId: string, note?: string) {
+  async changeItemStatus(itemId: string, to: OrderStage, actorId: string, businessId: string, note?: string) {
     const item = await prisma.receiptItem.findUnique({ where: { id: itemId }, include: { receipt: true } });
-    if (!item) throw new NotFoundError("Item");
+    if (!item || item.receipt.businessId !== businessId) throw new NotFoundError("Item");
     if (item.receipt.status !== "FINALIZED") throw new ConflictError("Finalize the receipt before tracking order status");
     if (item.orderStatus === to) return item;
 
@@ -187,7 +188,7 @@ export const receiptService = {
         data: { orderStatus: bottleneckStage(siblings.map((s) => s.orderStatus)) },
       });
       await auditService.log(tx, {
-        actorId, action: "ORDER_STATUS_CHANGED", entityType: "ReceiptItem", entityId: itemId,
+        businessId, actorId, action: "ORDER_STATUS_CHANGED", entityType: "ReceiptItem", entityId: itemId,
         metadata: { receiptId: item.receiptId, from: item.orderStatus, to },
       });
       return updated;
@@ -197,8 +198,8 @@ export const receiptService = {
   // -------- Order status (all items at once) --------
   // Convenience shortcut for the common case where every item on an order
   // genuinely moves together — per-item changes remain always available too.
-  async setAllItemsStatus(id: string, to: OrderStage, actorId: string, note?: string) {
-    const existing = await this.getFull(id);
+  async setAllItemsStatus(id: string, to: OrderStage, actorId: string, businessId: string, note?: string) {
+    const existing = await this.getFull(id, businessId);
     if (existing.status !== "FINALIZED") throw new ConflictError("Finalize the receipt before tracking order status");
 
     return prisma.$transaction(async (tx) => {
@@ -211,7 +212,7 @@ export const receiptService = {
       }
       const receipt = await tx.receipt.update({ where: { id }, data: { orderStatus: to } });
       await auditService.log(tx, {
-        actorId, action: "ORDER_STATUS_CHANGED", entityType: "Receipt", entityId: id,
+        businessId: existing.businessId, actorId, action: "ORDER_STATUS_CHANGED", entityType: "Receipt", entityId: id,
         metadata: { to, bulk: true },
       });
       return receipt;
@@ -225,8 +226,9 @@ export const receiptService = {
     id: string,
     input: { amount: number; method?: FullReceipt["paymentMethods"][number] | null; note?: string | null },
     actorId: string,
+    businessId: string,
   ) {
-    const existing = await this.getFull(id);
+    const existing = await this.getFull(id, businessId);
     if (existing.status !== "FINALIZED") {
       throw new ConflictError("Finalize the receipt before recording payments");
     }
@@ -264,7 +266,7 @@ export const receiptService = {
         },
       });
       await auditService.log(tx, {
-        actorId, action: "PAYMENT_RECORDED", entityType: "Receipt", entityId: id,
+        businessId: existing.businessId, actorId, action: "PAYMENT_RECORDED", entityType: "Receipt", entityId: id,
         metadata: { amount: input.amount, paymentStatus },
       });
       return receipt;
@@ -275,8 +277,8 @@ export const receiptService = {
   // The sample receipt is left completely untouched (it stays in Sample
   // Orders); a brand-new BULK receipt is created from its items/adjustments
   // so staff can set the real bulk quantities on it.
-  async createBulkFromSample(sampleId: string, actorId: string) {
-    const sample = await this.getFull(sampleId);
+  async createBulkFromSample(sampleId: string, actorId: string, businessId: string) {
+    const sample = await this.getFull(sampleId, businessId);
     if (sample.orderType !== "SAMPLE") throw new ConflictError("Only sample orders can be converted");
 
     const items = sample.items.map((it) => ({
@@ -291,6 +293,7 @@ export const receiptService = {
     return prisma.$transaction(async (tx) => {
       const receipt = await tx.receipt.create({
         data: {
+          businessId: sample.businessId,
           customerId: sample.customerId,
           custName: sample.custName,
           custAddress: sample.custAddress,
@@ -333,7 +336,7 @@ export const receiptService = {
         })),
       });
       await auditService.log(tx, {
-        actorId, action: "RECEIPT_CREATED", entityType: "Receipt", entityId: receipt.id,
+        businessId: sample.businessId, actorId, action: "RECEIPT_CREATED", entityType: "Receipt", entityId: receipt.id,
         metadata: { fromSampleId: sampleId, fromSampleReceiptNumber: sample.receiptNumber },
       });
       return receipt;
@@ -341,11 +344,11 @@ export const receiptService = {
   },
 
   // -------- Delete a receipt (e.g. a rejected sample) --------
-  async remove(id: string, actorId: string) {
-    const existing = await this.getFull(id);
+  async remove(id: string, actorId: string, businessId: string) {
+    const existing = await this.getFull(id, businessId);
     await prisma.$transaction(async (tx) => {
       await auditService.log(tx, {
-        actorId, action: "RECEIPT_DELETED", entityType: "Receipt", entityId: id,
+        businessId: existing.businessId, actorId, action: "RECEIPT_DELETED", entityType: "Receipt", entityId: id,
         metadata: { receiptNumber: existing.receiptNumber, orderType: existing.orderType },
       });
       await tx.receipt.delete({ where: { id } }); // cascades items/adjustments/payments/history/versions
@@ -353,7 +356,7 @@ export const receiptService = {
     return existing;
   },
 
-  listVersions: (receiptId: string) => receiptRepository.listVersions(receiptId),
+  listVersions: (receiptId: string, businessId: string) => receiptRepository.listVersions(receiptId, businessId),
 
   // -------- internal: snapshot a version --------
   async snapshotVersion(
@@ -372,7 +375,7 @@ export const receiptService = {
       },
     });
     await auditService.log(tx, {
-      actorId, action: "VERSION_CREATED", entityType: "Receipt", entityId: receipt.id,
+      businessId: receipt.businessId, actorId, action: "VERSION_CREATED", entityType: "Receipt", entityId: receipt.id,
       metadata: { version: receipt.currentVersion },
     });
   },

@@ -16,6 +16,7 @@ export default async function TrackingPage({ params }: Props) {
       custName: true,
       date: true,
       orderType: true,
+      business: { select: { name: true, logoUrl: true } },
       items: {
         orderBy: { sortOrder: "asc" },
         select: {
@@ -38,8 +39,12 @@ export default async function TrackingPage({ params }: Props) {
     <main className="min-h-screen bg-stone-50 dark:bg-stone-950 px-4 py-12">
       <div className="max-w-md mx-auto">
         <div className="text-center mb-8">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/brand/montra-wordmark.png" alt="MONTRA" className="h-9 mx-auto mb-6" />
+          {receipt.business.logoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={receipt.business.logoUrl} alt={receipt.business.name} className="h-12 mx-auto mb-6 object-contain" />
+          ) : (
+            <p className="font-serif text-xl text-ink mb-6">{receipt.business.name}</p>
+          )}
           <h1 className="font-serif text-2xl text-ink">Order Tracking</h1>
           <p className="text-stone-500 text-sm mt-1">
             Receipt #{receipt.receiptNumber} · {receipt.custName} · {fmtDate(receipt.date)}
@@ -57,7 +62,7 @@ export default async function TrackingPage({ params }: Props) {
         />
 
         <p className="text-center text-xs text-stone-400 mt-6">
-          Questions about your order? Contact MONTRA directly.
+          Questions about your order? Contact {receipt.business.name} directly.
         </p>
       </div>
     </main>

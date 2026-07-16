@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db";
-import { requireUser } from "@/lib/auth";
+import { requireBusiness } from "@/lib/auth";
 import Link from "next/link";
 import { Plus, Search } from "lucide-react";
 import { fmtDate } from "@/lib/utils/format";
@@ -16,7 +16,7 @@ interface Props {
 export const metadata = { title: "Customers" };
 
 export default async function CustomersPage({ searchParams }: Props) {
-  await requireUser();
+  const { businessId } = await requireBusiness();
   const sp = await searchParams;
   const page = Math.max(1, Number(sp.page ?? 1));
   const pageSize = 20;
@@ -24,15 +24,18 @@ export default async function CustomersPage({ searchParams }: Props) {
   const sortBy = (sp.sortBy ?? "createdAt") as "name" | "createdAt" | "phone";
   const sortDir = (sp.sortDir ?? "desc") as "asc" | "desc";
 
-  const where = search
-    ? {
-        OR: [
-          { name: { contains: search, mode: "insensitive" as const } },
-          { phone: { contains: search, mode: "insensitive" as const } },
-          { email: { contains: search, mode: "insensitive" as const } },
-        ],
-      }
-    : {};
+  const where = {
+    businessId,
+    ...(search
+      ? {
+          OR: [
+            { name: { contains: search, mode: "insensitive" as const } },
+            { phone: { contains: search, mode: "insensitive" as const } },
+            { email: { contains: search, mode: "insensitive" as const } },
+          ],
+        }
+      : {}),
+  };
 
   const [total, customers] = await Promise.all([
     prisma.customer.count({ where }),

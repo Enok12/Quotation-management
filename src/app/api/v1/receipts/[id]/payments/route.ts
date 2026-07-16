@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
 import { handler, ok } from "@/lib/api/response";
-import { requireUser } from "@/lib/auth";
+import { requireBusiness } from "@/lib/auth";
 import { receiptService } from "@/server/services/receipt.service";
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -14,9 +14,9 @@ const paymentSchema = z.object({
 
 // Record an instalment against a finalized receipt.
 export const POST = handler(async (req: NextRequest, { params }: Ctx) => {
-  const user = await requireUser();
+  const user = await requireBusiness();
   const { id } = await params;
   const input = paymentSchema.parse(await req.json());
-  const receipt = await receiptService.recordPayment(id, input, user.id);
+  const receipt = await receiptService.recordPayment(id, input, user.id, user.businessId);
   return ok({ id: receipt.id, paymentStatus: receipt.paymentStatus, balance: receipt.balance }, 201);
 });

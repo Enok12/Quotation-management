@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Search, ArrowRight, Upload, Loader2, X, Layers } from "lucide-react";
+import { Search, ArrowRight, Upload, Loader2, X, Layers, KeyRound } from "lucide-react";
 import { AddCustomerForm, type CustomerFormValues } from "@/components/customers/add-customer-form";
 import { stashReceiptDraft } from "@/lib/receipt-draft";
 import { findCustomerMatch } from "@/lib/customer-match";
@@ -18,7 +18,15 @@ type Stage =
   | { kind: "needsCustomer"; extracted: ReceiptExtractResult }
   | { kind: "error"; message: string };
 
-export function CustomerPickerShell({ customers }: { customers: Customer[] }) {
+export function CustomerPickerShell({
+  customers,
+  hasApiKey,
+}: {
+  customers: Customer[];
+  /** No shared fallback key — this business must have its own configured in
+   * Settings before photo import will work at all. */
+  hasApiKey: boolean;
+}) {
   const [search, setSearch] = useState("");
   const [stage, setStage] = useState<Stage>({ kind: "browse" });
   const router = useRouter();
@@ -80,7 +88,7 @@ export function CustomerPickerShell({ customers }: { customers: Customer[] }) {
   // in, as an alternative to picking a file — only while browsing, so a
   // stray paste doesn't interrupt the customer-confirmation step.
   useEffect(() => {
-    if (stage.kind !== "browse") return;
+    if (stage.kind !== "browse" || !hasApiKey) return;
     const onPaste = (e: ClipboardEvent) => {
       const item = Array.from(e.clipboardData?.items ?? []).find((i) => i.type.startsWith("image/"));
       const file = item?.getAsFile();
@@ -131,45 +139,60 @@ export function CustomerPickerShell({ customers }: { customers: Customer[] }) {
         <>
           {/* Upload a photo or PDF to auto-fill */}
           <div className="card card-body mb-4">
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*,application/pdf"
-              className="hidden"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                e.target.value = "";
-                if (file) onFileSelected(file);
-              }}
-            />
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={stage.kind === "extracting"}
-              className="w-full flex items-center justify-center gap-2 border-2 border-dashed border-stone-200 dark:border-stone-700 rounded-lg py-5 text-sm text-stone-500 hover:border-amber-400 hover:text-amber-600 transition-colors disabled:opacity-60"
-            >
-              {stage.kind === "extracting" ? (
-                <>
-                  <Loader2 size={16} className="animate-spin" /> Reading receipt…
-                </>
-              ) : (
-                <>
-                  <Upload size={16} /> Upload a receipt photo or PDF to auto-fill
-                </>
-              )}
-            </button>
-            {stage.kind !== "extracting" && (
-              <p className="text-xs text-stone-400 text-center mt-2">
-                or paste an image (Ctrl+V) — for a PDF where the receipt isn't the first page, that's fine, it'll be found automatically
-              </p>
-            )}
-            {stage.kind === "error" && (
-              <p className="flex items-center justify-between text-xs text-red-500 mt-2">
-                {stage.message}
-                <button type="button" onClick={() => setStage({ kind: "browse" })} className="text-stone-400 hover:text-ink">
-                  <X size={13} />
+            {!hasApiKey ? (
+              <div className="flex items-start gap-3">
+                <KeyRound size={18} className="text-amber-600 dark:text-amber-400 mt-0.5 flex-none" />
+                <p className="text-sm text-stone-600 dark:text-stone-300">
+                  Photo import needs a Gemini API key configured for your business.{" "}
+                  <Link href="/dashboard/settings" className="underline hover:text-amber-700 dark:hover:text-amber-300">
+                    Add one in Settings
+                  </Link>{" "}
+                  to auto-fill receipts from a photo — or just pick a customer below to enter one manually.
+                </p>
+              </div>
+            ) : (
+              <>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*,application/pdf"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    e.target.value = "";
+                    if (file) onFileSelected(file);
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={stage.kind === "extracting"}
+                  className="w-full flex items-center justify-center gap-2 border-2 border-dashed border-stone-200 dark:border-stone-700 rounded-lg py-5 text-sm text-stone-500 hover:border-amber-400 hover:text-amber-600 transition-colors disabled:opacity-60"
+                >
+                  {stage.kind === "extracting" ? (
+                    <>
+                      <Loader2 size={16} className="animate-spin" /> Reading receipt…
+                    </>
+                  ) : (
+                    <>
+                      <Upload size={16} /> Upload a receipt photo or PDF to auto-fill
+                    </>
+                  )}
                 </button>
-              </p>
+                {stage.kind !== "extracting" && (
+                  <p className="text-xs text-stone-400 text-center mt-2">
+                    or paste an image (Ctrl+V) — for a PDF where the receipt isn't the first page, that's fine, it'll be found automatically
+                  </p>
+                )}
+                {stage.kind === "error" && (
+                  <p className="flex items-center justify-between text-xs text-red-500 mt-2">
+                    {stage.message}
+                    <button type="button" onClick={() => setStage({ kind: "browse" })} className="text-stone-400 hover:text-ink">
+                      <X size={13} />
+                    </button>
+                  </p>
+                )}
+              </>
             )}
             <div className="flex items-center justify-center gap-4 mt-3">
               <Link

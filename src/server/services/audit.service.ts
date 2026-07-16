@@ -9,6 +9,7 @@ export const auditService = {
   log(
     client: Tx,
     input: {
+      businessId: string;
       actorId: string;
       action: AuditAction;
       entityType: string;
@@ -20,12 +21,12 @@ export const auditService = {
   },
 };
 
-export const auditWith = (actorId: string) => ({
+export const auditWith = (businessId: string, actorId: string) => ({
   record: (
     client: Tx,
     action: AuditAction,
     entityType: string,
     entityId: string,
     metadata?: Prisma.InputJsonValue,
-  ) => auditService.log(client, { actorId, action, entityType, entityId, metadata }),
+  ) => auditService.log(client, { businessId, actorId, action, entityType, entityId, metadata }),
 });

@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db";
-import { requireUser } from "@/lib/auth";
+import { requireBusiness } from "@/lib/auth";
 import { fmtMoney, fmtDate } from "@/lib/utils/format";
 import { DateRangeFilter } from "@/components/dashboard/date-range-filter";
 import { PrintButton } from "@/components/income/print-button";
@@ -11,7 +11,7 @@ export const metadata = { title: "Income" };
 const toISODate = (d: Date) => d.toISOString().slice(0, 10);
 
 export default async function IncomePage({ searchParams }: Props) {
-  await requireUser();
+  const { businessId } = await requireBusiness();
   const sp = await searchParams;
 
   // Default to "this month" without redirecting to write it into the URL —
@@ -28,6 +28,7 @@ export default async function IncomePage({ searchParams }: Props) {
   // here — until then they're invisible to the Income statement.
   const receipts = await prisma.receipt.findMany({
     where: {
+      businessId,
       status: "FINALIZED",
       expenseRecord: { finalized: true },
       ...(dateWhere ? { date: dateWhere } : {}),

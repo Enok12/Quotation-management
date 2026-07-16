@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db";
-import { requireUser } from "@/lib/auth";
+import { requireBusiness } from "@/lib/auth";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Edit, FileDown } from "lucide-react";
@@ -19,12 +19,12 @@ interface Props { params: Promise<{ id: string }> }
 export const metadata = { title: "Receipt" };
 
 export default async function ReceiptDetailPage({ params }: Props) {
-  const user = await requireUser();
-  const isAdmin = user.role === "ADMIN";
+  const { role, businessId } = await requireBusiness();
+  const isAdmin = role === "ADMIN";
   const { id } = await params;
 
-  const receipt = await prisma.receipt.findUnique({
-    where: { id },
+  const receipt = await prisma.receipt.findFirst({
+    where: { id, businessId },
     include: {
       items: { orderBy: { sortOrder: "asc" } },
       adjustments: { orderBy: { sortOrder: "asc" } },

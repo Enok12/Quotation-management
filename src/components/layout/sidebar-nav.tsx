@@ -12,6 +12,8 @@ import {
   Wallet,
   Banknote,
   TrendingUp,
+  UserCog,
+  Settings,
   type LucideIcon,
 } from "lucide-react";
 
@@ -24,6 +26,8 @@ const ICONS = {
   Wallet,
   Banknote,
   TrendingUp,
+  UserCog,
+  Settings,
 } satisfies Record<string, LucideIcon>;
 
 export type NavIcon = keyof typeof ICONS;

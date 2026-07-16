@@ -17,6 +17,7 @@ export const MONTRA_TEMPLATE = {
 export type ReceiptTemplate = typeof MONTRA_TEMPLATE;
 
 export interface ReceiptPdfData {
+  businessName: string;
   receiptNumber: number | string;
   date: string;
   customer: { name: string; address?: string | null; phone?: string | null; email?: string | null };
@@ -28,7 +29,9 @@ export interface ReceiptPdfData {
   amountPaid: number;
   balance: number;
 }
-export interface ReceiptAssets { wordmark?: Uint8Array; mark?: Uint8Array }
+// The tenant's own logo, embedded straight into the PDF — pdf-lib can only
+// embed PNG/JPEG, so the upload path (logo-upload-limits.ts) restricts to those.
+export interface ReceiptAssets { logo?: Uint8Array; logoIsPng?: boolean }
 
 const money = (n: number) =>
   new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(n ?? 0);
@@ -46,11 +49,12 @@ export async function generateReceiptPdf(
   const serifBold = await doc.embedFont(StandardFonts.TimesRomanBold);
   const sans = await doc.embedFont(StandardFonts.Helvetica);
   const sansBold = await doc.embedFont(StandardFonts.HelveticaBold);
-  const wordmark = assets.wordmark ? await doc.embedPng(assets.wordmark) : null;
-  const mark = assets.mark ? await doc.embedPng(assets.mark) : null;
+  const logo = assets.logo
+    ? assets.logoIsPng ? await doc.embedPng(assets.logo) : await doc.embedJpg(assets.logo)
+    : null;
 
   // Pages 1–2: Terms & Conditions (drawn first so the receipt is the last page).
-  drawTermsPages(doc, { reg: serif, bold: serifBold }, { wordmark, mark }, template);
+  drawTermsPages(doc, { reg: serif, bold: serifBold }, logo, template, data.businessName);
 
   // Page 3: the receipt itself.
   const page = doc.addPage([W, H]);
@@ -60,16 +64,15 @@ export async function generateReceiptPdf(
 
   page.drawRectangle({ x: M, y: M, width: W - M * 2, height: H - M * 2, borderColor: C.border, borderWidth: 1.4 });
 
-  if (mark) {
-    const wmW = 360, wmH = (mark.height / mark.width) * wmW;
-    page.drawImage(mark, { x: (W - wmW) / 2, y: H / 2 - wmH / 2 + 40, width: wmW, height: wmH, opacity: 0.06 });
-  }
-
   let y = H - M - 30;
-  if (wordmark) {
-    const lw = 210, lh = (wordmark.height / wordmark.width) * lw;
-    page.drawImage(wordmark, { x: (W - lw) / 2, y: y - lh, width: lw, height: lh });
+  if (logo) {
+    const lw = 210, lh = (logo.height / logo.width) * lw;
+    page.drawImage(logo, { x: (W - lw) / 2, y: y - lh, width: lw, height: lh });
     y -= lh + 22;
+  } else {
+    const tw = serifBold.widthOfTextAtSize(data.businessName, 22);
+    page.drawText(data.businessName, { x: (W - tw) / 2, y: y - 22, size: 22, font: serifBold, color: C.ink });
+    y -= 22 + 20;
   }
   page.drawText(template.heading, { x: innerL, y: y - 24, size: 25, font: serif, color: C.ink });
   y -= 44;

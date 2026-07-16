@@ -22,7 +22,10 @@ const Bul = (...r: Run[]): Block => ({ k: "bullet", r });
 const Sub = (...r: Run[]): Block => ({ k: "sub", r });
 const gap = (h: number): Block => ({ k: "gap", h });
 
-const PAGE1: Block[] = [
+// Every tenant business gets the same boilerplate terms, with their own name
+// substituted in place of a fixed company name — hence these are builders
+// parametrized by `name`, not static arrays.
+const buildPage1 = (name: string): Block[] => [
   { k: "title", t: "Terms & Conditions for Customers" },
 
   H("1. Orders"),
@@ -54,13 +57,13 @@ const PAGE1: Block[] = [
   gap(4),
 
   H("5. Quality & Defects"),
-  Bul(p("MONTRA ensures garments meet agreed specifications and undergo Quality Control (QC).")),
+  Bul(p(`${name} ensures garments meet agreed specifications and undergo Quality Control (QC).`)),
   Bul(p("If defects are found, the customer must report within"), b("7 days"), p("of receiving goods.")),
-  Bul(p("Accepted defective items will either be"), b("replaced, repaired, or refunded"), p("(at MONTRA's discretion).")),
+  Bul(p("Accepted defective items will either be"), b("replaced, repaired, or refunded"), p(`(at ${name}'s discretion).`)),
   Bul(p("Slight variations in color, stitching, or size (within ±1 inch) are industry-accepted tolerances and not considered defects.")),
 ];
 
-const PAGE2: Block[] = [
+const buildPage2 = (name: string): Block[] => [
   H("6. Returns & Exchanges"),
   Bul(p("Custom orders based on specific samples/images are"), b("non-returnable.")),
   Bul(p("Standard wholesale items may be exchanged if unused, unwashed, and in original packaging within"), b("7 days"), p("of delivery.")),
@@ -68,12 +71,12 @@ const PAGE2: Block[] = [
   gap(4),
 
   H("7. Intellectual Property & Confidentiality"),
-  Bul(p("Designs provided by the customer remain their property. MONTRA will not reproduce or sell such designs to other clients without permission.")),
-  Bul(p("MONTRA's own designs, branding, and labels remain the property of the company.")),
+  Bul(p(`Designs provided by the customer remain their property. ${name} will not reproduce or sell such designs to other clients without permission.`)),
+  Bul(p(`${name}'s own designs, branding, and labels remain the property of the company.`)),
   gap(4),
 
   H("8. Limitation of Liability"),
-  Bul(p("MONTRA shall not be liable for any indirect, incidental, or consequential damages (loss of profit, resale issues, delays caused by courier, etc.).")),
+  Bul(p(`${name} shall not be liable for any indirect, incidental, or consequential damages (loss of profit, resale issues, delays caused by courier, etc.).`)),
   Bul(p("Liability is strictly limited to the value of the defective goods supplied.")),
   gap(16),
 
@@ -172,43 +175,48 @@ function drawBlocks(page: PDFPage, blocks: Block[], fonts: Fonts, template: Rece
   return y;
 }
 
-function decorate(page: PDFPage, template: ReceiptTemplate, mark: PDFImage | null) {
+function decorate(page: PDFPage, template: ReceiptTemplate) {
   const { width: W, height: H } = template.page;
   const M = template.margin;
   page.drawRectangle({ x: M, y: M, width: W - M * 2, height: H - M * 2, borderColor: template.colors.border, borderWidth: 1.4 });
-  if (mark) {
-    const wmW = 360, wmH = (mark.height / mark.width) * wmW;
-    page.drawImage(mark, { x: (W - wmW) / 2, y: H / 2 - wmH / 2, width: wmW, height: wmH, opacity: 0.06 });
-  }
 }
 
 /**
  * Append the two Terms & Conditions pages to `doc`. Call this BEFORE adding the
  * receipt page so the final document is: page 1–2 = terms, page 3 = receipt.
+ *
+ * `businessName` is substituted for every company-name mention in the terms
+ * text — each tenant gets the same boilerplate under their own name, not
+ * MONTRA's (MONTRA is the software provider, not the party to the contract).
  */
 export function drawTermsPages(
   doc: PDFDocument,
   fonts: Fonts,
-  images: { wordmark: PDFImage | null; mark: PDFImage | null },
+  logo: PDFImage | null,
   template: ReceiptTemplate,
+  businessName: string,
 ): { page1EndY: number; page2EndY: number } {
   const { width: W, height: H } = template.page;
 
-  // Page 1 — logo at top, then sections 1–5
+  // Page 1 — logo (or business name, if no logo) at top, then sections 1–5
   const p1 = doc.addPage([W, H]);
-  decorate(p1, template, images.mark);
+  decorate(p1, template);
   let y = H - 64;
-  if (images.wordmark) {
-    const lw = 170, lh = (images.wordmark.height / images.wordmark.width) * lw;
-    p1.drawImage(images.wordmark, { x: (W - lw) / 2, y: y - lh, width: lw, height: lh });
+  if (logo) {
+    const lw = 170, lh = (logo.height / logo.width) * lw;
+    p1.drawImage(logo, { x: (W - lw) / 2, y: y - lh, width: lw, height: lh });
     y -= lh + 14;
+  } else {
+    const tw = fonts.bold.widthOfTextAtSize(businessName, 20);
+    p1.drawText(businessName, { x: (W - tw) / 2, y: y - 20, size: 20, font: fonts.bold, color: INK });
+    y -= 20 + 18;
   }
-  const page1EndY = drawBlocks(p1, PAGE1, fonts, template, y);
+  const page1EndY = drawBlocks(p1, buildPage1(businessName), fonts, template, y);
 
   // Page 2 — sections 6–8 + closing
   const p2 = doc.addPage([W, H]);
-  decorate(p2, template, images.mark);
-  const page2EndY = drawBlocks(p2, PAGE2, fonts, template, H - 64);
+  decorate(p2, template);
+  const page2EndY = drawBlocks(p2, buildPage2(businessName), fonts, template, H - 64);
 
   return { page1EndY, page2EndY };
 }

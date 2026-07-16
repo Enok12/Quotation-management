@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db";
-import { requireUser } from "@/lib/auth";
+import { requireBusiness } from "@/lib/auth";
 import Link from "next/link";
 import { Edit } from "lucide-react";
 import { Prisma } from "@prisma/client";
@@ -29,8 +29,8 @@ function whereForFolder(folder?: FolderKey): Prisma.ReceiptWhereInput {
 }
 
 export default async function OrdersFolderPage({ searchParams }: Props) {
-  const user = await requireUser();
-  const isAdmin = user.role === "ADMIN";
+  const { role, businessId } = await requireBusiness();
+  const isAdmin = role === "ADMIN";
   const sp = await searchParams;
   const page = Math.max(1, Number(sp.page ?? 1));
   const pageSize = 25;
@@ -39,7 +39,7 @@ export default async function OrdersFolderPage({ searchParams }: Props) {
   const search = sp.search?.trim() ?? "";
 
   // Sync-all always reconciles every receipt, regardless of the date/search filters.
-  const baseWhereNoDate: Prisma.ReceiptWhereInput = { status: "FINALIZED" };
+  const baseWhereNoDate: Prisma.ReceiptWhereInput = { businessId, status: "FINALIZED" };
   const baseWhere: Prisma.ReceiptWhereInput = {
     ...baseWhereNoDate,
     ...(dateWhere ? { date: dateWhere } : {}),

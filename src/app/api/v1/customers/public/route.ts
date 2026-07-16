@@ -16,6 +16,9 @@ export async function POST(req: NextRequest) {
     const { token, ...data } = bodySchema.parse(await req.json());
 
     const customer = await prisma.$transaction(async (tx) => {
+      const invite = await tx.customerInvite.findUnique({ where: { token }, select: { businessId: true } });
+      if (!invite) throw new InviteError();
+
       // Atomically claim the token. updateMany with `usedAt: null` acts as the
       // lock: exactly one concurrent request can flip it, so a shared or
       // double-submitted link can never create a second customer.
@@ -30,7 +33,7 @@ export async function POST(req: NextRequest) {
       if (claim.count !== 1) throw new InviteError();
 
       const created = await tx.customer.create({
-        data: { ...data, email: data.email || null },
+        data: { ...data, businessId: invite.businessId, email: data.email || null },
       });
       await tx.customerInvite.update({
         where: { token },

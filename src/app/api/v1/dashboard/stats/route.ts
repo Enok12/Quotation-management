@@ -1,14 +1,14 @@
 import { handler, ok } from "@/lib/api/response";
-import { requireUser } from "@/lib/auth";
+import { requireBusiness } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 
 export const GET = handler(async () => {
-  await requireUser();
+  const { businessId } = await requireBusiness();
 
   const [totalCustomers, totalReceipts, byStage] = await Promise.all([
-    prisma.customer.count(),
-    prisma.receipt.count(),
-    prisma.receipt.groupBy({ by: ["orderStatus"], _count: true }),
+    prisma.customer.count({ where: { businessId } }),
+    prisma.receipt.count({ where: { businessId } }),
+    prisma.receipt.groupBy({ by: ["orderStatus"], _count: true, where: { businessId } }),
   ]);
   const stage = (s: string) => byStage.find((b) => b.orderStatus === s)?._count ?? 0;
 

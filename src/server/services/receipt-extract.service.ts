@@ -49,10 +49,12 @@ interface GeminiResponse {
 }
 
 export const receiptExtractService = {
-  async extract(imageBase64: string, mimeType: string): Promise<ReceiptExtractResult> {
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) throw new AppError("Receipt upload isn't configured on this server yet.", 500);
-
+  // apiKey: the calling business's own Gemini key (decrypted by the caller).
+  // There is no shared fallback — each business must configure its own key
+  // in Settings before this feature works; the caller (the extract route)
+  // is responsible for checking that and failing with a clear message before
+  // ever reaching here.
+  async extract(imageBase64: string, mimeType: string, apiKey: string): Promise<ReceiptExtractResult> {
     const res = await fetch(`${ENDPOINT}?key=${apiKey}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },

@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db";
-import { requireUser } from "@/lib/auth";
+import { requireBusiness } from "@/lib/auth";
 import Link from "next/link";
 import { Prisma } from "@prisma/client";
 import { fmtMoney } from "@/lib/utils/format";
@@ -17,12 +17,29 @@ const expenseRecordSelect = {
   accessoryExpense: true, otherExpense: true, profit: true, finalized: true,
 } satisfies Prisma.ExpenseRecordSelect;
 
+// Mirrors the exact box model (width/padding/border) of the editable cost
+// cells in each row (see ExpenseRow's cellInput) — a plain text node here
+// would sit at a different inset than an <input>'s own internal padding, so
+// the Total row's digits wouldn't line up with the values above it.
+// pointer-events-none (plus tabIndex=-1) keeps it inert: a readOnly input is
+// still focusable/clickable by default, which would otherwise pick up the
+// site-wide focus ring and text-selection highlight on click, looking like
+// an editable field it isn't.
+function totalCell(value: number) {
+  return (
+    <input
+      type="text" readOnly tabIndex={-1} value={fmtMoney(value)}
+      className="w-24 px-2 py-1 text-xs text-right bg-transparent border border-transparent rounded outline-none pointer-events-none select-none"
+    />
+  );
+}
+
 const ORDER_TYPES = ["BULK", "SAMPLE"] as const;
 type OrderType = (typeof ORDER_TYPES)[number];
 
 export default async function ExpensesPage({ searchParams }: Props) {
-  const user = await requireUser();
-  const isAdmin = user.role === "ADMIN";
+  const { role, businessId } = await requireBusiness();
+  const isAdmin = role === "ADMIN";
   const sp = await searchParams;
   const activeType: OrderType = ORDER_TYPES.includes(sp.type as OrderType) ? (sp.type as OrderType) : "BULK";
   const page = Math.max(1, Number(sp.page ?? 1));
@@ -31,6 +48,7 @@ export default async function ExpensesPage({ searchParams }: Props) {
   const search = sp.search?.trim() ?? "";
 
   const baseWhere: Prisma.ReceiptWhereInput = {
+    businessId,
     status: "FINALIZED",
     ...(dateWhere ? { date: dateWhere } : {}),
     ...(search ? { custName: { contains: search, mode: "insensitive" } } : {}),
@@ -157,13 +175,13 @@ export default async function ExpensesPage({ searchParams }: Props) {
                   <tr className="bg-stone-25 dark:bg-white/[0.02] font-semibold">
                     <td colSpan={2} className="td text-right text-ink">Total</td>
                     <td className="td text-right font-mono">{fmtMoney(totals.bill)}</td>
-                    <td className="td text-right font-mono">{fmtMoney(totals.fabric)}</td>
-                    <td className="td text-right font-mono">{fmtMoney(totals.patternMaking)}</td>
-                    {activeType === "BULK" && <td className="td text-right font-mono">{fmtMoney(totals.cutting)}</td>}
-                    <td className="td text-right font-mono">{fmtMoney(totals.production)}</td>
-                    {activeType === "BULK" && <td className="td text-right font-mono">{fmtMoney(totals.accessory)}</td>}
-                    {activeType === "BULK" && <td className="td text-right font-mono">{fmtMoney(totals.other)}</td>}
-                    <td className="td text-right font-mono sticky right-20 z-10 w-28 border-l border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-800">{fmtMoney(totals.profit)}</td>
+                    <td className="td text-right">{totalCell(totals.fabric)}</td>
+                    <td className="td text-right">{totalCell(totals.patternMaking)}</td>
+                    {activeType === "BULK" && <td className="td text-right">{totalCell(totals.cutting)}</td>}
+                    <td className="td text-right">{totalCell(totals.production)}</td>
+                    {activeType === "BULK" && <td className="td text-right">{totalCell(totals.accessory)}</td>}
+                    {activeType === "BULK" && <td className="td text-right">{totalCell(totals.other)}</td>}
+                    <td className="td text-right sticky right-20 z-10 w-28 border-l border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-800">{totalCell(totals.profit)}</td>
                     <td className="td sticky right-0 z-10 w-20 bg-stone-50 dark:bg-stone-800" />
                   </tr>
                 </tfoot>

@@ -23,8 +23,8 @@ export interface ExpenseRecordInput {
 // user types over it, so the server just trusts whatever number arrives.
 // Finalizing locks the record and is what makes it visible to the Income page.
 export const expenseRecordService = {
-  async upsert(receiptId: string, input: ExpenseRecordInput, actorId: string) {
-    const receipt = await prisma.receipt.findUnique({ where: { id: receiptId }, select: { id: true } });
+  async upsert(receiptId: string, input: ExpenseRecordInput, actorId: string, businessId: string) {
+    const receipt = await prisma.receipt.findFirst({ where: { id: receiptId, businessId }, select: { id: true, businessId: true } });
     if (!receipt) throw new NotFoundError("Receipt");
 
     const existing = await prisma.expenseRecord.findUnique({ where: { receiptId } });
@@ -47,15 +47,18 @@ export const expenseRecordService = {
         update: data,
       });
       await auditService.log(tx, {
-        actorId, action: "EXPENSE_UPDATED", entityType: "ExpenseRecord", entityId: record.id,
+        businessId: receipt.businessId, actorId, action: "EXPENSE_UPDATED", entityType: "ExpenseRecord", entityId: record.id,
         metadata: { receiptId, ...input },
       });
       return record;
     });
   },
 
-  async setFinalized(receiptId: string, finalized: boolean, actorId: string) {
-    const record = await prisma.expenseRecord.findUnique({ where: { receiptId } });
+  async setFinalized(receiptId: string, finalized: boolean, actorId: string, businessId: string) {
+    const record = await prisma.expenseRecord.findFirst({
+      where: { receiptId, receipt: { businessId } },
+      include: { receipt: { select: { businessId: true } } },
+    });
     if (!record) throw new NotFoundError("Expense record");
 
     return prisma.$transaction(async (tx) => {
@@ -66,7 +69,7 @@ export const expenseRecordService = {
           : { finalized: false, finalizedAt: null, finalizedById: null },
       });
       await auditService.log(tx, {
-        actorId, action: finalized ? "EXPENSE_FINALIZED" : "EXPENSE_UNFINALIZED",
+        businessId: record.receipt.businessId, actorId, action: finalized ? "EXPENSE_FINALIZED" : "EXPENSE_UNFINALIZED",
         entityType: "ExpenseRecord", entityId: updated.id,
         metadata: { receiptId },
       });

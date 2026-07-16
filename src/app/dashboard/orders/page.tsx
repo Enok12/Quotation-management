@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db";
-import { requireUser } from "@/lib/auth";
+import { requireBusiness } from "@/lib/auth";
 import Link from "next/link";
 import { ExpandableOrderRow } from "@/components/receipts/expandable-order-row";
 import { FilterTableShell } from "@/components/dashboard/filter-table-shell";
@@ -11,7 +11,7 @@ interface Props { searchParams: Promise<{ status?: string; page?: string; from?:
 export const metadata = { title: "Production" };
 
 export default async function OrdersPage({ searchParams }: Props) {
-  await requireUser();
+  const { businessId } = await requireBusiness();
   const sp = await searchParams;
   const page = Math.max(1, Number(sp.page ?? 1));
   const pageSize = 25;
@@ -22,6 +22,7 @@ export default async function OrdersPage({ searchParams }: Props) {
   const search = sp.search?.trim() ?? "";
 
   const where = {
+    businessId,
     status: "FINALIZED" as const,
     ...(orderStatus ? { orderStatus } : {}),
     ...(dateWhere ? { date: dateWhere } : {}),

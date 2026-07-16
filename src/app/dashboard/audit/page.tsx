@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db";
-import { requireUser } from "@/lib/auth";
+import { requireBusiness } from "@/lib/auth";
 import { fmtDateTime } from "@/lib/utils/format";
 
 interface Props { searchParams: Promise<{ page?: string }> }
@@ -22,14 +22,15 @@ const ACTION_LABELS: Record<string, string> = {
 };
 
 export default async function AuditPage({ searchParams }: Props) {
-  await requireUser();
+  const { businessId } = await requireBusiness();
   const sp = await searchParams;
   const page = Math.max(1, Number(sp.page ?? 1));
   const pageSize = 40;
 
   const [total, logs] = await Promise.all([
-    prisma.auditLog.count(),
+    prisma.auditLog.count({ where: { businessId } }),
     prisma.auditLog.findMany({
+      where: { businessId },
       orderBy: { createdAt: "desc" },
       skip: (page - 1) * pageSize,
       take: pageSize,

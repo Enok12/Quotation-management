@@ -1,20 +1,20 @@
 import { prisma } from "@/lib/db";
-import { requireUser } from "@/lib/auth";
+import { requireBusiness } from "@/lib/auth";
 import Link from "next/link";
 import { Users, FileText, Package, CheckCircle, Layers, Scissors, Factory, ShieldCheck, Truck, Boxes, FlaskConical, PartyPopper } from "lucide-react";
 import { fmtMoney, fmtDate } from "@/lib/utils/format";
 import { PaymentStatusBadge, OrderStatusBadge } from "@/components/receipts/status-badges";
 
-async function getStats() {
+async function getStats(businessId: string) {
   const [totalCustomers, totalReceipts, bulk, sample, completed, byStage] = await Promise.all([
-    prisma.customer.count(),
-    prisma.receipt.count(),
-    prisma.receipt.count({ where: { orderType: "BULK", paymentStatus: { not: "PAID" } } }),
-    prisma.receipt.count({ where: { orderType: "SAMPLE" } }),
-    prisma.receipt.count({ where: { orderType: "BULK", paymentStatus: "PAID" } }),
+    prisma.customer.count({ where: { businessId } }),
+    prisma.receipt.count({ where: { businessId } }),
+    prisma.receipt.count({ where: { businessId, orderType: "BULK", paymentStatus: { not: "PAID" } } }),
+    prisma.receipt.count({ where: { businessId, orderType: "SAMPLE" } }),
+    prisma.receipt.count({ where: { businessId, orderType: "BULK", paymentStatus: "PAID" } }),
     // Item-level, not receipt-level — a 5-item order has 5 pieces counted
     // across whichever stages they're each individually at.
-    prisma.receiptItem.groupBy({ by: ["orderStatus"], _count: true }),
+    prisma.receiptItem.groupBy({ by: ["orderStatus"], _count: true, where: { receipt: { businessId } } }),
   ]);
   const stage = (s: string) => byStage.find((b) => b.orderStatus === s)?._count ?? 0;
   return {
@@ -30,8 +30,9 @@ async function getStats() {
   };
 }
 
-async function getRecentReceipts() {
+async function getRecentReceipts(businessId: string) {
   return prisma.receipt.findMany({
+    where: { businessId },
     take: 8,
     orderBy: { createdAt: "desc" },
     select: {
@@ -42,8 +43,8 @@ async function getRecentReceipts() {
 }
 
 export default async function DashboardPage() {
-  await requireUser();
-  const [stats, recent] = await Promise.all([getStats(), getRecentReceipts()]);
+  const { businessId } = await requireBusiness();
+  const [stats, recent] = await Promise.all([getStats(businessId), getRecentReceipts(businessId)]);
 
   const statCards = [
     { label: "Customers", value: stats.totalCustomers, icon: Users, href: "/dashboard/customers", color: "text-stone-600" },

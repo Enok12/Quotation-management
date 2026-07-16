@@ -10,8 +10,8 @@ import type {
 // Service layer = business rules. No HTTP, no Prisma details — reusable by
 // web routes, future mobile API, or background jobs.
 export const customerService = {
-  async list(query: CustomerListQuery) {
-    const { rows, total } = await customerRepository.list(query);
+  async list(query: CustomerListQuery, businessId: string) {
+    const { rows, total } = await customerRepository.list(query, businessId);
     return {
       items: rows,
       pagination: {
@@ -23,31 +23,31 @@ export const customerService = {
     };
   },
 
-  async getById(id: string) {
-    const customer = await customerRepository.findById(id);
+  async getById(id: string, businessId: string) {
+    const customer = await customerRepository.findById(id, businessId);
     if (!customer) throw new NotFoundError("Customer");
     return customer;
   },
 
-  async create(input: CustomerCreateInput, actorId: string) {
+  async create(input: CustomerCreateInput, actorId: string, businessId: string) {
     return prisma.$transaction(async (tx) => {
       const customer = await tx.customer.create({
-        data: { ...input, email: input.email || null },
+        data: { ...input, businessId, email: input.email || null },
       });
       await auditService.log(tx, {
-        actorId, action: "CUSTOMER_CREATED",
+        businessId, actorId, action: "CUSTOMER_CREATED",
         entityType: "Customer", entityId: customer.id,
       });
       return customer;
     });
   },
 
-  async update(id: string, input: Partial<CustomerCreateInput>, actorId: string) {
-    await this.getById(id);
+  async update(id: string, input: Partial<CustomerCreateInput>, actorId: string, businessId: string) {
+    const existing = await this.getById(id, businessId);
     return prisma.$transaction(async (tx) => {
       const customer = await tx.customer.update({ where: { id }, data: input });
       await auditService.log(tx, {
-        actorId, action: "CUSTOMER_UPDATED",
+        businessId: existing.businessId, actorId, action: "CUSTOMER_UPDATED",
         entityType: "Customer", entityId: id, metadata: { changed: Object.keys(input) },
       });
       return customer;
@@ -57,8 +57,8 @@ export const customerService = {
   // Deleting a customer also deletes all of their receipts (and, via cascade,
   // each receipt's items/adjustments/payments/versions/order history). The
   // caller is expected to have already confirmed this with the user.
-  async remove(id: string, actorId: string) {
-    const customer = await this.getById(id);
+  async remove(id: string, actorId: string, businessId: string) {
+    const customer = await this.getById(id, businessId);
 
     return prisma.$transaction(async (tx) => {
       // Detach any registration invite that produced this customer — the FK
@@ -71,7 +71,7 @@ export const customerService = {
       await tx.customer.delete({ where: { id } });
 
       await auditService.log(tx, {
-        actorId, action: "CUSTOMER_DELETED", entityType: "Customer", entityId: id,
+        businessId: customer.businessId, actorId, action: "CUSTOMER_DELETED", entityType: "Customer", entityId: id,
         metadata: { name: customer.name, receiptsDeleted: receipts.length },
       });
 
