@@ -18,5 +18,8 @@ export const POST = handler(async (req: NextRequest, { params }: Ctx) => {
   const { id } = await params;
   const input = paymentSchema.parse(await req.json());
   const receipt = await receiptService.recordPayment(id, input, user.id, user.businessId);
-  return ok({ id: receipt.id, paymentStatus: receipt.paymentStatus, balance: receipt.balance }, 201);
+  return ok({
+    id: receipt.id, paymentStatus: receipt.paymentStatus, balance: receipt.balance,
+    receiptNumber: receipt.receiptNumber, category: receipt.category,
+  }, 201);
 });

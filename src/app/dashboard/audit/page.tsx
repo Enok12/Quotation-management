@@ -15,6 +15,7 @@ const ACTION_LABELS: Record<string, string> = {
   ORDER_STATUS_CHANGED: "Order status changed",
   VERSION_CREATED: "Version created",
   PAYMENT_RECORDED: "Payment recorded",
+  ORDER_CONFIRMED: "Order confirmed",
   RECEIPT_DELETED: "Receipt deleted",
   CUSTOMER_DELETED: "Customer deleted",
   EXPENSE_RECORDED: "Expense recorded",

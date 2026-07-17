@@ -238,12 +238,15 @@ export function ReceiptBuilder({ customer, defaultValues, mode = "create", retur
       if (!json.success) throw new Error(json.message ?? "Failed to save");
 
       // Keep the computer folder mirror in sync with whatever was just saved
-      // (e.g. quantities set after converting a sample to bulk).
+      // (e.g. quantities set after converting a sample to bulk). An
+      // Unconfirmed bulk order (no invoice number yet) has nothing to file.
       const saved = json.data;
-      await moveInvoiceIfConnected(
-        saved.id, saved.receiptNumber, saved.custName,
-        saved.category, deriveFolder(saved.orderType, saved.paymentStatus),
-      );
+      if (saved.receiptNumber !== null) {
+        await moveInvoiceIfConnected(
+          saved.id, saved.receiptNumber, saved.custName,
+          saved.category, deriveFolder(saved.orderType, saved.paymentStatus, saved.receiptNumber),
+        );
+      }
 
       router.push(returnTo ?? `/dashboard/receipts/${json.data.id}`);
       router.refresh();

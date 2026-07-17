@@ -13,7 +13,7 @@ export function DeleteReceiptButton({
   iconOnly = false,
 }: {
   receiptId: string;
-  receiptNumber: number;
+  receiptNumber: number | null;
   /** Render a compact icon-only trigger (e.g. for a dense table row) instead
    * of the full labeled button. Skips the redirect-to-list navigation, since
    * the caller is already on a list page. */
@@ -29,7 +29,8 @@ export function DeleteReceiptButton({
       const res = await fetch(`/api/v1/receipts/${receiptId}`, { method: "DELETE" });
       const json = await res.json();
       if (!json.success) throw new Error(json.message ?? "Failed to delete");
-      await removeInvoiceFromFolders(receiptNumber);
+      // Unconfirmed receipts never had a PDF placed anywhere.
+      if (receiptNumber !== null) await removeInvoiceFromFolders(receiptNumber);
       if (!iconOnly) router.push("/dashboard/receipts");
       router.refresh();
     } catch (e) {
@@ -59,7 +60,9 @@ export function DeleteReceiptButton({
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 modal-overlay-in" onClick={() => !loading && setOpen(false)}>
           <div className="bg-white dark:bg-stone-800 rounded-lg shadow-xl w-full max-w-sm p-6 modal-panel-in" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-start justify-between mb-3">
-              <h3 className="font-serif text-xl text-ink">Delete receipt #{receiptNumber}?</h3>
+              <h3 className="font-serif text-xl text-ink">
+                Delete {receiptNumber !== null ? `receipt #${receiptNumber}` : "this unconfirmed order"}?
+              </h3>
               <button onClick={() => !loading && setOpen(false)} className="text-stone-400 hover:text-ink"><X size={18} /></button>
             </div>
             <p className="text-sm text-stone-500 mb-5">

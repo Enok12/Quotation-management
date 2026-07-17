@@ -1,6 +1,6 @@
 "use client";
 
-import { FOLDER_NAMES, ALL_FOLDER_KEYS, CATEGORY_NAMES, ALL_CATEGORIES, type FolderKey, type Category } from "@/lib/order-folder";
+import { FOLDER_NAMES, SYNCABLE_FOLDER_KEYS, CATEGORY_NAMES, ALL_CATEGORIES, type FolderKey, type Category } from "@/lib/order-folder";
 import { receiptFileName } from "@/lib/utils/receipt-filename";
 
 // ---------------------------------------------------------------------------
@@ -22,7 +22,7 @@ export interface FolderPath {
   folder: FolderKey;
 }
 export const ALL_PATHS: FolderPath[] = ALL_CATEGORIES.flatMap((category) =>
-  ALL_FOLDER_KEYS.map((folder) => ({ category, folder })),
+  SYNCABLE_FOLDER_KEYS.map((folder) => ({ category, folder })),
 );
 const pathKey = (p: FolderPath) => `${p.category}:${p.folder}`;
 const pathLabel = (p: FolderPath) => `${CATEGORY_NAMES[p.category]} / ${FOLDER_NAMES[p.folder]}`;

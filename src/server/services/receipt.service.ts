@@ -10,6 +10,23 @@ import { bottleneckStage, type OrderStage } from "@/lib/order-stage";
 
 const D = (n: number) => new Prisma.Decimal(n);
 
+// A new Bulk order with nothing paid yet stays "Unconfirmed" — no invoice
+// number, no tracking token — until the advance payment lands. Sample orders
+// and any order with money already collected confirm immediately, same as
+// before this existed.
+const isConfirmedState = (orderType: string, amountPaid: number) => orderType !== "BULK" || amountPaid > 0;
+
+// Atomically pulls the next invoice number for a business — each business's
+// numbers start at 1 and increment independently (Business.lastReceiptNumber).
+// Postgres serializes concurrent updates to the same row, so this is race-safe.
+async function nextReceiptNumber(tx: Prisma.TransactionClient, businessId: string): Promise<number> {
+  const business = await tx.business.update({
+    where: { id: businessId },
+    data: { lastReceiptNumber: { increment: 1 } },
+  });
+  return business.lastReceiptNumber;
+}
+
 export const receiptService = {
   getFull(id: string, businessId: string) {
     return receiptRepository.findFull(id, businessId).then((r) => {
@@ -27,11 +44,18 @@ export const receiptService = {
     // Fully paid at creation (e.g. a bulk-upload review of an already-settled
     // historical order) is a strong signal the whole order is already done.
     const initialStatus: OrderStage = input.startCompleted ? "COMPLETED" : "FABRIC_SELECTION";
+    const confirmedAtCreation = input.startCompleted || isConfirmedState(input.orderType, input.amountPaid);
 
     return prisma.$transaction(async (tx) => {
+      const receiptNumber = confirmedAtCreation ? await nextReceiptNumber(tx, businessId) : null;
+      // Only bulk orders get a public tracking link — samples get none, and
+      // an unconfirmed bulk order doesn't have one yet either.
+      const trackingToken = input.orderType === "BULK" && confirmedAtCreation ? generateToken() : null;
+
       const receipt = await tx.receipt.create({
         data: {
           businessId,
+          receiptNumber,
           customerId: customer.id,
           custName: customer.name,
           custAddress: customer.address,
@@ -49,8 +73,7 @@ export const receiptService = {
           paymentStatus: derivePaymentStatus(totals.totalDue, input.amountPaid),
           orderType: input.orderType,
           category: input.category,
-          // Only bulk orders get a public tracking link — samples get none.
-          trackingToken: input.orderType === "BULK" ? generateToken() : null,
+          trackingToken,
           // Receipts go live immediately — no separate finalization step.
           status: "FINALIZED",
           finalizedAt: new Date(),
@@ -95,6 +118,11 @@ export const receiptService = {
   async update(id: string, input: ReceiptCreateInput, actorId: string, businessId: string) {
     const existing = await this.getFull(id, businessId);
     const totals = calcReceiptTotals(input);
+    // Once confirmed, always confirmed — a number is never reclaimed. But an
+    // edit can be what *first* confirms it (e.g. entering amountPaid directly
+    // instead of via Record Payment, or switching an unconfirmed Bulk order
+    // to Sample, which always confirms immediately).
+    const nowConfirms = existing.receiptNumber === null && isConfirmedState(input.orderType, input.amountPaid);
 
     return prisma.$transaction(async (tx) => {
       if (existing.status === "FINALIZED") {
@@ -135,6 +163,12 @@ export const receiptService = {
         data: input.adjustments.map((a, i) => ({ receiptId: id, label: a.label, amount: D(a.amount), sortOrder: i })),
       });
 
+      const receiptNumber = nowConfirms ? await nextReceiptNumber(tx, businessId) : existing.receiptNumber;
+      // Samples never carry a token; a bulk order gets one the moment it's
+      // confirmed (now or previously), keeping whichever one it already had.
+      const trackingToken =
+        input.orderType !== "BULK" ? null : receiptNumber !== null ? (existing.trackingToken ?? generateToken()) : null;
+
       const updated = await tx.receipt.update({
         where: { id },
         data: {
@@ -149,13 +183,8 @@ export const receiptService = {
           paymentStatus: derivePaymentStatus(totals.totalDue, input.amountPaid),
           orderType: input.orderType,
           category: input.category,
-          // Keep the tracking-token invariant intact if the order type changes
-          // on a normal edit (not just via the dedicated convert action):
-          // bulk gets a token if it doesn't have one yet; sample never has one.
-          trackingToken:
-            input.orderType === "BULK"
-              ? (existing.trackingToken ?? generateToken())
-              : null,
+          receiptNumber,
+          trackingToken,
           currentVersion: existing.status === "FINALIZED" ? existing.currentVersion + 1 : existing.currentVersion,
           // Adding/removing items can shift the bottleneck even though no
           // status was explicitly changed (e.g. a brand-new item starts at
@@ -166,6 +195,11 @@ export const receiptService = {
       await auditService.log(tx, {
         businessId: existing.businessId, actorId, action: "RECEIPT_UPDATED", entityType: "Receipt", entityId: id,
       });
+      if (nowConfirms) {
+        await auditService.log(tx, {
+          businessId: existing.businessId, actorId, action: "ORDER_CONFIRMED", entityType: "Receipt", entityId: id,
+        });
+      }
       return updated;
     });
   },
@@ -175,6 +209,7 @@ export const receiptService = {
     const item = await prisma.receiptItem.findUnique({ where: { id: itemId }, include: { receipt: true } });
     if (!item || item.receipt.businessId !== businessId) throw new NotFoundError("Item");
     if (item.receipt.status !== "FINALIZED") throw new ConflictError("Finalize the receipt before tracking order status");
+    if (item.receipt.receiptNumber === null) throw new ConflictError("Confirm the order (record the advance payment) before tracking production status");
     if (item.orderStatus === to) return item;
 
     return prisma.$transaction(async (tx) => {
@@ -201,6 +236,7 @@ export const receiptService = {
   async setAllItemsStatus(id: string, to: OrderStage, actorId: string, businessId: string, note?: string) {
     const existing = await this.getFull(id, businessId);
     if (existing.status !== "FINALIZED") throw new ConflictError("Finalize the receipt before tracking order status");
+    if (existing.receiptNumber === null) throw new ConflictError("Confirm the order (record the advance payment) before tracking production status");
 
     return prisma.$transaction(async (tx) => {
       for (const item of existing.items) {
@@ -222,6 +258,8 @@ export const receiptService = {
   // -------- Record a payment (instalment) --------
   // Appends to the payment ledger, bumps the running amountPaid, and lets the
   // receipt move between the Unpaid / Partial / Completed folders automatically.
+  // If this receipt is still Unconfirmed, this payment is what confirms it —
+  // assigns its invoice number and tracking token in the same transaction.
   async recordPayment(
     id: string,
     input: { amount: number; method?: FullReceipt["paymentMethods"][number] | null; note?: string | null },
@@ -241,6 +279,7 @@ export const receiptService = {
     // is reserved from the start. Once real payments exceed it, balance tracks them.
     const balance = Math.round((totalDue - Math.max(advanceAmount, newAmountPaid) + Number.EPSILON) * 100) / 100;
     const paymentStatus = derivePaymentStatus(totalDue, newAmountPaid);
+    const nowConfirms = existing.receiptNumber === null;
 
     // Reflect the method used on the receipt's Payment Information block (and PDF).
     const methods = new Set(existing.paymentMethods);
@@ -256,6 +295,8 @@ export const receiptService = {
           recordedById: actorId,
         },
       });
+      const receiptNumber = nowConfirms ? await nextReceiptNumber(tx, businessId) : existing.receiptNumber;
+      const trackingToken = nowConfirms ? generateToken() : existing.trackingToken;
       const receipt = await tx.receipt.update({
         where: { id },
         data: {
@@ -263,12 +304,19 @@ export const receiptService = {
           balance: D(balance),
           paymentStatus,
           paymentMethods: { set: Array.from(methods) },
+          receiptNumber,
+          trackingToken,
         },
       });
       await auditService.log(tx, {
         businessId: existing.businessId, actorId, action: "PAYMENT_RECORDED", entityType: "Receipt", entityId: id,
         metadata: { amount: input.amount, paymentStatus },
       });
+      if (nowConfirms) {
+        await auditService.log(tx, {
+          businessId: existing.businessId, actorId, action: "ORDER_CONFIRMED", entityType: "Receipt", entityId: id,
+        });
+      }
       return receipt;
     });
   },
@@ -276,7 +324,8 @@ export const receiptService = {
   // -------- Create a bulk order from an approved sample --------
   // The sample receipt is left completely untouched (it stays in Sample
   // Orders); a brand-new BULK receipt is created from its items/adjustments
-  // so staff can set the real bulk quantities on it.
+  // so staff can set the real bulk quantities on it. Starts Unconfirmed, same
+  // as any other new bulk order with nothing paid yet.
   async createBulkFromSample(sampleId: string, actorId: string, businessId: string) {
     const sample = await this.getFull(sampleId, businessId);
     if (sample.orderType !== "SAMPLE") throw new ConflictError("Only sample orders can be converted");
@@ -294,6 +343,7 @@ export const receiptService = {
       const receipt = await tx.receipt.create({
         data: {
           businessId: sample.businessId,
+          receiptNumber: null,
           customerId: sample.customerId,
           custName: sample.custName,
           custAddress: sample.custAddress,
@@ -311,7 +361,7 @@ export const receiptService = {
           paymentStatus: derivePaymentStatus(totals.totalDue, 0),
           orderType: "BULK",
           category: sample.category,
-          trackingToken: generateToken(),
+          trackingToken: null,
           status: "FINALIZED",
           finalizedAt: new Date(),
           finalizedById: actorId,

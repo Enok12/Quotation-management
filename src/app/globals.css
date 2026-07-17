@@ -215,6 +215,28 @@
     @apply bg-stone-300 rounded dark:bg-stone-600;
   }
 
+  /* Sidebar nav scrollbar — the sidebar is always dark (bg-stone-900)
+   * regardless of the site's light/dark theme, so this doesn't need a
+   * dark: variant like .scrollbar-thin does. Thin, blends into the track
+   * until hovered, no OS arrow buttons. */
+  .scrollbar-sidebar {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+  }
+  .scrollbar-sidebar::-webkit-scrollbar {
+    width: 5px;
+  }
+  .scrollbar-sidebar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .scrollbar-sidebar::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 9999px;
+  }
+  .scrollbar-sidebar::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.28);
+  }
+
   /* Modal entrance transitions */
   .modal-overlay-in {
     animation: modal-overlay-in 150ms ease-out;

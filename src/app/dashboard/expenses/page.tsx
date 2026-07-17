@@ -50,6 +50,10 @@ export default async function ExpensesPage({ searchParams }: Props) {
   const baseWhere: Prisma.ReceiptWhereInput = {
     businessId,
     status: "FINALIZED",
+    // Unconfirmed bulk orders (no advance paid yet) don't belong here —
+    // nothing to log costs against until the order is confirmed. Sample
+    // orders always have a receiptNumber already, so this has no effect on them.
+    receiptNumber: { not: null },
     ...(dateWhere ? { date: dateWhere } : {}),
     ...(search ? { custName: { contains: search, mode: "insensitive" } } : {}),
   };
@@ -147,7 +151,7 @@ export default async function ExpensesPage({ searchParams }: Props) {
                   <ExpenseRow
                     key={r.id}
                     receiptId={r.id}
-                    receiptNumber={r.receiptNumber}
+                    receiptNumber={r.receiptNumber as number}
                     custName={r.custName}
                     date={r.date}
                     billAmount={Number(r.totalDue)}

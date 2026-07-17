@@ -89,6 +89,7 @@ enum AuditAction {
   STAFF_INVITE_CREATED
   STAFF_INVITE_REVOKED
   STAFF_INVITE_REDEEMED
+  ORDER_CONFIRMED
 }
 
 // ----------------------------- Users -----------------------------
@@ -138,8 +139,13 @@ model Business {
   // doesn't exhaust the shared default key's free-tier quota for everyone
   // else. Null means "use the shared default key".
   geminiApiKeyEncrypted String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  // Per-business invoice-number counter — each business's receipt numbers
+  // start at 1 and increment independently of every other business's. Only
+  // incremented when a receipt is actually confirmed (see Receipt.receiptNumber),
+  // so abandoned/never-paid receipts never burn a number.
+  lastReceiptNumber Int      @default(0)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
   members         BusinessMember[]
   staffInvites    StaffInvite[]
@@ -234,8 +240,12 @@ model CustomerInvite {
 
 // ---------------------------- Receipts ---------------------------
 model Receipt {
-  id            String @id @default(cuid())
-  receiptNumber Int    @unique @default(autoincrement())
+  id String @id @default(cuid())
+  // Null until confirmed (see receiptService — a new BULK order with no
+  // payment yet stays "Unconfirmed" and never gets a number until the advance
+  // is paid). Unique per business, not globally — each business's numbers
+  // start at 1 independently (Business.lastReceiptNumber).
+  receiptNumber Int?
 
   businessId String
   business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
@@ -292,14 +302,13 @@ model Receipt {
   payments      Payment[]
   expenseRecord ExpenseRecord?
 
-  @@index([businessId])
+  @@unique([businessId, receiptNumber])
   @@index([status])
   @@index([orderStatus])
   @@index([paymentStatus])
   @@index([orderType])
   @@index([customerId])
   @@index([createdAt])
-  @@index([receiptNumber])
 }
 
 // ------------------------- Payment ledger ------------------------

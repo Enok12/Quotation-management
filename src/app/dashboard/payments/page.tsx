@@ -18,13 +18,14 @@ import { dateRangeFilter, buildQuery } from "@/lib/utils/date-range";
 interface Props { searchParams: Promise<{ folder?: string; page?: string; from?: string; to?: string; search?: string }> }
 export const metadata = { title: "Orders" };
 
-const FOLDERS = ["BULK", "SAMPLE", "COMPLETED"] as const;
+const FOLDERS = ["UNCONFIRMED", "BULK", "SAMPLE", "COMPLETED"] as const;
 
 // Translate a folder key into a Prisma filter matching deriveFolder().
 function whereForFolder(folder?: FolderKey): Prisma.ReceiptWhereInput {
+  if (folder === "UNCONFIRMED") return { orderType: "BULK", receiptNumber: null };
   if (folder === "SAMPLE") return { orderType: "SAMPLE" };
-  if (folder === "COMPLETED") return { orderType: "BULK", paymentStatus: "PAID" };
-  if (folder === "BULK") return { orderType: "BULK", paymentStatus: { not: "PAID" } };
+  if (folder === "COMPLETED") return { orderType: "BULK", receiptNumber: { not: null }, paymentStatus: "PAID" };
+  if (folder === "BULK") return { orderType: "BULK", receiptNumber: { not: null }, paymentStatus: { not: "PAID" } };
   return {};
 }
 
@@ -47,7 +48,8 @@ export default async function OrdersFolderPage({ searchParams }: Props) {
   };
   const where: Prisma.ReceiptWhereInput = { ...baseWhere, ...whereForFolder(folder) };
 
-  const [bulkCount, sampleCount, completedCount, total, receipts, allForSync] = await Promise.all([
+  const [unconfirmedCount, bulkCount, sampleCount, completedCount, total, receipts, allForSync] = await Promise.all([
+    prisma.receipt.count({ where: { ...baseWhere, ...whereForFolder("UNCONFIRMED") } }),
     prisma.receipt.count({ where: { ...baseWhere, ...whereForFolder("BULK") } }),
     prisma.receipt.count({ where: { ...baseWhere, ...whereForFolder("SAMPLE") } }),
     prisma.receipt.count({ where: { ...baseWhere, ...whereForFolder("COMPLETED") } }),
@@ -71,25 +73,28 @@ export default async function OrdersFolderPage({ searchParams }: Props) {
         payments: { orderBy: { paidAt: "desc" }, take: 1, select: { paidAt: true } },
       },
     }),
-    // Lightweight list of every receipt for the "Sync all" reconcile (unfiltered by date/search).
+    // Lightweight list of every confirmed receipt for the "Sync all" reconcile
+    // (unfiltered by date/search) — Unconfirmed receipts have no PDF yet, so
+    // there's nothing to place on disk for them.
     prisma.receipt.findMany({
-      where: baseWhereNoDate,
+      where: { ...baseWhereNoDate, receiptNumber: { not: null } },
       select: { id: true, receiptNumber: true, custName: true, orderType: true, paymentStatus: true, category: true },
     }),
   ]);
   const totalPages = Math.ceil(total / pageSize);
-  const allCount = bulkCount + sampleCount + completedCount;
+  const allCount = unconfirmedCount + bulkCount + sampleCount + completedCount;
 
   const syncItems = allForSync.map((r) => ({
     id: r.id,
-    receiptNumber: r.receiptNumber,
+    receiptNumber: r.receiptNumber as number,
     custName: r.custName,
     category: r.category,
-    folder: deriveFolder(r.orderType, r.paymentStatus),
+    folder: deriveFolder(r.orderType, r.paymentStatus, r.receiptNumber),
   }));
 
   const tabDefs: { label: string; value: FolderKey | null; count: number }[] = [
     { label: "All", value: null, count: allCount },
+    { label: FOLDER_NAMES.UNCONFIRMED, value: "UNCONFIRMED", count: unconfirmedCount },
     { label: FOLDER_NAMES.BULK, value: "BULK", count: bulkCount },
     { label: FOLDER_NAMES.SAMPLE, value: "SAMPLE", count: sampleCount },
     { label: FOLDER_NAMES.COMPLETED, value: "COMPLETED", count: completedCount },
@@ -105,7 +110,7 @@ export default async function OrdersFolderPage({ searchParams }: Props) {
     <div className="px-4 py-6 sm:px-8 sm:py-8 max-w-6xl">
       <div className="mb-6">
         <h1 className="font-serif text-3xl text-ink">Orders</h1>
-        <p className="text-stone-500 text-sm mt-1">Bulk Orders · Sample Orders · Completed</p>
+        <p className="text-stone-500 text-sm mt-1">Unconfirmed · Bulk Orders · Sample Orders · Completed</p>
       </div>
 
       {/* Computer-folder sync */}
@@ -143,7 +148,9 @@ export default async function OrdersFolderPage({ searchParams }: Props) {
               )}
               {receipts.map((r) => (
                 <tr key={r.id} className="hover:bg-stone-25 dark:hover:bg-white/5 transition-colors">
-                  <td className="td font-mono text-xs text-stone-500">#{r.receiptNumber}</td>
+                  <td className="td font-mono text-xs text-stone-500">
+                    {r.receiptNumber !== null ? `#${r.receiptNumber}` : <span className="text-amber-600">Unconfirmed</span>}
+                  </td>
                   <td className="td font-medium">
                     <Link href={`/dashboard/receipts/${r.id}`} className="hover:text-amber-600 transition-colors">
                       {r.custName}
@@ -171,27 +178,30 @@ export default async function OrdersFolderPage({ searchParams }: Props) {
                       >
                         <Edit size={14} />
                       </Link>
-                      <ExpenseRecordButton
-                        receiptId={r.id}
-                        receiptNumber={r.receiptNumber}
-                        billAmount={Number(r.totalDue)}
-                        initial={
-                          r.expenseRecord
-                            ? {
-                                fabricExpense: Number(r.expenseRecord.fabricExpense),
-                                patternMakingExpense: Number(r.expenseRecord.patternMakingExpense),
-                                cuttingExpense: Number(r.expenseRecord.cuttingExpense),
-                                productionExpense: Number(r.expenseRecord.productionExpense),
-                                accessoryExpense: Number(r.expenseRecord.accessoryExpense),
-                                otherExpense: Number(r.expenseRecord.otherExpense),
-                                profit: Number(r.expenseRecord.profit),
-                                finalized: r.expenseRecord.finalized,
-                              }
-                            : null
-                        }
-                        isAdmin={isAdmin}
-                        orderType={r.orderType}
-                      />
+                      {/* No expenses to log against an order that isn't confirmed yet. */}
+                      {r.receiptNumber !== null && (
+                        <ExpenseRecordButton
+                          receiptId={r.id}
+                          receiptNumber={r.receiptNumber}
+                          billAmount={Number(r.totalDue)}
+                          initial={
+                            r.expenseRecord
+                              ? {
+                                  fabricExpense: Number(r.expenseRecord.fabricExpense),
+                                  patternMakingExpense: Number(r.expenseRecord.patternMakingExpense),
+                                  cuttingExpense: Number(r.expenseRecord.cuttingExpense),
+                                  productionExpense: Number(r.expenseRecord.productionExpense),
+                                  accessoryExpense: Number(r.expenseRecord.accessoryExpense),
+                                  otherExpense: Number(r.expenseRecord.otherExpense),
+                                  profit: Number(r.expenseRecord.profit),
+                                  finalized: r.expenseRecord.finalized,
+                                }
+                              : null
+                          }
+                          isAdmin={isAdmin}
+                          orderType={r.orderType}
+                        />
+                      )}
                       <DeleteReceiptButton receiptId={r.id} receiptNumber={r.receiptNumber} iconOnly />
                     </div>
                   </td>

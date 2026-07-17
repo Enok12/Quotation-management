@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { handler } from "@/lib/api/response";
 import { requireBusiness } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { AppError } from "@/lib/api/errors";
 import { receiptService } from "@/server/services/receipt.service";
 import { renderReceiptPdf } from "@/server/pdf/render-receipt";
 import { receiptFileName } from "@/lib/utils/receipt-filename";
@@ -13,6 +14,9 @@ export const POST = handler(async (req: NextRequest, { params }: Ctx) => {
   const user = await requireBusiness();
   const { id } = await params;
   const receipt = await receiptService.getFull(id, user.businessId);
+  if (receipt.receiptNumber === null) {
+    throw new AppError("Record the advance payment to confirm this order before generating a PDF.", 409);
+  }
   const bytes = await renderReceiptPdf(receipt);
 
   // Folder-sync fetches the PDF purely to write it to disk — skip the audit

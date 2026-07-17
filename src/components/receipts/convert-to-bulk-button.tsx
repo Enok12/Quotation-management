@@ -20,8 +20,11 @@ export function ConvertToBulkButton({ receiptId, custName }: { receiptId: string
       const json = await res.json();
       if (!json.success) throw new Error(json.message ?? "Failed to create bulk order");
       const { id: newId, receiptNumber: newNumber, paymentStatus, category } = json.data;
-      // File the new bulk receipt's PDF; the sample's PDF stays where it is.
-      await moveInvoiceIfConnected(newId, newNumber, custName, category, deriveFolder("BULK", paymentStatus));
+      // The new bulk order starts Unconfirmed (no invoice number yet) —
+      // nothing to file until the advance is paid.
+      if (newNumber !== null) {
+        await moveInvoiceIfConnected(newId, newNumber, custName, category, deriveFolder("BULK", paymentStatus, newNumber));
+      }
       router.push(`/dashboard/receipts/${newId}/edit`);
     } catch (e) {
       alert(e instanceof Error ? e.message : "Failed to create bulk order");

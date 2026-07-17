@@ -2,7 +2,7 @@ import { prisma } from "@/lib/db";
 import { requireBusiness } from "@/lib/auth";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Edit, FileDown } from "lucide-react";
+import { ArrowLeft, Edit, HelpCircle } from "lucide-react";
 import { fmtMoney, fmtDate, fmtDateTime } from "@/lib/utils/format";
 import { OrderStatusBadge, PaymentStatusBadge, OrderTypeBadge, CategoryBadge } from "@/components/receipts/status-badges";
 import { GeneratePdfButton } from "@/components/receipts/generate-pdf-button";
@@ -50,13 +50,20 @@ export default async function ReceiptDetailPage({ params }: Props) {
         </Link>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-3 flex-wrap">
-            <h1 className="font-serif text-3xl text-ink">Receipt #{receipt.receiptNumber}</h1>
+            <h1 className="font-serif text-3xl text-ink">
+              {receipt.receiptNumber !== null ? `Receipt #${receipt.receiptNumber}` : "Unconfirmed Order"}
+            </h1>
             <CategoryBadge category={receipt.category} />
             <OrderTypeBadge type={receipt.orderType} />
-            <OrderStatusBadge status={receipt.orderStatus} />
+            {receipt.receiptNumber !== null && <OrderStatusBadge status={receipt.orderStatus} />}
             <PaymentStatusBadge status={receipt.paymentStatus} />
           </div>
           <p className="text-stone-500 text-sm mt-1">{receipt.custName} · {fmtDate(receipt.date)}</p>
+          {receipt.receiptNumber === null && (
+            <p className="flex items-center gap-1.5 text-sm text-amber-700 dark:text-amber-400 mt-2">
+              <HelpCircle size={14} /> No invoice number yet — record the advance payment to confirm this order.
+            </p>
+          )}
         </div>
         <div className="flex items-center gap-2 flex-wrap sm:justify-end">
           {/* Available for every sample, paid or not — payment status is unrelated to conversion. */}
@@ -77,7 +84,9 @@ export default async function ReceiptDetailPage({ params }: Props) {
               orderType={receipt.orderType}
             />
           )}
-          <GeneratePdfButton receiptId={id} receiptNumber={receipt.receiptNumber} custName={receipt.custName} />
+          {receipt.receiptNumber !== null && (
+            <GeneratePdfButton receiptId={id} receiptNumber={receipt.receiptNumber} custName={receipt.custName} />
+          )}
           <LinkButton href={`/dashboard/receipts/${id}/edit`} className="btn-outline" icon={<Edit size={14} />} iconSize={14}>
             Edit
           </LinkButton>
@@ -170,8 +179,8 @@ export default async function ReceiptDetailPage({ params }: Props) {
 
         {/* Sidebar */}
         <div className="space-y-4">
-          {/* Order status (per item) */}
-          {receipt.status === "FINALIZED" && (
+          {/* Order status (per item) — held back until the order is confirmed */}
+          {receipt.status === "FINALIZED" && receipt.receiptNumber !== null && (
             <div className="card card-body">
               <h2 className="heading-2 mb-3">Order Status</h2>
               <ItemStatusPanel

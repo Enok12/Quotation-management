@@ -5,23 +5,28 @@ import { prisma } from "@/lib/db";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
-  let businessId: string, role: string;
+  let businessId: string, role: string, userId: string;
   try {
-    ({ businessId, role } = await requireBusiness());
+    ({ businessId, role, id: userId } = await requireBusiness());
   } catch (err) {
     if (err instanceof ForbiddenError) redirect("/onboarding");
     throw err;
   }
 
-  const business = await prisma.business.findUniqueOrThrow({
-    where: { id: businessId },
-    select: { name: true, logoUrl: true },
-  });
+  const [business, memberships] = await Promise.all([
+    prisma.business.findUniqueOrThrow({ where: { id: businessId }, select: { name: true, logoUrl: true } }),
+    prisma.businessMember.findMany({
+      where: { userId },
+      include: { business: { select: { id: true, name: true } } },
+      orderBy: { createdAt: "asc" },
+    }),
+  ]);
 
   return (
     <DashboardShell
       businessName={business.name}
       logoUrl={business.logoUrl}
+      memberships={memberships.map((m) => ({ businessId: m.businessId, name: m.business.name, role: m.role, active: m.businessId === businessId }))}
       items={[
         { href: "/dashboard", icon: "LayoutDashboard", label: "Dashboard", exact: true },
         { href: "/dashboard/customers", icon: "Users", label: "Customers" },

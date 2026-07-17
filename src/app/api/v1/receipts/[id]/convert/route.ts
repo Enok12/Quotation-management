@@ -16,5 +16,6 @@ export const POST = handler(async (_req: NextRequest, { params }: Ctx) => {
     receiptNumber: receipt.receiptNumber,
     orderType: receipt.orderType,
     paymentStatus: receipt.paymentStatus,
+    category: receipt.category,
   });
 });

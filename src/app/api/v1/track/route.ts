@@ -23,8 +23,11 @@ export const GET = handler(async (req: NextRequest) => {
     return fail("Enter the last 4 digits of the phone number on the order.", 400);
   }
 
-  const receipt = await prisma.receipt.findUnique({
-    where: { receiptNumber },
+  // receiptNumber is unique per business, not globally — different tenants
+  // can have the same number, so this has to search across all of them and
+  // let the phone match disambiguate, rather than assuming a single result.
+  const candidates = await prisma.receipt.findMany({
+    where: { receiptNumber, orderType: "BULK" },
     select: {
       receiptNumber: true,
       custName: true,
@@ -39,10 +42,12 @@ export const GET = handler(async (req: NextRequest) => {
     },
   });
 
-  const phoneDigits = (receipt?.custPhone ?? "").replace(/\D/g, "");
-  const phoneMatches = phoneDigits.length >= 4 && phoneDigits.slice(-4) === phoneLast4;
+  const receipt = candidates.find((r) => {
+    const phoneDigits = (r.custPhone ?? "").replace(/\D/g, "");
+    return phoneDigits.length >= 4 && phoneDigits.slice(-4) === phoneLast4;
+  });
 
-  if (!receipt || receipt.orderType !== "BULK" || !phoneMatches) {
+  if (!receipt) {
     return fail("No order found for that invoice number and phone number.", 404);
   }
 

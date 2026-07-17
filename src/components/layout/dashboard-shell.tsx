@@ -6,6 +6,7 @@ import Link from "next/link";
 import { UserButton } from "@clerk/nextjs";
 import { Menu, X } from "lucide-react";
 import { SidebarNav, type NavItem } from "./sidebar-nav";
+import { BusinessSwitcher, type Membership } from "./business-switcher";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { cn } from "@/lib/utils/cn";
 
@@ -15,11 +16,13 @@ export function DashboardShell({
   items,
   businessName,
   logoUrl,
+  memberships,
   children,
 }: {
   items: NavItem[];
   businessName?: string;
   logoUrl?: string | null;
+  memberships?: Membership[];
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -72,9 +75,16 @@ export function DashboardShell({
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
+        <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto scrollbar-sidebar">
           <SidebarNav items={items} />
         </nav>
+
+        {/* Switch business (only shown when a member of more than one) */}
+        {memberships && memberships.length > 1 && (
+          <div className="border-t border-white/10 pt-2">
+            <BusinessSwitcher memberships={memberships} />
+          </div>
+        )}
 
         {/* Theme */}
         <div className="px-3 pb-1 border-t border-white/10 pt-3">

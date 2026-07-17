@@ -24,7 +24,7 @@ export function RecordPaymentButton({
   orderType = "BULK",
 }: {
   receiptId: string;
-  receiptNumber: number;
+  receiptNumber: number | null;
   custName: string;
   totalDue: number;
   advanceAmount?: number;
@@ -62,7 +62,13 @@ export function RecordPaymentButton({
       if (!json.success) throw new Error(json.message ?? "Failed to record payment");
 
       // Mirror the invoice into its new computer folder (no-op if not connected).
-      await moveInvoiceIfConnected(receiptId, receiptNumber, custName, json.data.category, deriveFolder(orderType, json.data.paymentStatus));
+      // Uses the response's receiptNumber, not the prop — if this payment is
+      // what just confirmed an Unconfirmed order, the prop is still stale (null).
+      const confirmedNumber: number = json.data.receiptNumber;
+      await moveInvoiceIfConnected(
+        receiptId, confirmedNumber, custName, json.data.category,
+        deriveFolder(orderType, json.data.paymentStatus, confirmedNumber),
+      );
 
       setOpen(false);
       setAmount(""); setMethod(""); setNote("");
@@ -86,7 +92,9 @@ export function RecordPaymentButton({
             <div className="flex items-start justify-between mb-4">
               <div>
                 <h3 className="font-serif text-xl text-ink">Record a payment</h3>
-                <p className="text-sm text-stone-500 mt-0.5">Receipt #{receiptNumber} · {remaining.toLocaleString()} still due</p>
+                <p className="text-sm text-stone-500 mt-0.5">
+                  {receiptNumber !== null ? `Receipt #${receiptNumber}` : "Unconfirmed order"} · {remaining.toLocaleString()} still due
+                </p>
               </div>
               <button onClick={() => !saving && setOpen(false)} className="text-stone-400 hover:text-ink"><X size={18} /></button>
             </div>

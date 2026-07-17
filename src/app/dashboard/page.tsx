@@ -1,15 +1,16 @@
 import { prisma } from "@/lib/db";
 import { requireBusiness } from "@/lib/auth";
 import Link from "next/link";
-import { Users, FileText, Package, CheckCircle, Layers, Scissors, Factory, ShieldCheck, Truck, Boxes, FlaskConical, PartyPopper } from "lucide-react";
+import { Users, FileText, Package, CheckCircle, Layers, Scissors, Factory, ShieldCheck, Truck, Boxes, FlaskConical, PartyPopper, HelpCircle } from "lucide-react";
 import { fmtMoney, fmtDate } from "@/lib/utils/format";
 import { PaymentStatusBadge, OrderStatusBadge } from "@/components/receipts/status-badges";
 
 async function getStats(businessId: string) {
-  const [totalCustomers, totalReceipts, bulk, sample, completed, byStage] = await Promise.all([
+  const [totalCustomers, totalReceipts, unconfirmed, bulk, sample, completed, byStage] = await Promise.all([
     prisma.customer.count({ where: { businessId } }),
     prisma.receipt.count({ where: { businessId } }),
-    prisma.receipt.count({ where: { businessId, orderType: "BULK", paymentStatus: { not: "PAID" } } }),
+    prisma.receipt.count({ where: { businessId, orderType: "BULK", receiptNumber: null } }),
+    prisma.receipt.count({ where: { businessId, orderType: "BULK", receiptNumber: { not: null }, paymentStatus: { not: "PAID" } } }),
     prisma.receipt.count({ where: { businessId, orderType: "SAMPLE" } }),
     prisma.receipt.count({ where: { businessId, orderType: "BULK", paymentStatus: "PAID" } }),
     // Item-level, not receipt-level — a 5-item order has 5 pieces counted
@@ -19,7 +20,7 @@ async function getStats(businessId: string) {
   const stage = (s: string) => byStage.find((b) => b.orderStatus === s)?._count ?? 0;
   return {
     totalCustomers, totalReceipts,
-    bulk, sample, completed,
+    unconfirmed, bulk, sample, completed,
     fabric: stage("FABRIC_SELECTION"),
     cutting: stage("CUTTING"),
     production: stage("PRODUCTION"),
@@ -49,6 +50,7 @@ export default async function DashboardPage() {
   const statCards = [
     { label: "Customers", value: stats.totalCustomers, icon: Users, href: "/dashboard/customers", color: "text-stone-600" },
     { label: "Total Receipts", value: stats.totalReceipts, icon: FileText, href: "/dashboard/receipts", color: "text-stone-600" },
+    { label: "Unconfirmed", value: stats.unconfirmed, icon: HelpCircle, href: "/dashboard/payments?folder=UNCONFIRMED", color: "text-amber-500" },
     { label: "Bulk Orders", value: stats.bulk, icon: Boxes, href: "/dashboard/payments?folder=BULK", color: "text-blue-500" },
     { label: "Sample Orders", value: stats.sample, icon: FlaskConical, href: "/dashboard/payments?folder=SAMPLE", color: "text-purple-500" },
     { label: "Completed", value: stats.completed, icon: CheckCircle, href: "/dashboard/payments?folder=COMPLETED", color: "text-emerald-600" },
@@ -120,7 +122,9 @@ export default async function DashboardPage() {
               )}
               {recent.map((r) => (
                 <tr key={r.id} className="hover:bg-stone-25 dark:hover:bg-white/5 transition-colors">
-                  <td className="td font-mono text-stone-500 text-xs">#{r.receiptNumber}</td>
+                  <td className="td font-mono text-stone-500 text-xs">
+                    {r.receiptNumber !== null ? `#${r.receiptNumber}` : <span className="text-amber-600">Unconfirmed</span>}
+                  </td>
                   <td className="td font-medium">
                     <Link href={`/dashboard/receipts/${r.id}`} className="hover:text-amber-600 transition-colors">
                       {r.custName}

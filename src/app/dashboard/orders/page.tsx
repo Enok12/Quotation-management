@@ -24,6 +24,9 @@ export default async function OrdersPage({ searchParams }: Props) {
   const where = {
     businessId,
     status: "FINALIZED" as const,
+    // Unconfirmed orders (no advance paid yet) don't show up here — nothing
+    // to put into production until the order is actually confirmed.
+    receiptNumber: { not: null },
     ...(orderStatus ? { orderStatus } : {}),
     ...(dateWhere ? { date: dateWhere } : {}),
     ...(search ? { custName: { contains: search, mode: "insensitive" as const } } : {}),
@@ -90,7 +93,7 @@ export default async function OrdersPage({ searchParams }: Props) {
                 <ExpandableOrderRow
                   key={r.id}
                   receiptId={r.id}
-                  receiptNumber={r.receiptNumber}
+                  receiptNumber={r.receiptNumber as number}
                   custName={r.custName}
                   date={r.date}
                   totalDue={Number(r.totalDue)}
