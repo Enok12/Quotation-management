@@ -34,8 +34,8 @@ export function DeleteCustomerButton({
       const json = await res.json();
       if (!json.success) throw new Error(json.message ?? "Failed to delete customer");
 
-      const receiptNumbers: number[] = json.data?.receiptNumbers ?? [];
-      await Promise.all(receiptNumbers.map((n) => removeInvoiceFromFolders(n)));
+      const receipts: { id: string; receiptNumber: number | null }[] = json.data?.receipts ?? [];
+      await Promise.all(receipts.map((r) => removeInvoiceFromFolders(r.id, r.receiptNumber)));
 
       router.push("/dashboard/customers");
       router.refresh();

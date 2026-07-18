@@ -23,11 +23,10 @@ async function fetchLogo(logoUrl: string | null): Promise<ReceiptAssets> {
   }
 }
 
-// Map a persisted receipt to the PDF engine's input shape. Callers must only
-// invoke this on a confirmed receipt (receiptNumber assigned) — the
-// generate-pdf route enforces that before this is ever reached.
+// Map a persisted receipt to the PDF engine's input shape. An Unconfirmed
+// receipt (receiptNumber null) renders fine too — as a clearly-marked draft,
+// see receipt-template.ts — so folder sync has something to place for it.
 export async function renderReceiptPdf(r: FullReceipt): Promise<Uint8Array> {
-  if (r.receiptNumber === null) throw new Error("Cannot render a PDF for an unconfirmed receipt");
   const data: ReceiptPdfData = {
     businessName: r.business.name,
     receiptNumber: r.receiptNumber,

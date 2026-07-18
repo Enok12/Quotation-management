@@ -1,17 +1,23 @@
 "use client";
 
-import { FOLDER_NAMES, SYNCABLE_FOLDER_KEYS, CATEGORY_NAMES, ALL_CATEGORIES, type FolderKey, type Category } from "@/lib/order-folder";
-import { receiptFileName } from "@/lib/utils/receipt-filename";
+import { FOLDER_NAMES, ALL_FOLDER_KEYS, CATEGORY_NAMES, ALL_CATEGORIES, type FolderKey, type Category } from "@/lib/order-folder";
+import { receiptFileName, draftReceiptFileName } from "@/lib/utils/receipt-filename";
 
 // ---------------------------------------------------------------------------
 // Browser → local-disk folder sync (File System Access API, Chrome/Edge only).
 //
 // Mirrors receipts two levels deep on the user's computer:
-//   <chosen folder>/Men's/BULK ORDERS, /Men's/Sample Orders, /Men's/Completed
-//   <chosen folder>/Women's/BULK ORDERS, /Women's/Sample Orders, /Women's/Completed
+//   <chosen folder>/Men's/Unconfirmed, /Men's/BULK ORDERS, /Men's/Sample Orders, /Men's/Completed
+//   <chosen folder>/Women's/Unconfirmed, /Women's/BULK ORDERS, /Women's/Sample Orders, /Women's/Completed
 // The user picks the root folder once (e.g. D:\MONTRA); the handle is kept in
 // IndexedDB so it survives reloads. A change moves a receipt's PDF from its
 // old path to the new one. "Sync all" reconciles every receipt.
+//
+// Confirmed receipts are tracked by their invoice number (embedded in the
+// filename). An Unconfirmed receipt has no number yet, so its draft PDF is
+// tracked by its own id instead — a completely separate identity scheme that
+// only ever lives in the Unconfirmed folder. Confirming an order removes the
+// draft (by id) and places the real numbered file, in one step.
 //
 // Note: the browser cannot target an absolute path itself — the user must pick
 // the folder via the OS chooser. After that, everything is automatic.
@@ -22,7 +28,7 @@ export interface FolderPath {
   folder: FolderKey;
 }
 export const ALL_PATHS: FolderPath[] = ALL_CATEGORIES.flatMap((category) =>
-  SYNCABLE_FOLDER_KEYS.map((folder) => ({ category, folder })),
+  ALL_FOLDER_KEYS.map((folder) => ({ category, folder })),
 );
 const pathKey = (p: FolderPath) => `${p.category}:${p.folder}`;
 const pathLabel = (p: FolderPath) => `${CATEGORY_NAMES[p.category]} / ${FOLDER_NAMES[p.folder]}`;
@@ -52,6 +58,8 @@ const fileName = receiptFileName;
 // Matches any "...-<digits>.pdf" filename so both the current naming and the
 // older "receipt-<N>.pdf" naming are recognized by number (and cleaned up).
 const RECEIPT_FILE = /-(\d+)\.pdf$/i;
+// Draft (Unconfirmed) files are keyed by the receipt's own id, not a number.
+const DRAFT_FILE = /-draft-([a-zA-Z0-9]+)\.pdf$/i;
 
 // ----------------------------- IndexedDB ----------------------------------
 const DB_NAME = "montra-folder-sync";
@@ -126,7 +134,8 @@ export async function connectFolder(): Promise<string> {
   // @ts-expect-error showDirectoryPicker is not yet in the TS lib types
   const handle: DirHandle = await window.showDirectoryPicker({ id: "montra-invoices", mode: "readwrite" });
   await handle.requestPermission({ mode: "readwrite" });
-  // Pre-create all six category/folder combinations so they appear immediately.
+  // Pre-create all eight category/folder combinations (including Unconfirmed)
+  // so they appear immediately, even though Unconfirmed starts empty.
   for (const path of ALL_PATHS) {
     const categoryDir = await handle.getDirectoryHandle(CATEGORY_NAMES[path.category], { create: true });
     await categoryDir.getDirectoryHandle(FOLDER_NAMES[path.folder], { create: true });
@@ -178,6 +187,18 @@ async function listFolderFiles(root: DirHandle, path: FolderPath): Promise<Folde
   return results;
 }
 
+/** The set of receipt ids with a draft file currently in one (category, folder) path. */
+async function listDraftIds(root: DirHandle, path: FolderPath): Promise<Set<string>> {
+  const ids = new Set<string>();
+  const dir = await getPathDir(root, path, false);
+  if (!dir) return ids;
+  for await (const name of dir.keys()) {
+    const m = name.match(DRAFT_FILE);
+    if (m) ids.add(m[1]);
+  }
+  return ids;
+}
+
 /** Remove every file for this receipt number across all category/folder paths. */
 async function removeAllCopies(root: DirHandle, receiptNumber: number) {
   for (const path of ALL_PATHS) {
@@ -193,28 +214,49 @@ async function removeAllCopies(root: DirHandle, receiptNumber: number) {
   }
 }
 
-async function placeInvoice(root: DirHandle, receiptId: string, receiptNumber: number, custName: string, path: FolderPath) {
+/** Remove this receipt's draft file wherever it currently sits (normally just Unconfirmed). */
+async function removeDraftCopy(root: DirHandle, receiptId: string) {
+  for (const path of ALL_PATHS) {
+    const dir = await getPathDir(root, path, false);
+    if (!dir) continue;
+    for await (const name of dir.keys()) {
+      const m = name.match(DRAFT_FILE);
+      if (m && m[1] === receiptId) {
+        try {
+          await dir.removeEntry(name);
+        } catch {
+          /* ignore */
+        }
+      }
+    }
+  }
+}
+
+async function placeInvoice(root: DirHandle, receiptId: string, receiptNumber: number | null, custName: string, path: FolderPath) {
   const bytes = await fetchInvoicePdf(receiptId);
 
-  // Clear out any existing copy first (old naming, wrong path, or both).
-  await removeAllCopies(root, receiptNumber);
+  // Clear out any existing draft first — this call may be the exact moment an
+  // order gets confirmed (draft → numbered), or just a redundant re-place.
+  await removeDraftCopy(root, receiptId);
+  if (receiptNumber !== null) await removeAllCopies(root, receiptNumber);
 
   const dir = await getPathDir(root, path, true);
   if (!dir) throw new Error(`Could not create ${pathLabel(path)}`);
-  const file = await dir.getFileHandle(fileName(receiptNumber, custName), { create: true });
+  const name = receiptNumber !== null ? fileName(receiptNumber, custName) : draftReceiptFileName(receiptId, custName);
+  const file = await dir.getFileHandle(name, { create: true });
   const writable = await file.createWritable();
   await writable.write(bytes);
   await writable.close();
 }
 
 /**
- * Best-effort move used right after a payment. Silently no-ops if the folder
- * isn't connected or permission isn't currently granted — "Sync all" will
- * reconcile it later. Never throws to the caller's happy path.
+ * Best-effort move used right after a payment (or creation/edit). Silently
+ * no-ops if the folder isn't connected or permission isn't currently granted
+ * — "Sync all" will reconcile it later. Never throws to the caller's happy path.
  */
 export async function moveInvoiceIfConnected(
   receiptId: string,
-  receiptNumber: number,
+  receiptNumber: number | null,
   custName: string,
   category: Category,
   folder: FolderKey,
@@ -229,12 +271,13 @@ export async function moveInvoiceIfConnected(
   }
 }
 
-/** Remove a receipt's PDF from every folder (used when a receipt is deleted). */
-export async function removeInvoiceFromFolders(receiptNumber: number): Promise<boolean> {
+/** Remove a receipt's PDF (draft or numbered) from every folder — used when a receipt is deleted. */
+export async function removeInvoiceFromFolders(receiptId: string, receiptNumber: number | null): Promise<boolean> {
   try {
     const handle = await getSavedHandle();
     if (!handle || !(await hasPermission(handle))) return false;
-    await removeAllCopies(handle, receiptNumber);
+    await removeDraftCopy(handle, receiptId);
+    if (receiptNumber !== null) await removeAllCopies(handle, receiptNumber);
     return true;
   } catch {
     return false;
@@ -243,14 +286,14 @@ export async function removeInvoiceFromFolders(receiptNumber: number): Promise<b
 
 export interface SyncItem {
   id: string;
-  receiptNumber: number;
+  receiptNumber: number | null;
   custName: string;
   category: Category;
   folder: FolderKey;
 }
 
 export interface DiffDetail {
-  receiptNumber: number;
+  label: string; // "#12" for a confirmed receipt, "Unconfirmed order" for a draft
   issue: "missing" | "misfiled" | "orphan";
   from?: string;
   to?: string;
@@ -268,47 +311,73 @@ export interface FolderDiff {
 /**
  * Compare the on-disk folders against what the app expects, without changing
  * anything. Returns a breakdown of how many invoices are out of sync.
+ * Numbered (confirmed) and draft (Unconfirmed) files are tracked separately —
+ * they're different identity schemes that never collide.
  */
 export async function diffFolders(items: SyncItem[]): Promise<FolderDiff> {
   const handle = await getSavedHandle();
   if (!handle) throw new Error("No folder connected");
   if (!(await hasPermission(handle))) throw new Error("Folder permission needed");
 
-  // Snapshot current disk state per path, by receipt number (naming-agnostic).
-  const present: Record<string, Set<number>> = {};
+  const presentNumbers: Record<string, Set<number>> = {};
+  const presentDrafts: Record<string, Set<string>> = {};
   for (const path of ALL_PATHS) {
-    present[pathKey(path)] = new Set((await listFolderFiles(handle, path)).map((f) => f.number));
+    presentNumbers[pathKey(path)] = new Set((await listFolderFiles(handle, path)).map((f) => f.number));
+    presentDrafts[pathKey(path)] = await listDraftIds(handle, path);
   }
 
-  // Expected: receiptNumber → path it should live in.
-  const expected = new Map<number, FolderPath>();
-  for (const it of items) expected.set(it.receiptNumber, { category: it.category, folder: it.folder });
+  const expectedNumbered = new Map<number, FolderPath>();
+  const expectedDrafts = new Map<string, FolderPath>();
+  for (const it of items) {
+    if (it.receiptNumber !== null) expectedNumbered.set(it.receiptNumber, { category: it.category, folder: it.folder });
+    else expectedDrafts.set(it.id, { category: it.category, folder: it.folder });
+  }
 
   let upToDate = 0, missing = 0, misfiled = 0, orphan = 0;
   const details: DiffDetail[] = [];
 
-  for (const [num, targetPath] of expected) {
+  for (const [num, targetPath] of expectedNumbered) {
     const targetKey = pathKey(targetPath);
-    const inTarget = present[targetKey]?.has(num) ?? false;
-    const elsewhere = ALL_PATHS.find((p) => pathKey(p) !== targetKey && present[pathKey(p)]?.has(num));
-
+    const inTarget = presentNumbers[targetKey]?.has(num) ?? false;
+    const elsewhere = ALL_PATHS.find((p) => pathKey(p) !== targetKey && presentNumbers[pathKey(p)]?.has(num));
     if (inTarget && !elsewhere) {
       upToDate++;
     } else if (!inTarget && !elsewhere) {
       missing++;
-      details.push({ receiptNumber: num, issue: "missing", to: pathLabel(targetPath) });
+      details.push({ label: `#${num}`, issue: "missing", to: pathLabel(targetPath) });
     } else {
       misfiled++;
-      details.push({ receiptNumber: num, issue: "misfiled", from: elsewhere && pathLabel(elsewhere), to: pathLabel(targetPath) });
+      details.push({ label: `#${num}`, issue: "misfiled", from: elsewhere && pathLabel(elsewhere), to: pathLabel(targetPath) });
+    }
+  }
+
+  for (const [id, targetPath] of expectedDrafts) {
+    const targetKey = pathKey(targetPath);
+    const inTarget = presentDrafts[targetKey]?.has(id) ?? false;
+    const elsewhere = ALL_PATHS.find((p) => pathKey(p) !== targetKey && presentDrafts[pathKey(p)]?.has(id));
+    if (inTarget && !elsewhere) {
+      upToDate++;
+    } else if (!inTarget && !elsewhere) {
+      missing++;
+      details.push({ label: "Unconfirmed order", issue: "missing", to: pathLabel(targetPath) });
+    } else {
+      misfiled++;
+      details.push({ label: "Unconfirmed order", issue: "misfiled", from: elsewhere && pathLabel(elsewhere), to: pathLabel(targetPath) });
     }
   }
 
   // Files on disk for receipts the app doesn't know about.
   for (const path of ALL_PATHS) {
-    for (const num of present[pathKey(path)]) {
-      if (!expected.has(num)) {
+    for (const num of presentNumbers[pathKey(path)]) {
+      if (!expectedNumbered.has(num)) {
         orphan++;
-        details.push({ receiptNumber: num, issue: "orphan", from: pathLabel(path) });
+        details.push({ label: `#${num}`, issue: "orphan", from: pathLabel(path) });
+      }
+    }
+    for (const id of presentDrafts[pathKey(path)]) {
+      if (!expectedDrafts.has(id)) {
+        orphan++;
+        details.push({ label: "Unconfirmed order", issue: "orphan", from: pathLabel(path) });
       }
     }
   }
@@ -322,7 +391,7 @@ export interface SyncResult {
   total: number;
 }
 
-/** Reconcile every invoice into the path matching its current status. */
+/** Reconcile every invoice (confirmed or Unconfirmed draft) into the path matching its current status. */
 export async function syncAll(items: SyncItem[], onProgress?: (done: number, total: number) => void): Promise<SyncResult> {
   const handle = await getSavedHandle();
   if (!handle) throw new Error("No folder connected");
@@ -344,16 +413,31 @@ export async function syncAll(items: SyncItem[], onProgress?: (done: number, tot
     onProgress?.(i + 1, items.length);
   }
 
-  // Remove orphaned receipt PDFs (no matching invoice in the app anymore).
-  const known = new Set(items.map((it) => it.receiptNumber));
+  // Remove orphaned files — numbered ones with no matching receipt, and
+  // drafts for receipts that are no longer Unconfirmed (or gone entirely).
+  const knownNumbers = new Set(items.filter((it) => it.receiptNumber !== null).map((it) => it.receiptNumber as number));
+  const knownDraftIds = new Set(items.filter((it) => it.receiptNumber === null).map((it) => it.id));
   for (const path of ALL_PATHS) {
     for (const f of await listFolderFiles(handle, path)) {
-      if (!known.has(f.number)) {
+      if (!knownNumbers.has(f.number)) {
         try {
           const dir = await getPathDir(handle, path, false);
           await dir?.removeEntry(f.name);
         } catch {
           /* ignore */
+        }
+      }
+    }
+    const dir = await getPathDir(handle, path, false);
+    if (dir) {
+      for await (const name of dir.keys()) {
+        const m = name.match(DRAFT_FILE);
+        if (m && !knownDraftIds.has(m[1])) {
+          try {
+            await dir.removeEntry(name);
+          } catch {
+            /* ignore */
+          }
         }
       }
     }

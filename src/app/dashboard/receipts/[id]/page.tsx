@@ -62,6 +62,7 @@ export default async function ReceiptDetailPage({ params }: Props) {
           {receipt.receiptNumber === null && (
             <p className="flex items-center gap-1.5 text-sm text-amber-700 dark:text-amber-400 mt-2">
               <HelpCircle size={14} /> No invoice number yet — record the advance payment to confirm this order.
+              A draft PDF is available (and synced to the Unconfirmed folder) until then.
             </p>
           )}
         </div>
@@ -84,9 +85,7 @@ export default async function ReceiptDetailPage({ params }: Props) {
               orderType={receipt.orderType}
             />
           )}
-          {receipt.receiptNumber !== null && (
-            <GeneratePdfButton receiptId={id} receiptNumber={receipt.receiptNumber} custName={receipt.custName} />
-          )}
+          <GeneratePdfButton receiptId={id} receiptNumber={receipt.receiptNumber} custName={receipt.custName} />
           <LinkButton href={`/dashboard/receipts/${id}/edit`} className="btn-outline" icon={<Edit size={14} />} iconSize={14}>
             Edit
           </LinkButton>

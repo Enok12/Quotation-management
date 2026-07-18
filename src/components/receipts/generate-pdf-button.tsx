@@ -1,12 +1,13 @@
 "use client";
 import { useState } from "react";
 import { FileDown, Loader2 } from "lucide-react";
-import { receiptFileName } from "@/lib/utils/receipt-filename";
+import { receiptFileName, draftReceiptFileName } from "@/lib/utils/receipt-filename";
 
 export function GeneratePdfButton({
   receiptId, receiptNumber, custName,
-}: { receiptId: string; receiptNumber: number; custName: string }) {
+}: { receiptId: string; receiptNumber: number | null; custName: string }) {
   const [loading, setLoading] = useState(false);
+  const isDraft = receiptNumber === null;
 
   const generate = async () => {
     setLoading(true);
@@ -16,7 +17,7 @@ export function GeneratePdfButton({
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
-      a.href = url; a.download = receiptFileName(receiptNumber, custName);
+      a.href = url; a.download = isDraft ? draftReceiptFileName(receiptId, custName) : receiptFileName(receiptNumber, custName);
       a.click(); URL.revokeObjectURL(url);
     } finally { setLoading(false); }
   };
@@ -24,7 +25,7 @@ export function GeneratePdfButton({
   return (
     <button onClick={generate} disabled={loading} className="btn-outline">
       {loading ? <Loader2 size={14} className="animate-spin" /> : <FileDown size={14} />}
-      {loading ? "Generating…" : "PDF"}
+      {loading ? "Generating…" : isDraft ? "Draft PDF" : "PDF"}
     </button>
   );
 }

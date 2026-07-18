@@ -19,13 +19,11 @@ export const FOLDER_NAMES: Record<FolderKey, string> = {
   COMPLETED: "Completed",
 };
 
-// Tabs shown on the Orders page, in display order.
+// Tabs shown on the Orders page, and the on-disk folders under each category
+// (see folder-sync.ts) — same four everywhere, in display order. Unconfirmed
+// stays empty on disk until something in it is actually confirmed (no PDF
+// exists for it before then), but the folder itself is always there.
 export const ALL_FOLDER_KEYS: FolderKey[] = ["UNCONFIRMED", "BULK", "SAMPLE", "COMPLETED"];
-
-// Folders actually mirrored to the local computer folder (see folder-sync.ts)
-// — Unconfirmed receipts have no invoice number or PDF yet, so there's
-// nothing to place on disk until they're confirmed.
-export const SYNCABLE_FOLDER_KEYS: FolderKey[] = ["BULK", "SAMPLE", "COMPLETED"];
 
 export function deriveFolder(orderType: string, paymentStatus: string, receiptNumber: number | null): FolderKey {
   if (orderType === "SAMPLE") return "SAMPLE";

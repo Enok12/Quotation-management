@@ -29,8 +29,8 @@ export function DeleteReceiptButton({
       const res = await fetch(`/api/v1/receipts/${receiptId}`, { method: "DELETE" });
       const json = await res.json();
       if (!json.success) throw new Error(json.message ?? "Failed to delete");
-      // Unconfirmed receipts never had a PDF placed anywhere.
-      if (receiptNumber !== null) await removeInvoiceFromFolders(receiptNumber);
+      // Cleans up whichever it had — a draft (Unconfirmed) or a numbered file.
+      await removeInvoiceFromFolders(receiptId, receiptNumber);
       if (!iconOnly) router.push("/dashboard/receipts");
       router.refresh();
     } catch (e) {

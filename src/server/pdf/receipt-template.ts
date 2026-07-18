@@ -18,7 +18,9 @@ export type ReceiptTemplate = typeof MONTRA_TEMPLATE;
 
 export interface ReceiptPdfData {
   businessName: string;
-  receiptNumber: number | string;
+  // Null for an Unconfirmed order (no advance paid yet, so no invoice number
+  // has been issued) — rendered as a clearly-marked draft.
+  receiptNumber: number | string | null;
   date: string;
   customer: { name: string; address?: string | null; phone?: string | null; email?: string | null };
   payment: { cash: boolean; card: boolean; bankTransfer: boolean; other: boolean };
@@ -76,11 +78,18 @@ export async function generateReceiptPdf(
   }
   page.drawText(template.heading, { x: innerL, y: y - 24, size: 25, font: serif, color: C.ink });
   y -= 44;
+  if (data.receiptNumber === null) {
+    const warn = rgb(0.78, 0.28, 0.08);
+    page.drawText("UNCONFIRMED — advance payment pending, no invoice number issued yet", {
+      x: innerL, y, size: 10, font: sansBold, color: warn,
+    });
+    y -= 18;
+  }
   page.drawText("Date: ", { x: innerL, y, size: 10.5, font: sansBold, color: C.ink });
   page.drawText(data.date, { x: innerL + 32, y, size: 10.5, font: sansBold, color: C.ink });
   y -= 18;
   page.drawText("Receipt #: ", { x: innerL, y, size: 10.5, font: sansBold, color: C.ink });
-  page.drawText(String(data.receiptNumber), { x: innerL + 52, y, size: 10.5, font: sansBold, color: C.ink });
+  page.drawText(data.receiptNumber === null ? "PENDING" : String(data.receiptNumber), { x: innerL + 52, y, size: 10.5, font: sansBold, color: C.ink });
   y -= 20;
 
   // Customer / Payment grid

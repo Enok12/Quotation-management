@@ -16,3 +16,9 @@ export function sanitizeForFilename(name: string): string {
 export function receiptFileName(receiptNumber: number, custName: string): string {
   return `${sanitizeForFilename(custName)}-${receiptNumber}.pdf`;
 }
+
+// Unconfirmed orders have no invoice number yet, so their draft PDF is keyed
+// by the receipt's own id instead — used only in the Unconfirmed folder.
+export function draftReceiptFileName(receiptId: string, custName: string): string {
+  return `${sanitizeForFilename(custName)}-draft-${receiptId}.pdf`;
+}

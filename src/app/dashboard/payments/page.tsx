@@ -73,11 +73,11 @@ export default async function OrdersFolderPage({ searchParams }: Props) {
         payments: { orderBy: { paidAt: "desc" }, take: 1, select: { paidAt: true } },
       },
     }),
-    // Lightweight list of every confirmed receipt for the "Sync all" reconcile
-    // (unfiltered by date/search) — Unconfirmed receipts have no PDF yet, so
-    // there's nothing to place on disk for them.
+    // Lightweight list of every receipt (confirmed or Unconfirmed) for the
+    // "Sync all" reconcile (unfiltered by date/search) — Unconfirmed ones
+    // sync a draft into the Unconfirmed folder.
     prisma.receipt.findMany({
-      where: { ...baseWhereNoDate, receiptNumber: { not: null } },
+      where: baseWhereNoDate,
       select: { id: true, receiptNumber: true, custName: true, orderType: true, paymentStatus: true, category: true },
     }),
   ]);
@@ -86,7 +86,7 @@ export default async function OrdersFolderPage({ searchParams }: Props) {
 
   const syncItems = allForSync.map((r) => ({
     id: r.id,
-    receiptNumber: r.receiptNumber as number,
+    receiptNumber: r.receiptNumber,
     custName: r.custName,
     category: r.category,
     folder: deriveFolder(r.orderType, r.paymentStatus, r.receiptNumber),
