@@ -1,9 +1,10 @@
 "use client";
 
+import { forwardRef, useImperativeHandle } from "react";
 import Link from "next/link";
 import { Lock, LockOpen, Loader2, Save } from "lucide-react";
 import { fmtMoney, fmtDate } from "@/lib/utils/format";
-import { useExpenseEditor, type ExpenseRecordValues } from "./use-expense-editor";
+import { useExpenseEditor, type ExpenseRecordValues, type ExpenseCostTotals } from "./use-expense-editor";
 
 interface Props {
   receiptId: string;
@@ -11,19 +12,47 @@ interface Props {
   custName: string;
   date: string | Date;
   billAmount: number;
+  totalQuantity: number;
   initial: ExpenseRecordValues | null;
   isAdmin: boolean;
   /** Bulk rows show all six cost cells; Sample rows only fabric/pattern
    * making/production — must match whichever <thead> the parent renders. */
   orderType: "BULK" | "SAMPLE";
+  onSaved?: (values: ExpenseCostTotals) => void;
+  onFinalizedChange?: (finalized: boolean) => void;
+  /** This row's position in the currently-rendered page — stamped onto each
+   * editable cell as `data-cell="{rowIndex}:{col}"` so ExpensesTable's arrow-key
+   * handler can look up the neighboring cell to focus. */
+  rowIndex: number;
+  selected: boolean;
+  onToggleSelected: () => void;
+}
+
+// Imperative surface ExpensesTable uses to drive Bulk Save / Bulk Finalize —
+// each row keeps owning its own cost-field state privately (so an unrelated
+// row's bulk action can never stomp on what this row has typed but not yet
+// saved), but exposes a way to trigger its own save/finalize on command.
+export interface ExpenseRowHandle {
+  save: () => Promise<boolean>;
+  finalizeIfNeeded: () => Promise<boolean>;
+  finalized: boolean;
 }
 
 // One editable row in the global Expenses table: order-type-appropriate cost
 // cells, an auto-calculated (but overridable) Profit cell, and a
 // Finalize/Unlock cell. Locked once finalized.
-export function ExpenseRow({ receiptId, receiptNumber, custName, date, billAmount, initial, isAdmin, orderType }: Props) {
-  const e = useExpenseEditor(receiptId, billAmount, initial);
+export const ExpenseRow = forwardRef<ExpenseRowHandle, Props>(function ExpenseRow(
+  { receiptId, receiptNumber, custName, date, billAmount, totalQuantity, initial, isAdmin, orderType, onSaved, onFinalizedChange, rowIndex, selected, onToggleSelected },
+  ref,
+) {
+  const e = useExpenseEditor(receiptId, billAmount, initial, onSaved, onFinalizedChange);
   const disabled = e.finalized || e.saving;
+
+  useImperativeHandle(ref, () => ({
+    save: e.save,
+    finalizeIfNeeded: () => (e.finalized ? Promise.resolve(true) : e.toggleFinalize()),
+    finalized: e.finalized,
+  }));
 
   // Profit and Finalize are pinned to the right edge of the scrollable table
   // (see the sticky classes below) so they stay visible while scrolling
@@ -32,10 +61,11 @@ export function ExpenseRow({ receiptId, receiptNumber, custName, date, billAmoun
   // would show through.
   const stickyBg = e.finalized ? "bg-emerald-50 dark:bg-emerald-950" : "bg-white dark:bg-stone-800";
 
-  const cellInput = (value: string, onChange: (v: string) => void) => (
+  const cellInput = (value: string, onChange: (v: string) => void, col: string) => (
     <input
       type="number" min="0" step="0.01" value={value} placeholder="0.00"
       disabled={disabled}
+      data-cell={`${rowIndex}:${col}`}
       onChange={(ev) => onChange(ev.target.value)}
       className="w-24 px-2 py-1 text-xs text-right bg-transparent border border-transparent rounded hover:border-stone-200 dark:hover:border-stone-600 focus:border-amber-400 focus:ring-1 focus:ring-amber-400 outline-none transition-colors disabled:text-stone-400 dark:disabled:text-stone-500"
     />
@@ -43,6 +73,14 @@ export function ExpenseRow({ receiptId, receiptNumber, custName, date, billAmoun
 
   return (
     <tr className={e.finalized ? "bg-emerald-25 dark:bg-emerald-500/[0.03]" : undefined}>
+      <td className="td w-10">
+        <input
+          type="checkbox" checked={selected} disabled={e.finalized}
+          onChange={onToggleSelected}
+          aria-label={`Select receipt #${receiptNumber}`}
+          className="accent-amber-600 disabled:opacity-30"
+        />
+      </td>
       <td className="td text-stone-500 text-xs whitespace-nowrap">{fmtDate(date)}</td>
       <td className="td">
         <Link href={`/dashboard/receipts/${receiptId}`} className="text-xs hover:text-amber-600 transition-colors">
@@ -51,16 +89,18 @@ export function ExpenseRow({ receiptId, receiptNumber, custName, date, billAmoun
         </Link>
       </td>
       <td className="td text-right font-mono text-sm">{fmtMoney(billAmount)}</td>
-      <td className="td text-right">{cellInput(e.fabricExpense, e.setFabricExpense)}</td>
-      <td className="td text-right">{cellInput(e.patternMakingExpense, e.setPatternMakingExpense)}</td>
-      {orderType === "BULK" && <td className="td text-right">{cellInput(e.cuttingExpense, e.setCuttingExpense)}</td>}
-      <td className="td text-right">{cellInput(e.productionExpense, e.setProductionExpense)}</td>
-      {orderType === "BULK" && <td className="td text-right">{cellInput(e.accessoryExpense, e.setAccessoryExpense)}</td>}
-      {orderType === "BULK" && <td className="td text-right">{cellInput(e.otherExpense, e.setOtherExpense)}</td>}
+      <td className="td text-right font-mono text-sm text-stone-500">{totalQuantity.toLocaleString()}</td>
+      <td className="td text-right">{cellInput(e.fabricExpense, e.setFabricExpense, "fabricExpense")}</td>
+      <td className="td text-right">{cellInput(e.patternMakingExpense, e.setPatternMakingExpense, "patternMakingExpense")}</td>
+      {orderType === "BULK" && <td className="td text-right">{cellInput(e.cuttingExpense, e.setCuttingExpense, "cuttingExpense")}</td>}
+      <td className="td text-right">{cellInput(e.productionExpense, e.setProductionExpense, "productionExpense")}</td>
+      {orderType === "BULK" && <td className="td text-right">{cellInput(e.accessoryExpense, e.setAccessoryExpense, "accessoryExpense")}</td>}
+      {orderType === "BULK" && <td className="td text-right">{cellInput(e.otherExpense, e.setOtherExpense, "otherExpense")}</td>}
       <td className={`td text-right sticky right-20 z-10 w-28 border-l border-stone-100 dark:border-stone-700 ${stickyBg}`}>
         <input
           type="number" step="0.01" value={e.profit} placeholder="0.00"
           disabled={disabled}
+          data-cell={`${rowIndex}:profit`}
           onChange={(ev) => e.onProfitChange(ev.target.value)}
           className="w-24 px-2 py-1 text-xs text-right font-semibold bg-transparent border border-transparent rounded hover:border-stone-200 dark:hover:border-stone-600 focus:border-amber-400 focus:ring-1 focus:ring-amber-400 outline-none transition-colors disabled:text-stone-400 dark:disabled:text-stone-500"
         />
@@ -94,4 +134,4 @@ export function ExpenseRow({ receiptId, receiptNumber, custName, date, billAmoun
       </td>
     </tr>
   );
-}
+});
