@@ -8,6 +8,7 @@ import { CustomerSearch } from "@/components/customers/customer-search";
 import { FilterTableShell } from "@/components/dashboard/filter-table-shell";
 import { DateRangeFilter } from "@/components/dashboard/date-range-filter";
 import { LinkButton } from "@/components/ui/link-button";
+import { DeleteReceiptButton } from "@/components/receipts/delete-receipt-button";
 import { dateRangeFilter } from "@/lib/utils/date-range";
 
 interface Props {
@@ -97,11 +98,12 @@ export default async function ReceiptsPage({ searchParams }: Props) {
                 <th className="th text-right">Balance</th>
                 <th className="th text-left">Payment</th>
                 <th className="th text-left">Order</th>
+                <th className="th text-center w-16">Actions</th>
               </tr>
             </thead>
             <tbody>
               {receipts.length === 0 && (
-                <tr><td colSpan={7} className="td text-center text-stone-400 py-10">No receipts found.</td></tr>
+                <tr><td colSpan={8} className="td text-center text-stone-400 py-10">No receipts found.</td></tr>
               )}
               {receipts.map((r) => (
                 <tr key={r.id} className="hover:bg-stone-25 dark:hover:bg-white/5 transition-colors">
@@ -118,6 +120,11 @@ export default async function ReceiptsPage({ searchParams }: Props) {
                   <td className="td text-right font-mono text-sm">{fmtMoney(r.balance)}</td>
                   <td className="td"><PaymentStatusBadge status={r.paymentStatus} /></td>
                   <td className="td"><OrderStatusBadge status={r.orderStatus} /></td>
+                  <td className="td">
+                    <div className="flex items-center justify-center">
+                      <DeleteReceiptButton receiptId={r.id} receiptNumber={r.receiptNumber} iconOnly />
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>
