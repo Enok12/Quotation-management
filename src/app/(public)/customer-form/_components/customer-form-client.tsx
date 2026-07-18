@@ -11,6 +11,7 @@ const schema = z.object({
   name: z.string().min(2, "Full name is required"),
   address: z.string().min(5, "Address is required"),
   phone: z.string().min(7, "Phone number is required"),
+  otherPhone: z.string().optional(),
   email: z.string().email("Enter a valid email").or(z.literal("")).optional(),
 });
 type FormValues = z.infer<typeof schema>;
@@ -97,6 +98,15 @@ export function CustomerFormClient({
                 )}
               />
               {errors.phone && <p className="field-error">{errors.phone.message}</p>}
+            </div>
+
+            <div>
+              <label className="field-label">Other phone number</label>
+              <Controller
+                control={control}
+                name="otherPhone"
+                render={({ field }) => <PhoneInput value={field.value} onChange={field.onChange} />}
+              />
             </div>
 
             <div>

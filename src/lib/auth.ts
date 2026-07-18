@@ -67,3 +67,12 @@ export async function requireAdmin() {
   if (ctx.role !== "ADMIN") throw new ForbiddenError("Administrator access required");
   return ctx;
 }
+
+// Platform-level, unrelated to any business — see User.isSuperAdmin. There is
+// no UI/API path that can grant this; it's only ever flipped by hand in the
+// database.
+export async function requireSuperAdmin() {
+  const user = await requireUser();
+  if (!user.isSuperAdmin) throw new ForbiddenError("Not authorized");
+  return user;
+}

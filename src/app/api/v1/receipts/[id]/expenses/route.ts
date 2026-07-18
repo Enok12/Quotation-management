@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { z } from "zod";
 import { handler, ok } from "@/lib/api/response";
 import { requireBusiness } from "@/lib/auth";
+import { requireSection } from "@/lib/section-access";
 import { expenseRecordService } from "@/server/services/expense.service";
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -19,6 +20,7 @@ const expenseRecordSchema = z.object({
 // Create or update the receipt's expense record (six cost categories + profit).
 export const PUT = handler(async (req: NextRequest, { params }: Ctx) => {
   const user = await requireBusiness();
+  await requireSection(user.businessId, "EXPENSES");
   const { id } = await params;
   const input = expenseRecordSchema.parse(await req.json());
   const record = await expenseRecordService.upsert(id, input, user.id, user.businessId);

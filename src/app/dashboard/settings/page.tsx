@@ -3,6 +3,8 @@ import { prisma } from "@/lib/db";
 import { BusinessNameForm } from "@/components/settings/business-name-form";
 import { BusinessLogoUploader } from "@/components/settings/business-logo-uploader";
 import { BusinessApiKeyForm } from "@/components/settings/business-api-key-form";
+import { getBusinessAccess, hasSection } from "@/lib/section-access";
+import { SectionUnavailable } from "@/components/dashboard/section-unavailable";
 
 export const metadata = { title: "Settings" };
 
@@ -11,6 +13,8 @@ export const metadata = { title: "Settings" };
 // member can at least view.
 export default async function SettingsPage() {
   const { businessId } = await requireAdmin();
+  const access = await getBusinessAccess(businessId);
+  if (!hasSection(access, "SETTINGS")) return <SectionUnavailable section="Settings" />;
   const business = await prisma.business.findUniqueOrThrow({
     where: { id: businessId },
     select: { name: true, logoUrl: true, geminiApiKeyEncrypted: true },

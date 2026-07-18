@@ -7,6 +7,7 @@ import { fmtDate, fmtMoney } from "@/lib/utils/format";
 import { PaymentStatusBadge, OrderStatusBadge } from "@/components/receipts/status-badges";
 import { LinkButton } from "@/components/ui/link-button";
 import { DeleteCustomerButton } from "@/components/customers/delete-customer-button";
+import { EditCustomerButton } from "@/components/customers/edit-customer-button";
 
 interface Props { params: Promise<{ id: string }> }
 
@@ -45,6 +46,18 @@ export default async function CustomerDetailPage({ params }: Props) {
           <LinkButton href={`/dashboard/receipts/new?customerId=${customer.id}`} className="btn-primary" icon={<Plus size={15} />}>
             New Receipt
           </LinkButton>
+          <EditCustomerButton
+            customerId={customer.id}
+            defaultValues={{
+              name: customer.name,
+              address: customer.address ?? undefined,
+              phone: customer.phone ?? undefined,
+              otherPhone: customer.otherPhone ?? undefined,
+              email: customer.email ?? undefined,
+              nic: customer.nic ?? undefined,
+              notes: customer.notes ?? undefined,
+            }}
+          />
           <DeleteCustomerButton customerId={customer.id} customerName={customer.name} receiptCount={customer.receipts.length} />
         </div>
       </div>
@@ -56,6 +69,7 @@ export default async function CustomerDetailPage({ params }: Props) {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {[
               { label: "Phone", value: customer.phone },
+              { label: "Other Phone", value: customer.otherPhone },
               { label: "Email", value: customer.email },
               { label: "NIC", value: customer.nic },
               { label: "Address", value: customer.address },

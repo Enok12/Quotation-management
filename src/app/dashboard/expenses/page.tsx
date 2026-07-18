@@ -8,6 +8,8 @@ import { CustomerSearch } from "@/components/customers/customer-search";
 import { FilterTableShell } from "@/components/dashboard/filter-table-shell";
 import { ExpenseRow } from "@/components/receipts/expense-row";
 import { dateRangeFilter, buildQuery } from "@/lib/utils/date-range";
+import { getBusinessAccess, hasSection } from "@/lib/section-access";
+import { SectionUnavailable } from "@/components/dashboard/section-unavailable";
 
 interface Props { searchParams: Promise<{ type?: string; page?: string; from?: string; to?: string; search?: string }> }
 export const metadata = { title: "Expenses" };
@@ -39,6 +41,8 @@ type OrderType = (typeof ORDER_TYPES)[number];
 
 export default async function ExpensesPage({ searchParams }: Props) {
   const { role, businessId } = await requireBusiness();
+  const access = await getBusinessAccess(businessId);
+  if (!hasSection(access, "EXPENSES")) return <SectionUnavailable section="Expenses" />;
   const isAdmin = role === "ADMIN";
   const sp = await searchParams;
   const activeType: OrderType = ORDER_TYPES.includes(sp.type as OrderType) ? (sp.type as OrderType) : "BULK";

@@ -4,6 +4,8 @@ import { fmtMoney, fmtDate } from "@/lib/utils/format";
 import { DateRangeFilter } from "@/components/dashboard/date-range-filter";
 import { PrintButton } from "@/components/income/print-button";
 import { dateRangeFilter } from "@/lib/utils/date-range";
+import { getBusinessAccess, hasSection } from "@/lib/section-access";
+import { SectionUnavailable } from "@/components/dashboard/section-unavailable";
 
 interface Props { searchParams: Promise<{ from?: string; to?: string }> }
 export const metadata = { title: "Income" };
@@ -12,6 +14,8 @@ const toISODate = (d: Date) => d.toISOString().slice(0, 10);
 
 export default async function IncomePage({ searchParams }: Props) {
   const { businessId } = await requireBusiness();
+  const access = await getBusinessAccess(businessId);
+  if (!hasSection(access, "INCOME")) return <SectionUnavailable section="Income" />;
   const sp = await searchParams;
 
   // Default to "this month" without redirecting to write it into the URL —

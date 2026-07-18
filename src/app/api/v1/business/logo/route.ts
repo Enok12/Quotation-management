@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { put, del } from "@vercel/blob";
 import { handler, ok } from "@/lib/api/response";
 import { requireAdmin } from "@/lib/auth";
+import { requireSection } from "@/lib/section-access";
 import { prisma } from "@/lib/db";
 import { businessService } from "@/server/services/business.service";
 import { AppError } from "@/lib/api/errors";
@@ -10,6 +11,7 @@ import { MAX_LOGO_BYTES, isAcceptedLogoFile } from "@/lib/logo-upload-limits";
 // Admin-only: upload (or replace) the active business's logo.
 export const POST = handler(async (req: NextRequest) => {
   const { id: userId, businessId } = await requireAdmin();
+  await requireSection(businessId, "SETTINGS");
 
   const form = await req.formData();
   const file = form.get("file");
@@ -37,6 +39,7 @@ export const POST = handler(async (req: NextRequest) => {
 // Admin-only: remove the current logo (falls back to the default MONTRA mark).
 export const DELETE = handler(async () => {
   const { id: userId, businessId } = await requireAdmin();
+  await requireSection(businessId, "SETTINGS");
   const existing = await prisma.business.findUniqueOrThrow({ where: { id: businessId }, select: { logoUrl: true } });
   const business = await businessService.setLogo(businessId, userId, null);
   if (existing.logoUrl) await del(existing.logoUrl).catch(() => {});

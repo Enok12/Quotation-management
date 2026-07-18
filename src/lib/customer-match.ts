@@ -2,6 +2,7 @@ export interface MatchableCustomer {
   id: string;
   name: string;
   phone?: string | null;
+  otherPhone?: string | null;
   email?: string | null;
 }
 
@@ -11,13 +12,20 @@ const digitsOnly = (s?: string | null) => (s ?? "").replace(/\D/g, "");
 // formatting differences); fall back to an exact case-insensitive name match
 // only when it's unambiguous. Shared by the single-upload and bulk-upload
 // receipt flows so matching behavior never drifts between the two.
+//
+// Checks against EITHER of the customer's two phone numbers — OCR only ever
+// reads one phone off a printed receipt, but that number might match a
+// customer's primary or their other phone (e.g. an old receipt printed with
+// what's since become their secondary number).
 export function findCustomerMatch<T extends MatchableCustomer>(
   customers: T[],
   extracted: { phone: string | null; customerName: string | null },
 ): T | null {
   const phone = digitsOnly(extracted.phone).slice(-9);
   if (phone) {
-    const byPhone = customers.filter((c) => digitsOnly(c.phone).slice(-9) === phone);
+    const byPhone = customers.filter(
+      (c) => digitsOnly(c.phone).slice(-9) === phone || digitsOnly(c.otherPhone).slice(-9) === phone,
+    );
     if (byPhone.length === 1) return byPhone[0];
   }
   const name = extracted.customerName?.trim().toLowerCase();

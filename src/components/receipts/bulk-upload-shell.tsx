@@ -374,10 +374,13 @@ export function BulkUploadShell({
               </div>
               {pickerSearch.trim() && (
                 <ul className="mt-2 border border-stone-200 dark:border-stone-700 rounded-md divide-y divide-stone-100 dark:divide-stone-700 max-h-40 overflow-y-auto">
-                  {[...customers, ...sessionCustomers]
-                    .filter((c) => c.name.toLowerCase().includes(pickerSearch.trim().toLowerCase()) || (c.phone ?? "").includes(pickerSearch.trim()))
-                    .slice(0, 6)
-                    .map((c) => (
+                  {(() => {
+                    const q = pickerSearch.trim().toLowerCase();
+                    const matches = [...customers, ...sessionCustomers].filter(
+                      (c) => c.name.toLowerCase().includes(q) || (c.phone ?? "").includes(pickerSearch.trim()) || (c.otherPhone ?? "").includes(pickerSearch.trim()),
+                    );
+                    if (matches.length === 0) return <li className="px-3 py-2 text-sm text-stone-400">No matches</li>;
+                    return matches.slice(0, 6).map((c) => (
                       <li key={c.id}>
                         <button
                           type="button"
@@ -391,10 +394,8 @@ export function BulkUploadShell({
                           <span className="text-xs text-stone-400">{c.phone}</span>
                         </button>
                       </li>
-                    ))}
-                  {[...customers, ...sessionCustomers].filter((c) => c.name.toLowerCase().includes(pickerSearch.trim().toLowerCase()) || (c.phone ?? "").includes(pickerSearch.trim())).length === 0 && (
-                    <li className="px-3 py-2 text-sm text-stone-400">No matches</li>
-                  )}
+                    ));
+                  })()}
                 </ul>
               )}
             </div>

@@ -90,6 +90,50 @@ enum AuditAction {
   STAFF_INVITE_REVOKED
   STAFF_INVITE_REDEEMED
   ORDER_CONFIRMED
+  BUSINESS_PLAN_CHANGED
+  BUSINESS_SUBSCRIPTION_STATUS_CHANGED
+}
+
+// A gate-able dashboard section — used by Plan.enabledSections to control
+// what a business can see/use. Deliberately whole-section granularity, not
+// finer per-action flags (e.g. "can create receipts but not delete them").
+enum Section {
+  CUSTOMERS
+  RECEIPTS
+  ORDERS
+  PRODUCTION
+  EXPENSES
+  INCOME
+  TEAM
+  AUDIT_LOG
+  SETTINGS
+}
+
+// ACTIVE/TRIAL both count as "in good standing" (full plan access); EXPIRED
+// and CANCELLED both drop a business to zero sections regardless of its
+// plan — see getBusinessAccess() in src/lib/section-access.ts. No payment
+// provider wired up yet: a Super Admin sets this by hand for now (see
+// Business.subscriptionStatus) — real billing can flip it automatically later
+// without any of the enforcement code needing to change.
+enum SubscriptionStatus {
+  ACTIVE
+  TRIAL
+  EXPIRED
+  CANCELLED
+}
+
+// A named bundle of enabled sections — e.g. "Full Access", or a future
+// "Basic"/"Pro" tier. Businesses are assigned one by a Super Admin (see
+// Business.planId). Changing a plan's sections instantly changes access for
+// every business on that plan.
+model Plan {
+  id             String    @id @default(cuid())
+  name           String    @unique
+  enabledSections Section[]
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  businesses Business[]
 }
 
 // ----------------------------- Users -----------------------------
@@ -103,8 +147,13 @@ model User {
   clerkId   String   @unique
   email     String   @unique
   name      String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  // Platform-level role, unrelated to any business membership — can manage
+  // every business's plan/subscription and customize what sections exist at
+  // all. Never settable via any UI/API; only ever flipped by hand in the
+  // database. See requireSuperAdmin() in lib/auth.ts.
+  isSuperAdmin Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   // Which business this user is currently acting within. Only meaningful to
   // read once a membership row confirms they still belong to it — see
@@ -144,8 +193,18 @@ model Business {
   // incremented when a receipt is actually confirmed (see Receipt.receiptNumber),
   // so abandoned/never-paid receipts never burn a number.
   lastReceiptNumber Int      @default(0)
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+
+  // Entitlements: which plan this business is on (controls which sections it
+  // can see/use — see getBusinessAccess()) and whether its subscription is
+  // currently in good standing. No payment provider yet — a Super Admin sets
+  // both by hand for now.
+  planId             String
+  plan               Plan               @relation(fields: [planId], references: [id])
+  subscriptionStatus SubscriptionStatus @default(ACTIVE)
+  subscriptionRenewsAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   members         BusinessMember[]
   staffInvites    StaffInvite[]
@@ -198,6 +257,10 @@ model Customer {
   name       String
   address    String?
   phone      String?
+  // A second/alternate contact number — some customers give two. Purely for
+  // staff reachability; not snapshotted onto receipts or printed on the PDF
+  // (those stay as they are, keyed off the primary phone only).
+  otherPhone String?
   email      String?
   nic        String? // NIC / identification number
   notes      String?
@@ -210,6 +273,7 @@ model Customer {
   @@index([businessId])
   @@index([name])
   @@index([phone])
+  @@index([otherPhone])
   @@index([email])
   @@index([createdAt])
 }

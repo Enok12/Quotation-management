@@ -13,7 +13,7 @@ export default async function BulkUploadSampleOrdersPage({ searchParams }: Props
     prisma.customer.findMany({
       where: { businessId },
       orderBy: { name: "asc" },
-      select: { id: true, name: true, phone: true, email: true },
+      select: { id: true, name: true, phone: true, otherPhone: true, email: true },
     }),
     prisma.business.findUnique({ where: { id: businessId }, select: { geminiApiKeyEncrypted: true } }),
   ]);

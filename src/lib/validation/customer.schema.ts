@@ -4,6 +4,7 @@ export const customerCreateSchema = z.object({
   name: z.string().min(1, "Name is required").max(160),
   address: z.string().max(400).optional().nullable(),
   phone: z.string().max(40).optional().nullable(),
+  otherPhone: z.string().max(40).optional().nullable(),
   email: z.string().email().max(160).optional().nullable().or(z.literal("")),
   nic: z.string().max(40).optional().nullable(),
   notes: z.string().max(2000).optional().nullable(),

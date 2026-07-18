@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { z } from "zod";
 import { handler, ok } from "@/lib/api/response";
 import { requireAdmin } from "@/lib/auth";
+import { requireSection } from "@/lib/section-access";
 import { businessService } from "@/server/services/business.service";
 import { AppError } from "@/lib/api/errors";
 
@@ -24,6 +25,7 @@ async function verifyGeminiKey(apiKey: string): Promise<boolean> {
 // default key's.
 export const PUT = handler(async (req: NextRequest) => {
   const { id: userId, businessId } = await requireAdmin();
+  await requireSection(businessId, "SETTINGS");
   const { apiKey } = bodySchema.parse(await req.json());
 
   if (!(await verifyGeminiKey(apiKey))) {
@@ -37,6 +39,7 @@ export const PUT = handler(async (req: NextRequest) => {
 // Admin-only: remove the business's own key — falls back to the shared default.
 export const DELETE = handler(async () => {
   const { id: userId, businessId } = await requireAdmin();
+  await requireSection(businessId, "SETTINGS");
   await businessService.setGeminiApiKey(businessId, userId, null);
   return ok({ hasCustomApiKey: false });
 });

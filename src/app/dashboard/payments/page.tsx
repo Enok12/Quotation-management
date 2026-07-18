@@ -14,6 +14,8 @@ import { ExpenseRecordButton } from "@/components/receipts/expense-record-button
 import { TimeTakenBadge } from "@/components/receipts/time-taken-badge";
 import { deriveFolder, FOLDER_NAMES, type FolderKey } from "@/lib/order-folder";
 import { dateRangeFilter, buildQuery } from "@/lib/utils/date-range";
+import { getBusinessAccess, hasSection } from "@/lib/section-access";
+import { SectionUnavailable } from "@/components/dashboard/section-unavailable";
 
 interface Props { searchParams: Promise<{ folder?: string; page?: string; from?: string; to?: string; search?: string }> }
 export const metadata = { title: "Orders" };
@@ -31,6 +33,8 @@ function whereForFolder(folder?: FolderKey): Prisma.ReceiptWhereInput {
 
 export default async function OrdersFolderPage({ searchParams }: Props) {
   const { role, businessId } = await requireBusiness();
+  const access = await getBusinessAccess(businessId);
+  if (!hasSection(access, "ORDERS")) return <SectionUnavailable section="Orders" />;
   const isAdmin = role === "ADMIN";
   const sp = await searchParams;
   const page = Math.max(1, Number(sp.page ?? 1));

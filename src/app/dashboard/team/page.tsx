@@ -4,11 +4,15 @@ import { staffInviteService } from "@/server/services/staff-invite.service";
 import { fmtDateTime } from "@/lib/utils/format";
 import { GenerateStaffInviteButton } from "@/components/team/generate-staff-invite-button";
 import { RevokeInviteButton } from "@/components/team/revoke-invite-button";
+import { getBusinessAccess, hasSection } from "@/lib/section-access";
+import { SectionUnavailable } from "@/components/dashboard/section-unavailable";
 
 export const metadata = { title: "Team" };
 
 export default async function TeamPage() {
   const { role, businessId, id: userId } = await requireBusiness();
+  const access = await getBusinessAccess(businessId);
+  if (!hasSection(access, "TEAM")) return <SectionUnavailable section="Team" />;
   const isAdmin = role === "ADMIN";
 
   const members = await prisma.businessMember.findMany({

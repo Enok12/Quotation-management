@@ -11,48 +11,53 @@ export const customerFormSchema = z.object({
   name: z.string().min(1, "Name is required"),
   address: z.string().optional(),
   phone: z.string().optional(),
+  otherPhone: z.string().optional(),
   email: z.string().email("Enter a valid email").or(z.literal("")).optional(),
   nic: z.string().optional(),
   notes: z.string().optional(),
 });
 export type CustomerFormValues = z.infer<typeof customerFormSchema>;
 
-interface CreatedCustomer {
+interface SavedCustomer {
   id: string;
   name: string;
   phone: string | null;
   email: string | null;
 }
 
-// Shared create-customer form — used both inside the "Add Customer" modal
+// Shared create/edit customer form — used inside the "Add Customer" modal,
+// the "Edit Customer" modal (pass customerId to switch it into edit mode),
 // and inline (pre-filled) when a receipt upload can't confidently match an
 // existing customer.
 export function AddCustomerForm({
+  customerId,
   defaultValues,
   onCreated,
   submitLabel = "Add Customer",
 }: {
+  /** Present = edit an existing customer (PUT); absent = create (POST). */
+  customerId?: string;
   defaultValues?: Partial<CustomerFormValues>;
-  onCreated: (customer: CreatedCustomer) => void;
+  onCreated: (customer: SavedCustomer) => void;
   submitLabel?: string;
 }) {
   const [serverError, setServerError] = useState<string | null>(null);
 
   const { register, control, handleSubmit, formState: { errors, isSubmitting } } = useForm<CustomerFormValues>({
     resolver: zodResolver(customerFormSchema),
-    defaultValues: { phone: "", ...defaultValues },
+    defaultValues: { phone: "", otherPhone: "", ...defaultValues },
   });
 
   const onSubmit = async (data: CustomerFormValues) => {
     setServerError(null);
     try {
-      const res = await fetch("/api/v1/customers", {
-        method: "POST",
+      const res = await fetch(customerId ? `/api/v1/customers/${customerId}` : "/api/v1/customers", {
+        method: customerId ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       });
       const json = await res.json();
-      if (!json.success) throw new Error(json.message ?? "Failed to add customer");
+      if (!json.success) throw new Error(json.message ?? `Failed to ${customerId ? "save" : "add"} customer`);
       onCreated(json.data);
     } catch (e) {
       setServerError(e instanceof Error ? e.message : "Something went wrong");
@@ -72,6 +77,15 @@ export function AddCustomerForm({
         <Controller
           control={control}
           name="phone"
+          render={({ field }) => <PhoneInput value={field.value} onChange={field.onChange} />}
+        />
+      </div>
+
+      <div>
+        <label className="field-label">Other phone number</label>
+        <Controller
+          control={control}
+          name="otherPhone"
           render={({ field }) => <PhoneInput value={field.value} onChange={field.onChange} />}
         />
       </div>
@@ -101,7 +115,7 @@ export function AddCustomerForm({
 
       <button type="submit" disabled={isSubmitting} className="btn-primary w-full">
         {isSubmitting && <Loader2 size={15} className="animate-spin" />}
-        {isSubmitting ? "Adding…" : submitLabel}
+        {isSubmitting ? (customerId ? "Saving…" : "Adding…") : submitLabel}
       </button>
     </form>
   );

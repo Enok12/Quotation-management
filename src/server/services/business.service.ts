@@ -1,13 +1,19 @@
+import type { SubscriptionStatus } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { auditService } from "./audit.service";
 import { encryptSecret } from "@/lib/crypto/secret-box";
+
+// Seeded in the plans_subscriptions_super_admin migration — every business
+// starts here (full access, matching pre-Plan behavior exactly) until a
+// Super Admin assigns a different plan.
+export const DEFAULT_PLAN_ID = "plan_full_access_default";
 
 // Self-service tenant creation. The registering user becomes that business's
 // first ADMIN and its active business, in one atomic step.
 export const businessService = {
   async register(userId: string, name: string) {
     return prisma.$transaction(async (tx) => {
-      const business = await tx.business.create({ data: { name } });
+      const business = await tx.business.create({ data: { name, planId: DEFAULT_PLAN_ID } });
       await tx.businessMember.create({
         data: { businessId: business.id, userId, role: "ADMIN" },
       });
@@ -51,6 +57,33 @@ export const businessService = {
       await auditService.log(tx, {
         businessId, actorId, action: "BUSINESS_API_KEY_UPDATED", entityType: "Business", entityId: businessId,
         metadata: { hasKey: !!apiKey },
+      });
+      return business;
+    });
+  },
+
+  // -------- Super Admin only (see requireSuperAdmin()) --------
+
+  async setPlan(businessId: string, actorId: string, planId: string) {
+    return prisma.$transaction(async (tx) => {
+      const business = await tx.business.update({ where: { id: businessId }, data: { planId } });
+      await auditService.log(tx, {
+        businessId, actorId, action: "BUSINESS_PLAN_CHANGED", entityType: "Business", entityId: businessId,
+        metadata: { planId },
+      });
+      return business;
+    });
+  },
+
+  async setSubscriptionStatus(businessId: string, actorId: string, subscriptionStatus: SubscriptionStatus, renewsAt?: Date | null) {
+    return prisma.$transaction(async (tx) => {
+      const business = await tx.business.update({
+        where: { id: businessId },
+        data: { subscriptionStatus, subscriptionRenewsAt: renewsAt ?? undefined },
+      });
+      await auditService.log(tx, {
+        businessId, actorId, action: "BUSINESS_SUBSCRIPTION_STATUS_CHANGED", entityType: "Business", entityId: businessId,
+        metadata: { subscriptionStatus },
       });
       return business;
     });

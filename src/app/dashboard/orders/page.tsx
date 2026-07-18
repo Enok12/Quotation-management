@@ -6,12 +6,16 @@ import { FilterTableShell } from "@/components/dashboard/filter-table-shell";
 import { DateRangeFilter } from "@/components/dashboard/date-range-filter";
 import { CustomerSearch } from "@/components/customers/customer-search";
 import { dateRangeFilter, buildQuery } from "@/lib/utils/date-range";
+import { getBusinessAccess, hasSection } from "@/lib/section-access";
+import { SectionUnavailable } from "@/components/dashboard/section-unavailable";
 
 interface Props { searchParams: Promise<{ status?: string; page?: string; from?: string; to?: string; search?: string }> }
 export const metadata = { title: "Production" };
 
 export default async function OrdersPage({ searchParams }: Props) {
   const { businessId } = await requireBusiness();
+  const access = await getBusinessAccess(businessId);
+  if (!hasSection(access, "PRODUCTION")) return <SectionUnavailable section="Production" />;
   const sp = await searchParams;
   const page = Math.max(1, Number(sp.page ?? 1));
   const pageSize = 25;

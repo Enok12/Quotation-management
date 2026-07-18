@@ -10,7 +10,7 @@ import { findCustomerMatch } from "@/lib/customer-match";
 import { MAX_UPLOAD_BYTES, isAcceptedReceiptFile } from "@/lib/receipt-upload-limits";
 import type { ReceiptExtractResult } from "@/lib/validation/receipt-extract.schema";
 
-interface Customer { id: string; name: string; phone?: string | null; email?: string | null }
+interface Customer { id: string; name: string; phone?: string | null; otherPhone?: string | null; email?: string | null }
 
 type Stage =
   | { kind: "browse" }
@@ -36,6 +36,7 @@ export function CustomerPickerShell({
     (c) =>
       c.name.toLowerCase().includes(search.toLowerCase()) ||
       c.phone?.includes(search) ||
+      c.otherPhone?.includes(search) ||
       c.email?.toLowerCase().includes(search.toLowerCase()),
   );
 

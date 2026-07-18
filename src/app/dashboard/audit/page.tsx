@@ -1,6 +1,8 @@
 import { prisma } from "@/lib/db";
 import { requireBusiness } from "@/lib/auth";
 import { fmtDateTime } from "@/lib/utils/format";
+import { getBusinessAccess, hasSection } from "@/lib/section-access";
+import { SectionUnavailable } from "@/components/dashboard/section-unavailable";
 
 interface Props { searchParams: Promise<{ page?: string }> }
 export const metadata = { title: "Audit Log" };
@@ -20,10 +22,14 @@ const ACTION_LABELS: Record<string, string> = {
   CUSTOMER_DELETED: "Customer deleted",
   EXPENSE_RECORDED: "Expense recorded",
   EXPENSE_DELETED: "Expense deleted",
+  BUSINESS_PLAN_CHANGED: "Plan changed",
+  BUSINESS_SUBSCRIPTION_STATUS_CHANGED: "Subscription status changed",
 };
 
 export default async function AuditPage({ searchParams }: Props) {
   const { businessId } = await requireBusiness();
+  const access = await getBusinessAccess(businessId);
+  if (!hasSection(access, "AUDIT_LOG")) return <SectionUnavailable section="Audit Log" />;
   const sp = await searchParams;
   const page = Math.max(1, Number(sp.page ?? 1));
   const pageSize = 40;

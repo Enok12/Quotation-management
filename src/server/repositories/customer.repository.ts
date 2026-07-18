@@ -16,6 +16,7 @@ export const customerRepository = {
             OR: [
               { name: { contains: q.search, mode: "insensitive" } },
               { phone: { contains: q.search, mode: "insensitive" } },
+              { otherPhone: { contains: q.search, mode: "insensitive" } },
               { email: { contains: q.search, mode: "insensitive" } },
             ],
           }
@@ -31,7 +32,7 @@ export const customerRepository = {
         skip: (q.page - 1) * q.pageSize,
         take: q.pageSize,
         select: {
-          id: true, name: true, phone: true, email: true, createdAt: true,
+          id: true, name: true, phone: true, otherPhone: true, email: true, createdAt: true,
           _count: { select: { receipts: true } },
         },
       }),
