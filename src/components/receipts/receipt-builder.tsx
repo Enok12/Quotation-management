@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils/cn";
 import { fmtMoney } from "@/lib/utils/format";
 import { moveInvoiceIfConnected } from "@/lib/folder-sync";
 import { deriveFolder, CATEGORY_NAMES, type Category } from "@/lib/order-folder";
-import { popReceiptDraft } from "@/lib/receipt-draft";
+import { popReceiptDraft, type ReceiptDraft } from "@/lib/receipt-draft";
 
 // ---- Types ----
 const itemSchema = z.object({
@@ -104,65 +104,71 @@ export function ReceiptBuilder({ customer, defaultValues, mode = "create", retur
 
   const today = new Date().toISOString().slice(0, 10);
 
+  // If a receipt was just uploaded-and-extracted, its parsed fields are stashed
+  // in sessionStorage. Read that draft exactly ONCE, before the form initializes,
+  // so the extracted values become the form's own initial values. (Applying it
+  // afterwards via reset() used to race with the 60%-advance auto-fill effect
+  // below — both fired on the same mount commit, and the auto-fill, still seeing
+  // the pre-reset blank state, overwrote the just-applied advance back to 0.)
+  // popReceiptDraft() is destructive, so the ref guard keeps it to a single call
+  // even across Strict Mode's / Fast Refresh's double-render.
+  const draftRef = useRef<ReceiptDraft | null | undefined>(undefined);
+  if (draftRef.current === undefined) {
+    draftRef.current = mode === "create" && !defaultValues?.receiptId ? popReceiptDraft() : null;
+  }
+  const draft = draftRef.current;
+
   // Pull any existing "Pattern Deduction" row out of the raw adjustments so it
   // renders via the dedicated toggle instead of the generic Adjustments list.
-  const rawAdjustments = defaultValues?.adjustments ?? [];
+  const rawAdjustments = draft ? draft.adjustments : defaultValues?.adjustments ?? [];
   const existingPattern = rawAdjustments.find((a) => a.label === PATTERN_LABEL);
   const otherAdjustments = rawAdjustments.filter((a) => a.label !== PATTERN_LABEL);
 
   const {
-    register, control, watch, setValue, handleSubmit, reset,
+    register, control, watch, setValue, handleSubmit,
     formState: { errors },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: {
-      date: today,
-      items: [{ description: "", quantity: 1, unitPrice: 0 }],
-      paymentMethods: [],
-      advanceAmount: 0,
-      amountPaid: 0,
-      isSample: false,
-      category: "WOMEN",
-      ...defaultValues,
-      adjustments: otherAdjustments,
-      patternDeductionEnabled: !!existingPattern,
-      patternDeductionAmount: existingPattern ? Math.abs(Number(existingPattern.amount)) : 2000,
-    },
+    defaultValues: draft
+      ? {
+          date: draft.date ?? today,
+          items: draft.items.length > 0 ? draft.items : [{ description: "", quantity: 1, unitPrice: 0 }],
+          paymentMethods: draft.paymentMethods,
+          adjustments: otherAdjustments,
+          advanceAmount: draft.advanceAmount ?? 0,
+          amountPaid: draft.amountPaid ?? 0,
+          isSample: draft.isSample ?? false,
+          // Best-effort guess from the item descriptions when the model was
+          // confident; otherwise falls back to Women's, same as a fresh form.
+          // Either way, staff can still change it before saving.
+          category: draft.category ?? "WOMEN",
+          patternDeductionEnabled: !!existingPattern,
+          patternDeductionAmount: existingPattern ? Math.abs(Number(existingPattern.amount)) : 2000,
+        }
+      : {
+          date: today,
+          items: [{ description: "", quantity: 1, unitPrice: 0 }],
+          paymentMethods: [],
+          advanceAmount: 0,
+          amountPaid: 0,
+          isSample: false,
+          category: "WOMEN",
+          ...defaultValues,
+          adjustments: otherAdjustments,
+          patternDeductionEnabled: !!existingPattern,
+          patternDeductionAmount: existingPattern ? Math.abs(Number(existingPattern.amount)) : 2000,
+        },
   });
 
-  // Advance auto-fills to 60% of the total until the user overrides it.
-  const [advanceTouched, setAdvanceTouched] = useState(mode === "edit" || (defaultValues?.advanceAmount ?? 0) > 0);
+  // Advance auto-fills to 60% of the total until the user overrides it. A draft
+  // that carried its own advance (even 0 — a genuine "no advance" reading)
+  // counts as already-set, so the auto-fill never clobbers the extracted value.
+  const [advanceTouched, setAdvanceTouched] = useState(
+    mode === "edit" || (defaultValues?.advanceAmount ?? 0) > 0 || (draft != null && draft.advanceAmount != null),
+  );
 
-  // If a receipt was just uploaded-and-extracted, apply the stashed draft on
-  // first mount (create mode only) — replaces the blank defaults with the
-  // parsed fields so staff lands on a pre-filled, still-editable form.
-  const [draftApplied, setDraftApplied] = useState(false);
-  useEffect(() => {
-    if (mode !== "create" || defaultValues?.receiptId) return;
-    const draft = popReceiptDraft();
-    if (!draft) return;
-
-    const patternRow = draft.adjustments.find((a) => a.label === PATTERN_LABEL);
-    reset({
-      date: draft.date ?? today,
-      items: draft.items.length > 0 ? draft.items : [{ description: "", quantity: 1, unitPrice: 0 }],
-      paymentMethods: draft.paymentMethods,
-      adjustments: draft.adjustments.filter((a) => a.label !== PATTERN_LABEL),
-      advanceAmount: draft.advanceAmount ?? 0,
-      amountPaid: draft.amountPaid ?? 0,
-      isSample: draft.isSample ?? false,
-      // Best-effort guess from the item descriptions when the model was
-      // confident; otherwise falls back to Women's, same as a fresh form.
-      // Either way, staff can still change it before saving.
-      category: draft.category ?? "WOMEN",
-      patternDeductionEnabled: !!patternRow,
-      patternDeductionAmount: patternRow ? Math.abs(Number(patternRow.amount)) : 2000,
-    });
-    if (draft.advanceAmount != null) setAdvanceTouched(true);
-    setDraftApplied(true);
-    // Runs once on mount only.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // Banner shown when the form was pre-filled from an upload; dismissible.
+  const [draftApplied, setDraftApplied] = useState(!!draft);
 
   const { fields: itemFields, append: addItem, remove: removeItem } = useFieldArray({ control, name: "items" });
   const { fields: adjFields, append: addAdj, remove: removeAdj } = useFieldArray({ control, name: "adjustments" });
@@ -185,7 +191,11 @@ export function ReceiptBuilder({ customer, defaultValues, mode = "create", retur
     Number(watchedValues.amountPaid) || 0,
   );
 
-  // Keep the advance at 60% of the total until staff edit it manually.
+  // Keep the advance at 60% of the total until staff edit it manually. When the
+  // form was pre-filled from a draft that carried its own advance, advanceTouched
+  // starts true, so this never overwrites the extracted value. The draft's items
+  // are already the initial form values, so totals.totalDue is correct from the
+  // first render — no stale-zero race like the old post-mount reset() had.
   useEffect(() => {
     if (advanceTouched) return;
     const sixty = Math.round(totals.totalDue * 0.6 * 100) / 100;

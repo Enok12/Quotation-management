@@ -55,9 +55,18 @@ export function isFolderSyncSupported(): boolean {
 // e.g. "John Doe", 12 → "John_Doe-12.pdf"
 const fileName = receiptFileName;
 
-// Matches any "...-<digits>.pdf" filename so both the current naming and the
-// older "receipt-<N>.pdf" naming are recognized by number (and cleaned up).
-const RECEIPT_FILE = /-(\d+)\.pdf$/i;
+// Matches either the current "<N>-Customer_Name.pdf" naming (number leads) or
+// an older naming with the number trailing ("Customer_Name-<N>.pdf", or the
+// original "receipt-<N>.pdf"), so files already synced under a previous
+// naming scheme are still recognized by their receipt number — otherwise a
+// re-sync wouldn't find them, and would place a duplicate under the new name
+// instead of renaming the existing one.
+const RECEIPT_FILE = /^(\d+)-.*\.pdf$|-(\d+)\.pdf$/i;
+const receiptFileNumber = (name: string): number | null => {
+  const m = name.match(RECEIPT_FILE);
+  if (!m) return null;
+  return Number(m[1] ?? m[2]);
+};
 // Draft (Unconfirmed) files are keyed by the receipt's own id, not a number.
 const DRAFT_FILE = /-draft-([a-zA-Z0-9]+)\.pdf$/i;
 
@@ -181,8 +190,8 @@ async function listFolderFiles(root: DirHandle, path: FolderPath): Promise<Folde
   const dir = await getPathDir(root, path, false);
   if (!dir) return results;
   for await (const name of dir.keys()) {
-    const m = name.match(RECEIPT_FILE);
-    if (m) results.push({ name, number: Number(m[1]) });
+    const number = receiptFileNumber(name);
+    if (number !== null) results.push({ name, number });
   }
   return results;
 }

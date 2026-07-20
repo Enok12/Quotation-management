@@ -38,6 +38,8 @@ Read the matching page and return ONLY a JSON object with this exact shape (no p
   "category": "MEN" or "WOMEN" or null (infer from the item descriptions only, e.g. "Men's Shirt"/"Trouser" suggest MEN, "Ladies Blouse"/"Frock"/"Saree" suggest WOMEN — use null if the descriptions don't clearly indicate either)
 }
 
+All numbers (quantity, unitPrice, amount, advanceAmount, amountPaid) must be plain JSON numbers with no thousands separators, currency symbols, or quotes — e.g. a printed "41,000" must be returned as 41000, not "41,000" or "41,000.00".
+
 If a field isn't legible or isn't present, use null (or an empty array for lists) rather than guessing. Do not invent values — this applies to every field except "category", which is explicitly an inference from the item text, not a printed value.`;
 
 interface GeminiCandidate {
