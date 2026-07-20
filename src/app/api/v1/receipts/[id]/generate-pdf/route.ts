@@ -8,6 +8,11 @@ import { receiptFileName, draftReceiptFileName } from "@/lib/utils/receipt-filen
 
 type Ctx = { params: Promise<{ id: string }> };
 
+// PDF rendering is CPU-bound; a large receipt (or a burst during folder sync)
+// can run past the Hobby-tier default. Raise the ceiling so it can't 504.
+// Only takes effect on Vercel Pro+; harmless (ignored) on Hobby.
+export const maxDuration = 60;
+
 // Explicit generation only — never during typing (the UI uses a live HTML preview).
 // Works for an Unconfirmed receipt too — renders as a clearly-marked draft
 // (see receipt-template.ts) so folder sync has something to place for it.

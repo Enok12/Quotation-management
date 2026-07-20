@@ -7,6 +7,12 @@ import { decryptSecret } from "@/lib/crypto/secret-box";
 import { receiptExtractService } from "@/server/services/receipt-extract.service";
 import { MAX_UPLOAD_BYTES, isAcceptedReceiptFile } from "@/lib/receipt-upload-limits";
 
+// This request stays open for the whole Gemini call (a few seconds, sometimes
+// longer for a large multi-page PDF). Raise the ceiling above the Hobby-tier
+// default so a slow model response can't 504 mid-upload. Only takes effect on
+// Vercel Pro+; harmless (ignored) on Hobby.
+export const maxDuration = 60;
+
 // Reads an uploaded photo (or PDF) of a receipt and returns best-effort
 // extracted fields to pre-fill the receipt builder. Never persists anything.
 //
