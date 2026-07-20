@@ -25,6 +25,17 @@ export function OrderStatusBadge({ status }: { status: string }) {
   return <span className={s.cls}>{s.label}</span>;
 }
 
+// Receipt.orderStatus is a bottleneck rollup of every item's own status (see
+// receipt.service.ts) — it's only ever "COMPLETED" once every item is. So a
+// coarse Ongoing/Completed read is just that one comparison; no separate
+// aggregation needed. Useful on list views where the granular per-stage
+// badge (Fabric Selection, Cutting, …) is more detail than a scan needs —
+// see ItemStatusPopup for the per-item breakdown behind it.
+export function OrderProgressBadge({ status }: { status: string }) {
+  const completed = status === "COMPLETED";
+  return <span className={completed ? "badge-completed" : "badge-in-progress"}>{completed ? "Completed" : "Ongoing"}</span>;
+}
+
 const PAYMENT_STATUS: Record<string, { label: string; cls: string }> = {
   UNPAID: { label: "Unpaid", cls: "badge-unpaid" },
   PARTIALLY_PAID: { label: "Partial Paid", cls: "badge-partial" },

@@ -122,7 +122,6 @@ export default async function ExpensesPage({ searchParams }: Props) {
     { label: "Bulk Orders", href: `/dashboard/expenses?${buildQuery({ type: "BULK", from: sp.from, to: sp.to, search: sp.search })}`, active: activeType === "BULK", count: bulkCount },
     { label: "Sample Orders", href: `/dashboard/expenses?${buildQuery({ type: "SAMPLE", from: sp.from, to: sp.to, search: sp.search })}`, active: activeType === "SAMPLE", count: sampleCount },
   ];
-  const colSpan = activeType === "BULK" ? 11 : 8;
 
   return (
     <div className="px-4 py-6 sm:px-8 sm:py-8">
@@ -149,7 +148,6 @@ export default async function ExpensesPage({ searchParams }: Props) {
           <ExpensesTable
             orderType={activeType}
             isAdmin={isAdmin}
-            colSpan={colSpan}
             otherPagesTotals={otherPagesTotals}
             rows={receipts.map((r) => ({
               id: r.id,

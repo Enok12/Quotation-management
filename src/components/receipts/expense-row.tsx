@@ -96,7 +96,7 @@ export const ExpenseRow = forwardRef<ExpenseRowHandle, Props>(function ExpenseRo
       <td className="td text-right">{cellInput(e.productionExpense, e.setProductionExpense, "productionExpense")}</td>
       {orderType === "BULK" && <td className="td text-right">{cellInput(e.accessoryExpense, e.setAccessoryExpense, "accessoryExpense")}</td>}
       {orderType === "BULK" && <td className="td text-right">{cellInput(e.otherExpense, e.setOtherExpense, "otherExpense")}</td>}
-      <td className={`td text-right sticky right-20 z-10 w-28 border-l border-stone-100 dark:border-stone-700 ${stickyBg}`}>
+      <td className={`td text-right sticky right-28 z-10 w-36 border-l border-l-stone-100 dark:border-l-stone-700 ${stickyBg}`}>
         <input
           type="number" step="0.01" value={e.profit} placeholder="0.00"
           disabled={disabled}
@@ -105,7 +105,7 @@ export const ExpenseRow = forwardRef<ExpenseRowHandle, Props>(function ExpenseRo
           className="w-24 px-2 py-1 text-xs text-right font-semibold bg-transparent border border-transparent rounded hover:border-stone-200 dark:hover:border-stone-600 focus:border-amber-400 focus:ring-1 focus:ring-amber-400 outline-none transition-colors disabled:text-stone-400 dark:disabled:text-stone-500"
         />
       </td>
-      <td className={`td sticky right-0 z-10 w-20 ${stickyBg}`}>
+      <td className={`td sticky right-0 z-10 w-28 ${stickyBg}`}>
         <div className="flex items-center justify-center gap-1.5">
           {!e.finalized && (
             <button

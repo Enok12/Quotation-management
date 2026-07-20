@@ -3,7 +3,8 @@ import { requireBusiness } from "@/lib/auth";
 import Link from "next/link";
 import { Plus } from "lucide-react";
 import { fmtMoney, fmtDate } from "@/lib/utils/format";
-import { OrderStatusBadge, PaymentStatusBadge } from "@/components/receipts/status-badges";
+import { OrderProgressBadge, PaymentStatusBadge } from "@/components/receipts/status-badges";
+import { ItemStatusPopup } from "@/components/receipts/item-status-popup";
 import { CustomerSearch } from "@/components/customers/customer-search";
 import { FilterTableShell } from "@/components/dashboard/filter-table-shell";
 import { DateRangeFilter } from "@/components/dashboard/date-range-filter";
@@ -41,6 +42,10 @@ export default async function ReceiptsPage({ searchParams }: Props) {
       select: {
         id: true, receiptNumber: true, custName: true, date: true,
         totalDue: true, balance: true, paymentStatus: true, orderStatus: true, createdAt: true,
+        items: {
+          select: { id: true, description: true, quantity: true, orderStatus: true },
+          orderBy: { sortOrder: "asc" },
+        },
       },
     }),
   ]);
@@ -119,7 +124,12 @@ export default async function ReceiptsPage({ searchParams }: Props) {
                   <td className="td text-right font-mono text-sm">{fmtMoney(r.totalDue)}</td>
                   <td className="td text-right font-mono text-sm">{fmtMoney(r.balance)}</td>
                   <td className="td"><PaymentStatusBadge status={r.paymentStatus} /></td>
-                  <td className="td"><OrderStatusBadge status={r.orderStatus} /></td>
+                  <td className="td">
+                    <div className="flex items-center gap-2">
+                      <OrderProgressBadge status={r.orderStatus} />
+                      <ItemStatusPopup receiptId={r.id} receiptNumber={r.receiptNumber} custName={r.custName} items={r.items} />
+                    </div>
+                  </td>
                   <td className="td">
                     <div className="flex items-center justify-center">
                       <DeleteReceiptButton receiptId={r.id} receiptNumber={r.receiptNumber} iconOnly />

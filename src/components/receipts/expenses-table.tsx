@@ -32,7 +32,6 @@ interface Props {
   rows: RowData[];
   orderType: "BULK" | "SAMPLE";
   isAdmin: boolean;
-  colSpan: number;
   /** Grand total across every matching receipt MINUS the rows on this page —
    * a fixed baseline computed server-side, since only this page's rows are
    * ever live-edited here without a full reload. */
@@ -71,7 +70,7 @@ function editableColumns(orderType: "BULK" | "SAMPLE"): string[] {
 // and discard whatever anyone else had typed but not yet saved. Also owns
 // row selection and drives Bulk Save / Bulk Finalize by calling each
 // selected row's own imperative save()/finalizeIfNeeded() in parallel.
-export function ExpensesTable({ rows, orderType, isAdmin, colSpan, otherPagesTotals }: Props) {
+export function ExpensesTable({ rows, orderType, isAdmin, otherPagesTotals }: Props) {
   const [savedByRow, setSavedByRow] = useState<Record<string, ExpenseCostTotals>>(() => {
     const map: Record<string, ExpenseCostTotals> = {};
     for (const r of rows) {
@@ -121,6 +120,19 @@ export function ExpensesTable({ rows, orderType, isAdmin, colSpan, otherPagesTot
   }, [rows, savedByRow, otherPagesTotals]);
 
   const cols = editableColumns(orderType);
+  // Checkbox, Date, Receipt, Bill Amount, Total Quantity, and Finalize are
+  // fixed on top of the cols.length editable cost/profit columns.
+  const totalColumns = 6 + cols.length;
+  // table-fixed + width:100% forces the table to render at EXACTLY the
+  // container's width, no matter what the <colgroup> declares — on a narrow
+  // viewport the browser doesn't overflow, it squeezes every column down
+  // proportionally until fixed-width inputs no longer fit their cells and
+  // start bleeding into neighboring columns. Pairing width:100% with an
+  // explicit min-width (the sum of every column's declared px width) lets
+  // the table still stretch to fill wide screens, but never shrink past the
+  // point where columns can't fit — narrower viewports scroll horizontally
+  // instead (via the wrapping overflow-x-auto), which is what we actually want.
+  const minTableWidth = 40 /* checkbox */ + 128 /* date */ + 192 /* receipt */ + 128 /* bill */ + 112 /* qty */ + 112 /* finalize */ + cols.length * 144 /* cost + profit cols */;
   const selectableIds = rows.filter((r) => !finalizedByRow[r.id]).map((r) => r.id);
   const allSelected = selectableIds.length > 0 && selectableIds.every((id) => selected.has(id));
 
@@ -214,7 +226,28 @@ export function ExpensesTable({ rows, orderType, isAdmin, colSpan, otherPagesTot
       </div>
 
       <div className="overflow-x-auto">
-        <table className="w-full" onKeyDown={handleKeyDown}>
+        {/* table-fixed + an explicit <colgroup> keep every column's rendered
+            width in sync with what the sticky Profit/Finalize offsets below
+            assume — under the default auto layout, columns are sized from
+            content instead, so those fixed `right` offsets silently drift out
+            of alignment with the actual (wider or narrower) column edges and
+            Profit ends up overlapping whatever sits to its left. */}
+        <table className="w-full table-fixed" style={{ minWidth: `${minTableWidth}px` }} onKeyDown={handleKeyDown}>
+          <colgroup>
+            <col className="w-10" />
+            <col className="w-32" />
+            <col />
+            <col className="w-32" />
+            <col className="w-28" />
+            <col className="w-36" />
+            <col className="w-36" />
+            {orderType === "BULK" && <col className="w-36" />}
+            <col className="w-36" />
+            {orderType === "BULK" && <col className="w-36" />}
+            {orderType === "BULK" && <col className="w-36" />}
+            <col className="w-36" />
+            <col className="w-28" />
+          </colgroup>
           <thead>
             <tr>
               <th className="th w-10">
@@ -235,13 +268,19 @@ export function ExpensesTable({ rows, orderType, isAdmin, colSpan, otherPagesTot
               <th className="th text-right">Production Cost</th>
               {orderType === "BULK" && <th className="th text-right">Accessories Cost</th>}
               {orderType === "BULK" && <th className="th text-right">Other</th>}
-              <th className="th text-right sticky right-20 z-20 w-28 border-l border-stone-200 dark:border-stone-700">Profit</th>
-              <th className="th text-center sticky right-0 z-20 w-20">Finalize</th>
+              {/* .th's own background (bg-stone-25 / dark:bg-white/[0.02]) is
+                  translucent, which is fine for a plain non-sticky header —
+                  but a sticky one has other columns scrolling underneath it,
+                  and in dark mode that 2%-opacity tint barely masks anything,
+                  so the header text bled together with whatever scrolled by
+                  behind it. These need a fully opaque background of their own. */}
+              <th className="th text-right sticky right-28 z-20 w-36 border-l border-l-stone-200 dark:border-l-stone-700 bg-stone-50 dark:bg-stone-800">Profit</th>
+              <th className="th text-center sticky right-0 z-20 w-28 bg-stone-50 dark:bg-stone-800">Finalize</th>
             </tr>
           </thead>
           <tbody>
             {rows.length === 0 && (
-              <tr><td colSpan={colSpan} className="td text-center text-stone-400 py-10">No orders found.</td></tr>
+              <tr><td colSpan={totalColumns} className="td text-center text-stone-400 py-10">No orders found.</td></tr>
             )}
             {rows.map((r, index) => (
               <ExpenseRow
@@ -283,8 +322,8 @@ export function ExpensesTable({ rows, orderType, isAdmin, colSpan, otherPagesTot
                 <td className="td text-right">{totalCell(totals.production)}</td>
                 {orderType === "BULK" && <td className="td text-right">{totalCell(totals.accessory)}</td>}
                 {orderType === "BULK" && <td className="td text-right">{totalCell(totals.other)}</td>}
-                <td className="td text-right sticky right-20 z-10 w-28 border-l border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-800">{totalCell(totals.profit)}</td>
-                <td className="td sticky right-0 z-10 w-20 bg-stone-50 dark:bg-stone-800" />
+                <td className="td text-right sticky right-28 z-10 w-36 border-l border-l-stone-200 dark:border-l-stone-700 bg-stone-50 dark:bg-stone-800">{totalCell(totals.profit)}</td>
+                <td className="td sticky right-0 z-10 w-28 bg-stone-50 dark:bg-stone-800" />
               </tr>
             </tfoot>
           )}
