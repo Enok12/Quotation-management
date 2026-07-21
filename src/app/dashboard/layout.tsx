@@ -4,6 +4,7 @@ import { ForbiddenError } from "@/lib/api/errors";
 import { prisma } from "@/lib/db";
 import { getBusinessAccess, hasSection } from "@/lib/section-access";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
+import { DailyReminders } from "@/components/dashboard/daily-reminders";
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   let businessId: string, role: string, userId: string;
@@ -54,6 +55,11 @@ export default async function DashboardLayout({ children }: { children: React.Re
           Your business's subscription is {access.subscriptionStatus === "EXPIRED" ? "expired" : "cancelled"} — contact your administrator to restore access.
         </div>
       )}
+      {/* Lives in the layout (not the dashboard page) so the first visit of
+          the day surfaces reminders no matter which dashboard page is landed
+          on — a bookmarked /dashboard/receipts should get them too. It gates
+          itself on its own once-per-day flag. */}
+      <DailyReminders />
       {children}
     </DashboardShell>
   );
