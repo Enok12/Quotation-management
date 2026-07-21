@@ -14,6 +14,7 @@ import { ItemStatusPanel } from "@/components/receipts/item-status-panel";
 import { RecordPaymentButton } from "@/components/receipts/record-payment-button";
 import { ExpenseEditorCard } from "@/components/receipts/expense-editor-card";
 import { VersionHistory } from "@/components/receipts/version-history";
+import { receiptNumberLabel } from "@/lib/utils/receipt-number";
 
 interface Props { params: Promise<{ id: string }> }
 export const metadata = { title: "Receipt" };
@@ -51,7 +52,9 @@ export default async function ReceiptDetailPage({ params }: Props) {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-3 flex-wrap">
             <h1 className="font-serif text-3xl text-ink">
-              {receipt.receiptNumber !== null ? `Receipt #${receipt.receiptNumber}` : "Unconfirmed Order"}
+              {receipt.receiptNumber !== null
+                ? `Receipt ${receiptNumberLabel(receipt.receiptNumber, receipt.orderType)}`
+                : "Unconfirmed Order"}
             </h1>
             <CategoryBadge category={receipt.category} />
             <OrderTypeBadge type={receipt.orderType} />
@@ -85,11 +88,11 @@ export default async function ReceiptDetailPage({ params }: Props) {
               orderType={receipt.orderType}
             />
           )}
-          <GeneratePdfButton receiptId={id} receiptNumber={receipt.receiptNumber} custName={receipt.custName} />
+          <GeneratePdfButton receiptId={id} receiptNumber={receipt.receiptNumber} custName={receipt.custName} orderType={receipt.orderType} />
           <LinkButton href={`/dashboard/receipts/${id}/edit`} className="btn-outline" icon={<Edit size={14} />} iconSize={14}>
             Edit
           </LinkButton>
-          <DeleteReceiptButton receiptId={id} receiptNumber={receipt.receiptNumber} />
+          <DeleteReceiptButton receiptId={id} receiptNumber={receipt.receiptNumber} orderType={receipt.orderType} />
         </div>
       </div>
 

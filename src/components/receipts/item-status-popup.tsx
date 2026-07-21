@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { Layers, X } from "lucide-react";
 import { OrderStatusBadge } from "./status-badges";
+import { receiptNumberLabelOr, type ReceiptOrderType } from "@/lib/utils/receipt-number";
 
 interface Item {
   id: string;
@@ -20,11 +21,13 @@ interface Item {
 export function ItemStatusPopup({
   receiptId,
   receiptNumber,
+  orderType,
   custName,
   items,
 }: {
   receiptId: string;
   receiptNumber: number | null;
+  orderType: ReceiptOrderType;
   custName: string;
   items: Item[];
 }) {
@@ -48,7 +51,7 @@ export function ItemStatusPopup({
             <div className="flex items-start justify-between mb-4">
               <div>
                 <h3 className="font-serif text-xl text-ink">
-                  {receiptNumber !== null ? `#${receiptNumber}` : "Unconfirmed"}
+                  {receiptNumberLabelOr(receiptNumber, orderType)}
                 </h3>
                 <p className="text-stone-500 text-sm">{custName}</p>
               </div>

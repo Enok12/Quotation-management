@@ -8,6 +8,7 @@ import { PaymentStatusBadge, OrderStatusBadge } from "@/components/receipts/stat
 import { LinkButton } from "@/components/ui/link-button";
 import { DeleteCustomerButton } from "@/components/customers/delete-customer-button";
 import { EditCustomerButton } from "@/components/customers/edit-customer-button";
+import { receiptNumberLabelOr } from "@/lib/utils/receipt-number";
 
 interface Props { params: Promise<{ id: string }> }
 
@@ -21,7 +22,7 @@ export default async function CustomerDetailPage({ params }: Props) {
       receipts: {
         orderBy: { createdAt: "desc" },
         select: {
-          id: true, receiptNumber: true, date: true,
+          id: true, receiptNumber: true, date: true, orderType: true,
           totalDue: true, balance: true, paymentStatus: true, orderStatus: true,
         },
       },
@@ -125,7 +126,7 @@ export default async function CustomerDetailPage({ params }: Props) {
               )}
               {customer.receipts.map((r) => (
                 <tr key={r.id} className="hover:bg-stone-25 dark:hover:bg-white/5 transition-colors">
-                  <td className="td font-mono text-xs text-stone-500">#{r.receiptNumber}</td>
+                  <td className="td font-mono text-xs text-stone-500">{receiptNumberLabelOr(r.receiptNumber, r.orderType)}</td>
                   <td className="td text-stone-600">{fmtDate(r.date)}</td>
                   <td className="td text-right font-mono text-sm">{fmtMoney(r.totalDue)}</td>
                   <td className="td text-right font-mono text-sm">{fmtMoney(r.balance)}</td>

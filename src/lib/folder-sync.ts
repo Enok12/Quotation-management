@@ -2,6 +2,7 @@
 
 import { FOLDER_NAMES, ALL_FOLDER_KEYS, CATEGORY_NAMES, ALL_CATEGORIES, type FolderKey, type Category } from "@/lib/order-folder";
 import { receiptFileName, draftReceiptFileName } from "@/lib/utils/receipt-filename";
+import { SAMPLE_PREFIX, receiptNumberLabel, type ReceiptOrderType } from "@/lib/utils/receipt-number";
 
 // ---------------------------------------------------------------------------
 // Browser → local-disk folder sync (File System Access API, Chrome/Edge only).
@@ -52,21 +53,38 @@ export function isFolderSyncSupported(): boolean {
   return typeof window !== "undefined" && "showDirectoryPicker" in window;
 }
 
-// e.g. "John Doe", 12 → "John_Doe-12.pdf"
+// e.g. "John Doe", 12, "BULK" → "12-John_Doe.pdf"
 const fileName = receiptFileName;
 
-// Matches either the current "<N>-Customer_Name.pdf" naming (number leads) or
-// an older naming with the number trailing ("Customer_Name-<N>.pdf", or the
-// original "receipt-<N>.pdf"), so files already synced under a previous
-// naming scheme are still recognized by their receipt number — otherwise a
-// re-sync wouldn't find them, and would place a duplicate under the new name
-// instead of renaming the existing one.
-const RECEIPT_FILE = /^(\d+)-.*\.pdf$|-(\d+)\.pdf$/i;
-const receiptFileNumber = (name: string): number | null => {
-  const m = name.match(RECEIPT_FILE);
-  if (!m) return null;
-  return Number(m[1] ?? m[2]);
-};
+// A numbered file's identity is (orderType, number), NOT number alone — Bulk
+// and Sample are separate sequences, so "1-Kamal.pdf" and "S-01-Kamal.pdf"
+// are two different orders that must never be mistaken for each other.
+// Matching on the number alone would make placing Bulk #1 delete Sample #1's
+// PDF (and vice versa), and would make orphan cleanup remove live files.
+const SAMPLE_FILE = new RegExp(`^${SAMPLE_PREFIX}(\\d+)-.*\\.pdf$`, "i");
+// Bulk: the current "<N>-Customer_Name.pdf" naming (number leads), or an
+// older naming with the number trailing ("Customer_Name-<N>.pdf", or the
+// original "receipt-<N>.pdf"), so files synced under a previous scheme are
+// still recognized and get renamed in place rather than duplicated. Every
+// legacy-named file is Bulk by definition — Samples never had numbers before
+// the sequences were split.
+const BULK_FILE = /^(\d+)-.*\.pdf$|-(\d+)\.pdf$/i;
+
+interface ParsedReceiptFile { number: number; orderType: ReceiptOrderType }
+
+function parseReceiptFile(name: string): ParsedReceiptFile | null {
+  // Sample is checked first: "S-01-Name.pdf" must not fall through to the
+  // bulk patterns.
+  const sample = name.match(SAMPLE_FILE);
+  if (sample) return { number: Number(sample[1]), orderType: "SAMPLE" };
+  const bulk = name.match(BULK_FILE);
+  if (bulk) return { number: Number(bulk[1] ?? bulk[2]), orderType: "BULK" };
+  return null;
+}
+
+/** Stable key for "this exact invoice", across both sequences. */
+const invoiceKey = (number: number, orderType: ReceiptOrderType) => `${orderType}:${number}`;
+
 // Draft (Unconfirmed) files are keyed by the receipt's own id, not a number.
 const DRAFT_FILE = /-draft-([a-zA-Z0-9]+)\.pdf$/i;
 
@@ -172,7 +190,7 @@ async function fetchInvoicePdf(receiptId: string): Promise<ArrayBuffer> {
   return res.arrayBuffer();
 }
 
-interface FolderFile { name: string; number: number }
+interface FolderFile { name: string; number: number; orderType: ReceiptOrderType }
 
 /** Get the (category, folder) directory two levels down from root. */
 async function getPathDir(root: DirHandle, path: FolderPath, create: boolean): Promise<DirHandle | null> {
@@ -190,8 +208,8 @@ async function listFolderFiles(root: DirHandle, path: FolderPath): Promise<Folde
   const dir = await getPathDir(root, path, false);
   if (!dir) return results;
   for await (const name of dir.keys()) {
-    const number = receiptFileNumber(name);
-    if (number !== null) results.push({ name, number });
+    const parsed = parseReceiptFile(name);
+    if (parsed) results.push({ name, number: parsed.number, orderType: parsed.orderType });
   }
   return results;
 }
@@ -208,11 +226,15 @@ async function listDraftIds(root: DirHandle, path: FolderPath): Promise<Set<stri
   return ids;
 }
 
-/** Remove every file for this receipt number across all category/folder paths. */
-async function removeAllCopies(root: DirHandle, receiptNumber: number) {
+/**
+ * Remove every file for this exact invoice across all category/folder paths.
+ * Matches on BOTH number and order type — Bulk #1 and Sample #1 are different
+ * orders, so this must never touch the other sequence's file.
+ */
+async function removeAllCopies(root: DirHandle, receiptNumber: number, orderType: ReceiptOrderType) {
   for (const path of ALL_PATHS) {
     for (const f of await listFolderFiles(root, path)) {
-      if (f.number !== receiptNumber) continue;
+      if (f.number !== receiptNumber || f.orderType !== orderType) continue;
       try {
         const dir = await getPathDir(root, path, false);
         await dir?.removeEntry(f.name);
@@ -241,17 +263,24 @@ async function removeDraftCopy(root: DirHandle, receiptId: string) {
   }
 }
 
-async function placeInvoice(root: DirHandle, receiptId: string, receiptNumber: number | null, custName: string, path: FolderPath) {
+async function placeInvoice(
+  root: DirHandle,
+  receiptId: string,
+  receiptNumber: number | null,
+  custName: string,
+  orderType: ReceiptOrderType,
+  path: FolderPath,
+) {
   const bytes = await fetchInvoicePdf(receiptId);
 
   // Clear out any existing draft first — this call may be the exact moment an
   // order gets confirmed (draft → numbered), or just a redundant re-place.
   await removeDraftCopy(root, receiptId);
-  if (receiptNumber !== null) await removeAllCopies(root, receiptNumber);
+  if (receiptNumber !== null) await removeAllCopies(root, receiptNumber, orderType);
 
   const dir = await getPathDir(root, path, true);
   if (!dir) throw new Error(`Could not create ${pathLabel(path)}`);
-  const name = receiptNumber !== null ? fileName(receiptNumber, custName) : draftReceiptFileName(receiptId, custName);
+  const name = receiptNumber !== null ? fileName(receiptNumber, custName, orderType) : draftReceiptFileName(receiptId, custName);
   const file = await dir.getFileHandle(name, { create: true });
   const writable = await file.createWritable();
   await writable.write(bytes);
@@ -267,13 +296,14 @@ export async function moveInvoiceIfConnected(
   receiptId: string,
   receiptNumber: number | null,
   custName: string,
+  orderType: ReceiptOrderType,
   category: Category,
   folder: FolderKey,
 ): Promise<boolean> {
   try {
     const handle = await getSavedHandle();
     if (!handle || !(await hasPermission(handle))) return false;
-    await placeInvoice(handle, receiptId, receiptNumber, custName, { category, folder });
+    await placeInvoice(handle, receiptId, receiptNumber, custName, orderType, { category, folder });
     return true;
   } catch {
     return false;
@@ -281,12 +311,16 @@ export async function moveInvoiceIfConnected(
 }
 
 /** Remove a receipt's PDF (draft or numbered) from every folder — used when a receipt is deleted. */
-export async function removeInvoiceFromFolders(receiptId: string, receiptNumber: number | null): Promise<boolean> {
+export async function removeInvoiceFromFolders(
+  receiptId: string,
+  receiptNumber: number | null,
+  orderType: ReceiptOrderType,
+): Promise<boolean> {
   try {
     const handle = await getSavedHandle();
     if (!handle || !(await hasPermission(handle))) return false;
     await removeDraftCopy(handle, receiptId);
-    if (receiptNumber !== null) await removeAllCopies(handle, receiptNumber);
+    if (receiptNumber !== null) await removeAllCopies(handle, receiptNumber, orderType);
     return true;
   } catch {
     return false;
@@ -297,12 +331,13 @@ export interface SyncItem {
   id: string;
   receiptNumber: number | null;
   custName: string;
+  orderType: ReceiptOrderType;
   category: Category;
   folder: FolderKey;
 }
 
 export interface DiffDetail {
-  label: string; // "#12" for a confirmed receipt, "Unconfirmed order" for a draft
+  label: string; // "#12" / "S-01" for a confirmed receipt, "Unconfirmed order" for a draft
   issue: "missing" | "misfiled" | "orphan";
   from?: string;
   to?: string;
@@ -328,35 +363,46 @@ export async function diffFolders(items: SyncItem[]): Promise<FolderDiff> {
   if (!handle) throw new Error("No folder connected");
   if (!(await hasPermission(handle))) throw new Error("Folder permission needed");
 
-  const presentNumbers: Record<string, Set<number>> = {};
+  // Keyed by "ORDERTYPE:number", never number alone — Bulk #1 and Sample #1
+  // are different invoices and must diff independently.
+  const presentNumbers: Record<string, Set<string>> = {};
   const presentDrafts: Record<string, Set<string>> = {};
   for (const path of ALL_PATHS) {
-    presentNumbers[pathKey(path)] = new Set((await listFolderFiles(handle, path)).map((f) => f.number));
+    presentNumbers[pathKey(path)] = new Set(
+      (await listFolderFiles(handle, path)).map((f) => invoiceKey(f.number, f.orderType)),
+    );
     presentDrafts[pathKey(path)] = await listDraftIds(handle, path);
   }
 
-  const expectedNumbered = new Map<number, FolderPath>();
+  const expectedNumbered = new Map<string, { path: FolderPath; label: string }>();
   const expectedDrafts = new Map<string, FolderPath>();
   for (const it of items) {
-    if (it.receiptNumber !== null) expectedNumbered.set(it.receiptNumber, { category: it.category, folder: it.folder });
-    else expectedDrafts.set(it.id, { category: it.category, folder: it.folder });
+    const path = { category: it.category, folder: it.folder };
+    if (it.receiptNumber !== null) {
+      expectedNumbered.set(invoiceKey(it.receiptNumber, it.orderType), {
+        path,
+        label: receiptNumberLabel(it.receiptNumber, it.orderType),
+      });
+    } else {
+      expectedDrafts.set(it.id, path);
+    }
   }
 
   let upToDate = 0, missing = 0, misfiled = 0, orphan = 0;
   const details: DiffDetail[] = [];
 
-  for (const [num, targetPath] of expectedNumbered) {
+  for (const [key, { path: targetPath, label }] of expectedNumbered) {
     const targetKey = pathKey(targetPath);
-    const inTarget = presentNumbers[targetKey]?.has(num) ?? false;
-    const elsewhere = ALL_PATHS.find((p) => pathKey(p) !== targetKey && presentNumbers[pathKey(p)]?.has(num));
+    const inTarget = presentNumbers[targetKey]?.has(key) ?? false;
+    const elsewhere = ALL_PATHS.find((p) => pathKey(p) !== targetKey && presentNumbers[pathKey(p)]?.has(key));
     if (inTarget && !elsewhere) {
       upToDate++;
     } else if (!inTarget && !elsewhere) {
       missing++;
-      details.push({ label: `#${num}`, issue: "missing", to: pathLabel(targetPath) });
+      details.push({ label, issue: "missing", to: pathLabel(targetPath) });
     } else {
       misfiled++;
-      details.push({ label: `#${num}`, issue: "misfiled", from: elsewhere && pathLabel(elsewhere), to: pathLabel(targetPath) });
+      details.push({ label, issue: "misfiled", from: elsewhere && pathLabel(elsewhere), to: pathLabel(targetPath) });
     }
   }
 
@@ -377,10 +423,11 @@ export async function diffFolders(items: SyncItem[]): Promise<FolderDiff> {
 
   // Files on disk for receipts the app doesn't know about.
   for (const path of ALL_PATHS) {
-    for (const num of presentNumbers[pathKey(path)]) {
-      if (!expectedNumbered.has(num)) {
+    for (const key of presentNumbers[pathKey(path)]) {
+      if (!expectedNumbered.has(key)) {
         orphan++;
-        details.push({ label: `#${num}`, issue: "orphan", from: pathLabel(path) });
+        const [type, num] = key.split(":");
+        details.push({ label: receiptNumberLabel(Number(num), type as ReceiptOrderType), issue: "orphan", from: pathLabel(path) });
       }
     }
     for (const id of presentDrafts[pathKey(path)]) {
@@ -412,7 +459,7 @@ export async function syncAll(items: SyncItem[], onProgress?: (done: number, tot
   let synced = 0, failed = 0;
   for (let i = 0; i < items.length; i++) {
     try {
-      await placeInvoice(handle, items[i].id, items[i].receiptNumber, items[i].custName, {
+      await placeInvoice(handle, items[i].id, items[i].receiptNumber, items[i].custName, items[i].orderType, {
         category: items[i].category, folder: items[i].folder,
       });
       synced++;
@@ -424,11 +471,16 @@ export async function syncAll(items: SyncItem[], onProgress?: (done: number, tot
 
   // Remove orphaned files — numbered ones with no matching receipt, and
   // drafts for receipts that are no longer Unconfirmed (or gone entirely).
-  const knownNumbers = new Set(items.filter((it) => it.receiptNumber !== null).map((it) => it.receiptNumber as number));
+  // Keyed by type+number: keying by number alone would treat Sample #1 as
+  // "known" because Bulk #1 exists (leaving a stale file behind), and would
+  // delete a live file whenever only the other sequence had that number.
+  const knownInvoices = new Set(
+    items.filter((it) => it.receiptNumber !== null).map((it) => invoiceKey(it.receiptNumber as number, it.orderType)),
+  );
   const knownDraftIds = new Set(items.filter((it) => it.receiptNumber === null).map((it) => it.id));
   for (const path of ALL_PATHS) {
     for (const f of await listFolderFiles(handle, path)) {
-      if (!knownNumbers.has(f.number)) {
+      if (!knownInvoices.has(invoiceKey(f.number, f.orderType))) {
         try {
           const dir = await getPathDir(handle, path, false);
           await dir?.removeEntry(f.name);

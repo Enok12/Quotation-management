@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Trash2, Loader2, X, AlertTriangle } from "lucide-react";
 import { removeInvoiceFromFolders } from "@/lib/folder-sync";
+import type { ReceiptOrderType } from "@/lib/utils/receipt-number";
 
 // Deletes a customer. Warns up front that this also permanently deletes all
 // of their receipts (and each receipt's items/payments/history), then cleans
@@ -34,8 +35,8 @@ export function DeleteCustomerButton({
       const json = await res.json();
       if (!json.success) throw new Error(json.message ?? "Failed to delete customer");
 
-      const receipts: { id: string; receiptNumber: number | null }[] = json.data?.receipts ?? [];
-      await Promise.all(receipts.map((r) => removeInvoiceFromFolders(r.id, r.receiptNumber)));
+      const receipts: { id: string; receiptNumber: number | null; orderType: ReceiptOrderType }[] = json.data?.receipts ?? [];
+      await Promise.all(receipts.map((r) => removeInvoiceFromFolders(r.id, r.receiptNumber, r.orderType)));
 
       router.push("/dashboard/customers");
       router.refresh();

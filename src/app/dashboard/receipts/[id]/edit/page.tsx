@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { ReceiptBuilder } from "@/components/receipts/receipt-builder";
+import { receiptNumberLabelOr } from "@/lib/utils/receipt-number";
 
 interface Props { params: Promise<{ id: string }> }
 export const metadata = { title: "Edit Receipt" };
@@ -54,7 +55,7 @@ export default async function EditReceiptPage({ params }: Props) {
     <div className="flex flex-col h-screen">
       <div className="flex items-center gap-3 sm:gap-4 px-4 py-3 sm:px-6 border-b border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 flex-none flex-wrap">
         <Link href={`/dashboard/receipts/${id}`} className="btn-ghost text-xs py-1">
-          <ArrowLeft size={14} /> Receipt #{receipt.receiptNumber}
+          <ArrowLeft size={14} /> Receipt {receiptNumberLabelOr(receipt.receiptNumber, receipt.orderType)}
         </Link>
         <span className="text-stone-300 hidden sm:inline">|</span>
         <span className="text-sm text-stone-500">

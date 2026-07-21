@@ -11,6 +11,7 @@ import { DateRangeFilter } from "@/components/dashboard/date-range-filter";
 import { LinkButton } from "@/components/ui/link-button";
 import { DeleteReceiptButton } from "@/components/receipts/delete-receipt-button";
 import { dateRangeFilter } from "@/lib/utils/date-range";
+import { receiptNumberLabel } from "@/lib/utils/receipt-number";
 
 interface Props {
   searchParams: Promise<{ page?: string; status?: string; orderStatus?: string; search?: string; from?: string; to?: string }>;
@@ -40,7 +41,7 @@ export default async function ReceiptsPage({ searchParams }: Props) {
       skip: (page - 1) * pageSize,
       take: pageSize,
       select: {
-        id: true, receiptNumber: true, custName: true, date: true,
+        id: true, receiptNumber: true, custName: true, date: true, orderType: true,
         totalDue: true, balance: true, paymentStatus: true, orderStatus: true, createdAt: true,
         items: {
           select: { id: true, description: true, quantity: true, orderStatus: true },
@@ -113,7 +114,9 @@ export default async function ReceiptsPage({ searchParams }: Props) {
               {receipts.map((r) => (
                 <tr key={r.id} className="hover:bg-stone-25 dark:hover:bg-white/5 transition-colors">
                   <td className="td font-mono text-xs text-stone-500">
-                    {r.receiptNumber !== null ? `#${r.receiptNumber}` : <span className="text-amber-600">Unconfirmed</span>}
+                    {r.receiptNumber !== null
+                      ? receiptNumberLabel(r.receiptNumber, r.orderType)
+                      : <span className="text-amber-600">Unconfirmed</span>}
                   </td>
                   <td className="td font-medium">
                     <Link href={`/dashboard/receipts/${r.id}`} className="hover:text-amber-600 transition-colors">
@@ -127,12 +130,12 @@ export default async function ReceiptsPage({ searchParams }: Props) {
                   <td className="td">
                     <div className="flex items-center gap-2">
                       <OrderProgressBadge status={r.orderStatus} />
-                      <ItemStatusPopup receiptId={r.id} receiptNumber={r.receiptNumber} custName={r.custName} items={r.items} />
+                      <ItemStatusPopup receiptId={r.id} receiptNumber={r.receiptNumber} orderType={r.orderType} custName={r.custName} items={r.items} />
                     </div>
                   </td>
                   <td className="td">
                     <div className="flex items-center justify-center">
-                      <DeleteReceiptButton receiptId={r.id} receiptNumber={r.receiptNumber} iconOnly />
+                      <DeleteReceiptButton receiptId={r.id} receiptNumber={r.receiptNumber} orderType={r.orderType} iconOnly />
                     </div>
                   </td>
                 </tr>

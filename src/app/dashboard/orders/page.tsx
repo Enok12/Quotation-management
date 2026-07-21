@@ -44,7 +44,7 @@ export default async function OrdersPage({ searchParams }: Props) {
       skip: (page - 1) * pageSize,
       take: pageSize,
       select: {
-        id: true, receiptNumber: true, custName: true, date: true,
+        id: true, receiptNumber: true, custName: true, date: true, orderType: true,
         totalDue: true, balance: true,
       },
     }),
@@ -98,6 +98,7 @@ export default async function OrdersPage({ searchParams }: Props) {
                   key={r.id}
                   receiptId={r.id}
                   receiptNumber={r.receiptNumber as number}
+                  orderType={r.orderType}
                   custName={r.custName}
                   date={r.date}
                   totalDue={Number(r.totalDue)}

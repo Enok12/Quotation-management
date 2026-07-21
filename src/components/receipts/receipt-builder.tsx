@@ -252,7 +252,7 @@ export function ReceiptBuilder({ customer, defaultValues, mode = "create", retur
       // Unconfirmed bulk order gets a draft placed in the Unconfirmed folder.
       const saved = json.data;
       await moveInvoiceIfConnected(
-        saved.id, saved.receiptNumber, saved.custName,
+        saved.id, saved.receiptNumber, saved.custName, saved.orderType,
         saved.category, deriveFolder(saved.orderType, saved.paymentStatus, saved.receiptNumber),
       );
 

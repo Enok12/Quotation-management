@@ -4,16 +4,21 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Trash2, Loader2, X } from "lucide-react";
 import { removeInvoiceFromFolders } from "@/lib/folder-sync";
+import { receiptNumberLabel, type ReceiptOrderType } from "@/lib/utils/receipt-number";
 
 // Delete a receipt (e.g. a rejected sample). Confirms first, then removes its
 // PDF from the computer folder.
 export function DeleteReceiptButton({
   receiptId,
   receiptNumber,
+  orderType,
   iconOnly = false,
 }: {
   receiptId: string;
   receiptNumber: number | null;
+  /** Bulk and Sample number independently, so removing the right PDF needs
+   * both the number and the type — Bulk #1 and Sample #1 are different files. */
+  orderType: ReceiptOrderType;
   /** Render a compact icon-only trigger (e.g. for a dense table row) instead
    * of the full labeled button. Skips the redirect-to-list navigation, since
    * the caller is already on a list page. */
@@ -30,7 +35,7 @@ export function DeleteReceiptButton({
       const json = await res.json();
       if (!json.success) throw new Error(json.message ?? "Failed to delete");
       // Cleans up whichever it had — a draft (Unconfirmed) or a numbered file.
-      await removeInvoiceFromFolders(receiptId, receiptNumber);
+      await removeInvoiceFromFolders(receiptId, receiptNumber, orderType);
       if (!iconOnly) router.push("/dashboard/receipts");
       router.refresh();
     } catch (e) {
@@ -61,7 +66,7 @@ export function DeleteReceiptButton({
           <div className="bg-white dark:bg-stone-800 rounded-lg shadow-xl w-full max-w-sm p-6 modal-panel-in" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-start justify-between mb-3">
               <h3 className="font-serif text-xl text-ink">
-                Delete {receiptNumber !== null ? `receipt #${receiptNumber}` : "this unconfirmed order"}?
+                Delete {receiptNumber !== null ? `receipt ${receiptNumberLabel(receiptNumber, orderType)}` : "this unconfirmed order"}?
               </h3>
               <button onClick={() => !loading && setOpen(false)} className="text-stone-400 hover:text-ink"><X size={18} /></button>
             </div>

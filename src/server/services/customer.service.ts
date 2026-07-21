@@ -65,7 +65,9 @@ export const customerService = {
       // has no cascade, so it would otherwise block the delete.
       await tx.customerInvite.updateMany({ where: { customerId: id }, data: { customerId: null } });
 
-      const receipts = await tx.receipt.findMany({ where: { customerId: id }, select: { id: true, receiptNumber: true } });
+      // orderType comes back too: Bulk and Sample number independently, so
+      // the caller needs both to delete the right PDF from the synced folder.
+      const receipts = await tx.receipt.findMany({ where: { customerId: id }, select: { id: true, receiptNumber: true, orderType: true } });
       await tx.receipt.deleteMany({ where: { customerId: id } });
 
       await tx.customer.delete({ where: { id } });
@@ -75,7 +77,7 @@ export const customerService = {
         metadata: { name: customer.name, receiptsDeleted: receipts.length },
       });
 
-      return { id, receipts: receipts.map((r) => ({ id: r.id, receiptNumber: r.receiptNumber })) };
+      return { id, receipts: receipts.map((r) => ({ id: r.id, receiptNumber: r.receiptNumber, orderType: r.orderType })) };
     });
   },
 };

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Users, FileText, Package, CheckCircle, Layers, Scissors, Factory, ShieldCheck, Truck, Boxes, FlaskConical, PartyPopper, HelpCircle } from "lucide-react";
 import { fmtMoney, fmtDate } from "@/lib/utils/format";
 import { PaymentStatusBadge, OrderStatusBadge } from "@/components/receipts/status-badges";
+import { receiptNumberLabel } from "@/lib/utils/receipt-number";
 
 async function getStats(businessId: string) {
   const [totalCustomers, totalReceipts, unconfirmed, bulk, sample, completed, byStage] = await Promise.all([
@@ -37,7 +38,7 @@ async function getRecentReceipts(businessId: string) {
     take: 8,
     orderBy: { createdAt: "desc" },
     select: {
-      id: true, receiptNumber: true, custName: true, date: true,
+      id: true, receiptNumber: true, custName: true, date: true, orderType: true,
       totalDue: true, balance: true, paymentStatus: true, orderStatus: true,
     },
   });
@@ -123,7 +124,9 @@ export default async function DashboardPage() {
               {recent.map((r) => (
                 <tr key={r.id} className="hover:bg-stone-25 dark:hover:bg-white/5 transition-colors">
                   <td className="td font-mono text-stone-500 text-xs">
-                    {r.receiptNumber !== null ? `#${r.receiptNumber}` : <span className="text-amber-600">Unconfirmed</span>}
+                    {r.receiptNumber !== null
+                      ? receiptNumberLabel(r.receiptNumber, r.orderType)
+                      : <span className="text-amber-600">Unconfirmed</span>}
                   </td>
                   <td className="td font-medium">
                     <Link href={`/dashboard/receipts/${r.id}`} className="hover:text-amber-600 transition-colors">

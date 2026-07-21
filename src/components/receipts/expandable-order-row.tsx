@@ -7,6 +7,7 @@ import { fmtMoney, fmtDate } from "@/lib/utils/format";
 import { OrderStatusBadge } from "@/components/receipts/status-badges";
 import { OrderStatusSelect } from "@/components/receipts/order-status-select";
 import type { OrderStage } from "@/lib/order-stage";
+import { receiptNumberLabel, type ReceiptOrderType } from "@/lib/utils/receipt-number";
 
 interface Item {
   id: string;
@@ -17,6 +18,7 @@ interface Item {
 interface Props {
   receiptId: string;
   receiptNumber: number;
+  orderType: ReceiptOrderType;
   custName: string;
   date: string | Date;
   totalDue: number;
@@ -26,7 +28,7 @@ interface Props {
 // One row in the Production list. Collapsed by default — items are only
 // fetched the first time a row is expanded, not up front for every row on
 // the page, so the list stays cheap regardless of how many orders are shown.
-export function ExpandableOrderRow({ receiptId, receiptNumber, custName, date, totalDue, balance }: Props) {
+export function ExpandableOrderRow({ receiptId, receiptNumber, orderType, custName, date, totalDue, balance }: Props) {
   const [expanded, setExpanded] = useState(false);
   const [items, setItems] = useState<Item[] | null>(null);
   const [loading, setLoading] = useState(false);
@@ -74,7 +76,7 @@ export function ExpandableOrderRow({ receiptId, receiptNumber, custName, date, t
             {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
           </button>
         </td>
-        <td className="td font-mono text-xs text-stone-500">#{receiptNumber}</td>
+        <td className="td font-mono text-xs text-stone-500">{receiptNumberLabel(receiptNumber, orderType)}</td>
         <td className="td font-medium">
           <Link href={`/dashboard/receipts/${receiptId}`} className="hover:text-amber-600 transition-colors">
             {custName}

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Wallet, X, Loader2 } from "lucide-react";
 import { moveInvoiceIfConnected } from "@/lib/folder-sync";
 import { deriveFolder } from "@/lib/order-folder";
+import { receiptNumberLabel, type ReceiptOrderType } from "@/lib/utils/receipt-number";
 
 const METHODS = [
   { value: "", label: "—" },
@@ -29,7 +30,7 @@ export function RecordPaymentButton({
   totalDue: number;
   advanceAmount?: number;
   amountPaid?: number;
-  orderType?: string;
+  orderType?: ReceiptOrderType;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -66,7 +67,7 @@ export function RecordPaymentButton({
       // what just confirmed an Unconfirmed order, the prop is still stale (null).
       const confirmedNumber: number = json.data.receiptNumber;
       await moveInvoiceIfConnected(
-        receiptId, confirmedNumber, custName, json.data.category,
+        receiptId, confirmedNumber, custName, orderType, json.data.category,
         deriveFolder(orderType, json.data.paymentStatus, confirmedNumber),
       );
 
@@ -93,7 +94,7 @@ export function RecordPaymentButton({
               <div>
                 <h3 className="font-serif text-xl text-ink">Record a payment</h3>
                 <p className="text-sm text-stone-500 mt-0.5">
-                  {receiptNumber !== null ? `Receipt #${receiptNumber}` : "Unconfirmed order"} · {remaining.toLocaleString()} still due
+                  {receiptNumber !== null ? `Receipt ${receiptNumberLabel(receiptNumber, orderType)}` : "Unconfirmed order"} · {remaining.toLocaleString()} still due
                 </p>
               </div>
               <button onClick={() => !saving && setOpen(false)} className="text-stone-400 hover:text-ink"><X size={18} /></button>

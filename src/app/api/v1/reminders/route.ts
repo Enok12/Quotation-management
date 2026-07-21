@@ -43,7 +43,7 @@ export const GET = handler(async () => {
       take: LIMIT,
       select: {
         id: true, receiptNumber: true, custName: true, date: true,
-        balance: true, orderStatus: true,
+        balance: true, orderStatus: true, orderType: true,
       },
     }),
   ]);
@@ -57,6 +57,7 @@ export const GET = handler(async () => {
       date: o.date.toISOString(),
       balance: Number(o.balance),
       orderStatus: o.orderStatus,
+      orderType: o.orderType,
     })),
   });
 });

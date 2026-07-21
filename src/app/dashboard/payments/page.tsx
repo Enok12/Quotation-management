@@ -16,6 +16,7 @@ import { deriveFolder, FOLDER_NAMES, type FolderKey } from "@/lib/order-folder";
 import { dateRangeFilter, buildQuery } from "@/lib/utils/date-range";
 import { getBusinessAccess, hasSection } from "@/lib/section-access";
 import { SectionUnavailable } from "@/components/dashboard/section-unavailable";
+import { receiptNumberLabel } from "@/lib/utils/receipt-number";
 
 interface Props { searchParams: Promise<{ folder?: string; page?: string; from?: string; to?: string; search?: string }> }
 export const metadata = { title: "Orders" };
@@ -92,6 +93,7 @@ export default async function OrdersFolderPage({ searchParams }: Props) {
     id: r.id,
     receiptNumber: r.receiptNumber,
     custName: r.custName,
+    orderType: r.orderType,
     category: r.category,
     folder: deriveFolder(r.orderType, r.paymentStatus, r.receiptNumber),
   }));
@@ -153,7 +155,9 @@ export default async function OrdersFolderPage({ searchParams }: Props) {
               {receipts.map((r) => (
                 <tr key={r.id} className="hover:bg-stone-25 dark:hover:bg-white/5 transition-colors">
                   <td className="td font-mono text-xs text-stone-500">
-                    {r.receiptNumber !== null ? `#${r.receiptNumber}` : <span className="text-amber-600">Unconfirmed</span>}
+                    {r.receiptNumber !== null
+                      ? receiptNumberLabel(r.receiptNumber, r.orderType)
+                      : <span className="text-amber-600">Unconfirmed</span>}
                   </td>
                   <td className="td font-medium">
                     <Link href={`/dashboard/receipts/${r.id}`} className="hover:text-amber-600 transition-colors">
@@ -206,7 +210,7 @@ export default async function OrdersFolderPage({ searchParams }: Props) {
                           orderType={r.orderType}
                         />
                       )}
-                      <DeleteReceiptButton receiptId={r.id} receiptNumber={r.receiptNumber} iconOnly />
+                      <DeleteReceiptButton receiptId={r.id} receiptNumber={r.receiptNumber} orderType={r.orderType} iconOnly />
                     </div>
                   </td>
                 </tr>

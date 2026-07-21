@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Bell, X } from "lucide-react";
 import { fmtDate, fmtMoney } from "@/lib/utils/format";
 import { OrderProgressBadge } from "@/components/receipts/status-badges";
+import { receiptNumberLabelOr, type ReceiptOrderType } from "@/lib/utils/receipt-number";
 
 interface ReminderOrder {
   id: string;
@@ -13,6 +14,7 @@ interface ReminderOrder {
   date: string;
   balance: number;
   orderStatus: string;
+  orderType: ReceiptOrderType;
 }
 
 const SEEN_KEY = "montra:reminders-seen";
@@ -110,7 +112,7 @@ export function DailyReminders() {
               >
                 <div className="min-w-0">
                   <p className="text-sm text-ink truncate">
-                    <span className="font-mono text-stone-500 text-xs">#{o.receiptNumber}</span> {o.custName}
+                    <span className="font-mono text-stone-500 text-xs">{receiptNumberLabelOr(o.receiptNumber, o.orderType)}</span> {o.custName}
                   </p>
                   <p className="text-xs text-stone-400 mt-0.5">
                     {fmtDate(o.date)}

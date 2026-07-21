@@ -32,7 +32,7 @@ export const POST = handler(async (req: NextRequest, { params }: Ctx) => {
   }
 
   const filename = receipt.receiptNumber !== null
-    ? receiptFileName(receipt.receiptNumber, receipt.custName)
+    ? receiptFileName(receipt.receiptNumber, receipt.custName, receipt.orderType)
     : draftReceiptFileName(receipt.id, receipt.custName);
 
   return new NextResponse(Buffer.from(bytes), {

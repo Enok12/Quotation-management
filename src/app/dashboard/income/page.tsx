@@ -6,6 +6,7 @@ import { PrintButton } from "@/components/income/print-button";
 import { dateRangeFilter } from "@/lib/utils/date-range";
 import { getBusinessAccess, hasSection } from "@/lib/section-access";
 import { SectionUnavailable } from "@/components/dashboard/section-unavailable";
+import { receiptNumberLabelOr } from "@/lib/utils/receipt-number";
 
 interface Props { searchParams: Promise<{ from?: string; to?: string }> }
 export const metadata = { title: "Income" };
@@ -159,7 +160,7 @@ export default async function IncomePage({ searchParams }: Props) {
               {rows.map((r) => (
                 <tr key={r.id} className="hover:bg-stone-25 dark:hover:bg-white/5 transition-colors">
                   <td className="td text-stone-500 text-xs whitespace-nowrap">{fmtDate(r.date)}</td>
-                  <td className="td font-mono text-xs text-stone-500">#{r.receiptNumber}</td>
+                  <td className="td font-mono text-xs text-stone-500">{receiptNumberLabelOr(r.receiptNumber, r.orderType)}</td>
                   <td className="td text-sm">{r.custName}</td>
                   <td className="td text-xs text-stone-500">{r.orderType === "BULK" ? "Bulk" : "Sample"}</td>
                   <td className="td text-right font-mono text-sm">{fmtMoney(r.revenue)}</td>

@@ -1,4 +1,4 @@
-import { Prisma } from "@prisma/client";
+import { Prisma, type OrderType } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { ConflictError, NotFoundError } from "@/lib/api/errors";
 import { calcReceiptTotals, derivePaymentStatus } from "./receipt-calc";
@@ -7,6 +7,7 @@ import { receiptRepository, type FullReceipt } from "../repositories/receipt.rep
 import type { ReceiptCreateInput } from "@/lib/validation/receipt.schema";
 import { generateToken } from "@/lib/utils/token";
 import { bottleneckStage, type OrderStage } from "@/lib/order-stage";
+import { receiptNumberLabel } from "@/lib/utils/receipt-number";
 
 const D = (n: number) => new Prisma.Decimal(n);
 
@@ -16,15 +17,22 @@ const D = (n: number) => new Prisma.Decimal(n);
 // before this existed.
 const isConfirmedState = (orderType: string, amountPaid: number) => orderType !== "BULK" || amountPaid > 0;
 
-// Atomically pulls the next invoice number for a business — each business's
-// numbers start at 1 and increment independently (Business.lastReceiptNumber).
-// Postgres serializes concurrent updates to the same row, so this is race-safe.
-async function nextReceiptNumber(tx: Prisma.TransactionClient, businessId: string): Promise<number> {
+// Atomically pulls the next invoice number for a business. Bulk and Sample
+// draw from two independent counters, so Bulk #1 and Sample #1 can both
+// exist (they're told apart by the "S-" prefix Samples render under — see
+// lib/utils/receipt-number.ts). Postgres serializes concurrent updates to the
+// same row, so this stays race-safe per sequence.
+async function nextReceiptNumber(
+  tx: Prisma.TransactionClient,
+  businessId: string,
+  orderType: OrderType,
+): Promise<number> {
+  const isSample = orderType === "SAMPLE";
   const business = await tx.business.update({
     where: { id: businessId },
-    data: { lastReceiptNumber: { increment: 1 } },
+    data: isSample ? { lastSampleNumber: { increment: 1 } } : { lastReceiptNumber: { increment: 1 } },
   });
-  return business.lastReceiptNumber;
+  return isSample ? business.lastSampleNumber : business.lastReceiptNumber;
 }
 
 export const receiptService = {
@@ -47,7 +55,7 @@ export const receiptService = {
     const confirmedAtCreation = input.startCompleted || isConfirmedState(input.orderType, input.amountPaid);
 
     return prisma.$transaction(async (tx) => {
-      const receiptNumber = confirmedAtCreation ? await nextReceiptNumber(tx, businessId) : null;
+      const receiptNumber = confirmedAtCreation ? await nextReceiptNumber(tx, businessId, input.orderType) : null;
       // Only bulk orders get a public tracking link — samples get none, and
       // an unconfirmed bulk order doesn't have one yet either.
       const trackingToken = input.orderType === "BULK" && confirmedAtCreation ? generateToken() : null;
@@ -117,6 +125,16 @@ export const receiptService = {
   // fixing a price typo) must not silently reset.
   async update(id: string, input: ReceiptCreateInput, actorId: string, businessId: string) {
     const existing = await this.getFull(id, businessId);
+    // Bulk and Sample are separate invoice sequences, so a receipt's type is
+    // baked into the number it was issued. Switching type afterwards would
+    // either strand it in the wrong sequence or force renumbering a document
+    // the customer already has — so it's refused once a number exists.
+    // Still free to switch while Unconfirmed, which is the usual case.
+    if (existing.receiptNumber !== null && input.orderType !== existing.orderType) {
+      throw new ConflictError(
+        `This order already has invoice number ${receiptNumberLabel(existing.receiptNumber, existing.orderType)}. Bulk and Sample use separate invoice numbers, so the type can't be changed once one has been issued.`,
+      );
+    }
     const totals = calcReceiptTotals(input);
     // Once confirmed, always confirmed — a number is never reclaimed. But an
     // edit can be what *first* confirms it (e.g. entering amountPaid directly
@@ -163,7 +181,7 @@ export const receiptService = {
         data: input.adjustments.map((a, i) => ({ receiptId: id, label: a.label, amount: D(a.amount), sortOrder: i })),
       });
 
-      const receiptNumber = nowConfirms ? await nextReceiptNumber(tx, businessId) : existing.receiptNumber;
+      const receiptNumber = nowConfirms ? await nextReceiptNumber(tx, businessId, input.orderType) : existing.receiptNumber;
       // Samples never carry a token; a bulk order gets one the moment it's
       // confirmed (now or previously), keeping whichever one it already had.
       const trackingToken =
@@ -295,7 +313,7 @@ export const receiptService = {
           recordedById: actorId,
         },
       });
-      const receiptNumber = nowConfirms ? await nextReceiptNumber(tx, businessId) : existing.receiptNumber;
+      const receiptNumber = nowConfirms ? await nextReceiptNumber(tx, businessId, existing.orderType) : existing.receiptNumber;
       const trackingToken = nowConfirms ? generateToken() : existing.trackingToken;
       const receipt = await tx.receipt.update({
         where: { id },
@@ -382,7 +400,8 @@ export const receiptService = {
       await tx.orderStatusHistory.createMany({
         data: receipt.items.map((item) => ({
           receiptId: receipt.id, itemId: item.id, fromStatus: null, toStatus: "FABRIC_SELECTION" as const,
-          changedById: actorId, note: `Created from sample receipt #${sample.receiptNumber}`,
+          changedById: actorId,
+          note: `Created from sample receipt ${sample.receiptNumber !== null ? receiptNumberLabel(sample.receiptNumber, "SAMPLE") : "(unnumbered)"}`,
         })),
       });
       await auditService.log(tx, {

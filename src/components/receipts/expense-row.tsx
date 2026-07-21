@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Lock, LockOpen, Loader2, Save } from "lucide-react";
 import { fmtMoney, fmtDate } from "@/lib/utils/format";
 import { useExpenseEditor, type ExpenseRecordValues, type ExpenseCostTotals } from "./use-expense-editor";
+import { receiptNumberLabel } from "@/lib/utils/receipt-number";
 
 interface Props {
   receiptId: string;
@@ -77,14 +78,14 @@ export const ExpenseRow = forwardRef<ExpenseRowHandle, Props>(function ExpenseRo
         <input
           type="checkbox" checked={selected} disabled={e.finalized}
           onChange={onToggleSelected}
-          aria-label={`Select receipt #${receiptNumber}`}
+          aria-label={`Select receipt ${receiptNumberLabel(receiptNumber, orderType)}`}
           className="accent-amber-600 disabled:opacity-30"
         />
       </td>
       <td className="td text-stone-500 text-xs whitespace-nowrap">{fmtDate(date)}</td>
       <td className="td">
         <Link href={`/dashboard/receipts/${receiptId}`} className="text-xs hover:text-amber-600 transition-colors">
-          <span className="font-mono text-stone-500">#{receiptNumber}</span>
+          <span className="font-mono text-stone-500">{receiptNumberLabel(receiptNumber, orderType)}</span>
           <span className="text-stone-400"> · {custName}</span>
         </Link>
       </td>

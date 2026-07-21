@@ -22,7 +22,7 @@ export function ConvertToBulkButton({ receiptId, custName }: { receiptId: string
       const { id: newId, receiptNumber: newNumber, paymentStatus, category } = json.data;
       // The new bulk order starts Unconfirmed — this places its draft in the
       // Unconfirmed folder until the advance is paid.
-      await moveInvoiceIfConnected(newId, newNumber, custName, category, deriveFolder("BULK", paymentStatus, newNumber));
+      await moveInvoiceIfConnected(newId, newNumber, custName, "BULK", category, deriveFolder("BULK", paymentStatus, newNumber));
       router.push(`/dashboard/receipts/${newId}/edit`);
     } catch (e) {
       alert(e instanceof Error ? e.message : "Failed to create bulk order");

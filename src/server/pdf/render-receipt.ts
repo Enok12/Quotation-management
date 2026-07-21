@@ -1,5 +1,6 @@
 import { generateReceiptPdf, type ReceiptAssets, type ReceiptPdfData } from "./receipt-template";
 import type { FullReceipt } from "../repositories/receipt.repository";
+import { receiptNumberSlug } from "@/lib/utils/receipt-number";
 
 const has = (m: string[], v: string) => m.includes(v);
 const num = (d: { toNumber(): number } | number) => (typeof d === "number" ? d : d.toNumber());
@@ -29,7 +30,10 @@ async function fetchLogo(logoUrl: string | null): Promise<ReceiptAssets> {
 export async function renderReceiptPdf(r: FullReceipt): Promise<Uint8Array> {
   const data: ReceiptPdfData = {
     businessName: r.business.name,
-    receiptNumber: r.receiptNumber,
+    // Formatted, not raw: Bulk and Sample are separate sequences, so the
+    // printed document has to carry the Sample marker ("S-01") or two
+    // different invoices would both read "Receipt #: 1".
+    receiptNumber: r.receiptNumber === null ? null : receiptNumberSlug(r.receiptNumber, r.orderType),
     date: new Intl.DateTimeFormat("en-GB").format(r.date),
     customer: { name: r.custName, address: r.custAddress, phone: r.custPhone, email: r.custEmail },
     payment: {

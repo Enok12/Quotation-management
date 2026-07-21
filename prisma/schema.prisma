@@ -188,11 +188,18 @@ model Business {
   // doesn't exhaust the shared default key's free-tier quota for everyone
   // else. Null means "use the shared default key".
   geminiApiKeyEncrypted String?
-  // Per-business invoice-number counter — each business's receipt numbers
-  // start at 1 and increment independently of every other business's. Only
-  // incremented when a receipt is actually confirmed (see Receipt.receiptNumber),
-  // so abandoned/never-paid receipts never burn a number.
+  // Per-business invoice-number counters. Each business's numbers start at 1
+  // and increment independently of every other business's. Only incremented
+  // when a receipt is actually confirmed (see Receipt.receiptNumber), so
+  // abandoned/never-paid receipts never burn a number.
+  //
+  // Bulk and Sample orders run as two SEPARATE sequences — Bulk #1 and
+  // Sample #1 can both exist and are different orders (told apart by the
+  // "S-" prefix Samples display/file under; see lib/utils/receipt-number.ts).
+  // lastReceiptNumber is the BULK counter, keeping its original name so
+  // existing bulk invoices keep their exact numbering with no renumbering.
   lastReceiptNumber Int      @default(0)
+  lastSampleNumber  Int      @default(0)
 
   // Entitlements: which plan this business is on (controls which sections it
   // can see/use — see getBusinessAccess()) and whether its subscription is
@@ -307,8 +314,9 @@ model Receipt {
   id String @id @default(cuid())
   // Null until confirmed (see receiptService — a new BULK order with no
   // payment yet stays "Unconfirmed" and never gets a number until the advance
-  // is paid). Unique per business, not globally — each business's numbers
-  // start at 1 independently (Business.lastReceiptNumber).
+  // is paid). Unique per business AND per orderType, not globally — Bulk and
+  // Sample are two independent sequences, so Bulk #1 and Sample #1 are
+  // different orders that legitimately coexist (see Business.lastSampleNumber).
   receiptNumber Int?
 
   businessId String
@@ -366,7 +374,7 @@ model Receipt {
   payments      Payment[]
   expenseRecord ExpenseRecord?
 
-  @@unique([businessId, receiptNumber])
+  @@unique([businessId, orderType, receiptNumber])
   @@index([status])
   @@index([orderStatus])
   @@index([paymentStatus])

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Banknote, X } from "lucide-react";
 import { ExpenseEditorCard } from "./expense-editor-card";
 import type { ExpenseRecordValues } from "./use-expense-editor";
+import { receiptNumberLabel } from "@/lib/utils/receipt-number";
 
 interface Props {
   receiptId: string;
@@ -34,7 +35,7 @@ export function ExpenseRecordButton({ receiptId, receiptNumber, billAmount, init
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 modal-overlay-in" onClick={() => setOpen(false)}>
           <div className="bg-white dark:bg-stone-800 rounded-lg shadow-xl w-full max-w-sm p-6 modal-panel-in" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-start justify-between mb-4">
-              <h3 className="font-serif text-xl text-ink">Expenses — Receipt #{receiptNumber}</h3>
+              <h3 className="font-serif text-xl text-ink">Expenses — Receipt {receiptNumberLabel(receiptNumber, orderType)}</h3>
               <button onClick={() => setOpen(false)} className="text-stone-400 hover:text-ink"><X size={18} /></button>
             </div>
             <ExpenseEditorCard receiptId={receiptId} billAmount={billAmount} initial={initial} isAdmin={isAdmin} orderType={orderType} />
