@@ -23,6 +23,22 @@ export const metadata = { title: "Orders" };
 
 const FOLDERS = ["UNCONFIRMED", "BULK", "SAMPLE", "COMPLETED"] as const;
 
+/**
+ * When an order's "Time Taken" clock starts: the moment it was confirmed by
+ * money actually arriving, NOT when the receipt was drafted. An order sitting
+ * unconfirmed (items entered, no advance paid) hasn't been commissioned yet,
+ * so it must not silently accrue days against work nobody has agreed to.
+ *
+ * Falls back to the receipt date when a receipt carries money but has no
+ * Payment rows — that's a bulk-uploaded historical order created already
+ * settled (payment rows are only written by recordPayment), so its
+ * confirmation effectively happened the day it was entered.
+ */
+function timeTakenStart(r: { date: Date; amountPaid: Prisma.Decimal; payments: { paidAt: Date }[] }): Date | null {
+  if (r.payments.length > 0) return r.payments[0].paidAt;
+  return Number(r.amountPaid) > 0 ? r.date : null;
+}
+
 // Translate a folder key into a Prisma filter matching deriveFolder().
 function whereForFolder(folder?: FolderKey): Prisma.ReceiptWhereInput {
   if (folder === "UNCONFIRMED") return { orderType: "BULK", receiptNumber: null };
@@ -73,9 +89,11 @@ export default async function OrdersFolderPage({ searchParams }: Props) {
             accessoryExpense: true, otherExpense: true, profit: true, finalized: true,
           },
         },
-        // Most recent payment only — when paid in full, that's the payment
-        // that pushed it over the line, so it marks when counting stopped.
-        payments: { orderBy: { paidAt: "desc" }, take: 1, select: { paidAt: true } },
+        // Ordered oldest-first: the FIRST payment is what confirms the order
+        // and starts the Time Taken clock, and the LAST one is what pushed it
+        // to paid-in-full and stopped it. A receipt has only a handful of
+        // instalments, so fetching them all is cheaper than two queries.
+        payments: { orderBy: { paidAt: "asc" }, select: { paidAt: true } },
       },
     }),
     // Lightweight list of every receipt (confirmed or Unconfirmed) for the
@@ -172,8 +190,12 @@ export default async function OrdersFolderPage({ searchParams }: Props) {
                   <td className="td"><PaymentStatusBadge status={r.paymentStatus} /></td>
                   <td className="td">
                     <TimeTakenBadge
-                      startDate={r.date}
-                      completedAt={r.paymentStatus === "PAID" ? (r.payments[0]?.paidAt ?? r.date) : null}
+                      startDate={timeTakenStart(r)}
+                      completedAt={
+                        r.paymentStatus === "PAID"
+                          ? (r.payments[r.payments.length - 1]?.paidAt ?? r.date)
+                          : null
+                      }
                     />
                   </td>
                   <td className="td">
