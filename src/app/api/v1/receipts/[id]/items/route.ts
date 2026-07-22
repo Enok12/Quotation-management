@@ -13,7 +13,17 @@ export const GET = handler(async (_req: NextRequest, { params }: Ctx) => {
   const items = await prisma.receiptItem.findMany({
     where: { receiptId: id, receipt: { businessId } },
     orderBy: { sortOrder: "asc" },
-    select: { id: true, description: true, orderStatus: true },
+    // The assigned pattern's code comes along so the Production row can show
+    // it inline (and prefill "Remove current") without a second round trip.
+    select: {
+      id: true, description: true, orderStatus: true,
+      pattern: { select: { patternCode: true } },
+    },
   });
-  return ok(items);
+  return ok(items.map((it) => ({
+    id: it.id,
+    description: it.description,
+    orderStatus: it.orderStatus,
+    patternCode: it.pattern?.patternCode ?? null,
+  })));
 });

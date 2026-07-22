@@ -98,6 +98,9 @@ enum AuditAction {
   ORDER_CONFIRMED
   BUSINESS_PLAN_CHANGED
   BUSINESS_SUBSCRIPTION_STATUS_CHANGED
+  PATTERN_CREATED
+  PATTERN_ASSIGNED
+  PATTERN_UNASSIGNED
 }
 
 // A gate-able dashboard section — used by Plan.enabledSections to control

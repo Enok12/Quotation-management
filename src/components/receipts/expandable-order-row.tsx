@@ -8,11 +8,14 @@ import { OrderStatusBadge } from "@/components/receipts/status-badges";
 import { OrderStatusSelect } from "@/components/receipts/order-status-select";
 import type { OrderStage } from "@/lib/order-stage";
 import { receiptNumberLabel, type ReceiptOrderType } from "@/lib/utils/receipt-number";
+import { AssignPatternButton } from "@/components/styles/assign-pattern-button";
 
 interface Item {
   id: string;
   description: string;
   orderStatus: string;
+  /** Code of the assigned pattern, or null if none has been assigned yet. */
+  patternCode: string | null;
 }
 
 interface Props {
@@ -23,12 +26,15 @@ interface Props {
   date: string | Date;
   totalDue: number;
   balance: number;
+  /** Assigning a style is an admin decision, so the control is hidden (and
+   * server-side refused) for everyone else. */
+  isAdmin: boolean;
 }
 
 // One row in the Production list. Collapsed by default — items are only
 // fetched the first time a row is expanded, not up front for every row on
 // the page, so the list stays cheap regardless of how many orders are shown.
-export function ExpandableOrderRow({ receiptId, receiptNumber, orderType, custName, date, totalDue, balance }: Props) {
+export function ExpandableOrderRow({ receiptId, receiptNumber, orderType, custName, date, totalDue, balance, isAdmin }: Props) {
   const [expanded, setExpanded] = useState(false);
   const [items, setItems] = useState<Item[] | null>(null);
   const [loading, setLoading] = useState(false);
@@ -100,7 +106,18 @@ export function ExpandableOrderRow({ receiptId, receiptNumber, orderType, custNa
               <ul className="space-y-2 max-w-lg">
                 {items.map((item) => (
                   <li key={item.id} className="flex items-center justify-between gap-3">
-                    <span className="text-sm text-ink truncate flex-1">{item.description}</span>
+                    <span className="text-sm text-ink truncate flex-1">
+                      {item.description}
+                      {isAdmin && (
+                        <span className="ml-2">
+                          <AssignPatternButton
+                            itemId={item.id}
+                            itemDescription={item.description}
+                            assignedCode={item.patternCode}
+                          />
+                        </span>
+                      )}
+                    </span>
                     {editingItemId === item.id ? (
                       <div className="flex items-center gap-1.5 flex-none">
                         <OrderStatusSelect

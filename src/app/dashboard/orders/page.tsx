@@ -103,6 +103,7 @@ export default async function OrdersPage({ searchParams }: Props) {
                   date={r.date}
                   totalDue={Number(r.totalDue)}
                   balance={Number(r.balance)}
+                  isAdmin={role === "ADMIN"}
                 />
               ))}
             </tbody>

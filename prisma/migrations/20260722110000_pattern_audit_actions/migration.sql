@@ -1,0 +1,4 @@
+-- Audit actions for the Styles module.
+ALTER TYPE "AuditAction" ADD VALUE 'PATTERN_CREATED';
+ALTER TYPE "AuditAction" ADD VALUE 'PATTERN_ASSIGNED';
+ALTER TYPE "AuditAction" ADD VALUE 'PATTERN_UNASSIGNED';

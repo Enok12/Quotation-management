@@ -9,7 +9,7 @@ export function GenerateStaffInviteButton() {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [role, setRole] = useState<"STAFF" | "ADMIN">("STAFF");
+  const [role, setRole] = useState<"STAFF" | "ADMIN" | "PATTERN_MAKER">("STAFF");
   const [url, setUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -76,11 +76,12 @@ export function GenerateStaffInviteButton() {
                 <label className="field-label">Role</label>
                 <select
                   value={role}
-                  onChange={(e) => setRole(e.target.value as "STAFF" | "ADMIN")}
+                  onChange={(e) => setRole(e.target.value as "STAFF" | "ADMIN" | "PATTERN_MAKER")}
                   className="field-input"
                 >
                   <option value="STAFF">Staff</option>
                   <option value="ADMIN">Administrator</option>
+                  <option value="PATTERN_MAKER">Pattern Maker (Styles only)</option>
                 </select>
               </div>
             )}

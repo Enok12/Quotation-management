@@ -5,7 +5,7 @@ import { requireAdmin } from "@/lib/auth";
 import { requireSection } from "@/lib/section-access";
 import { staffInviteService } from "@/server/services/staff-invite.service";
 
-const bodySchema = z.object({ role: z.enum(["ADMIN", "STAFF"]) });
+const bodySchema = z.object({ role: z.enum(["ADMIN", "STAFF", "PATTERN_MAKER"]) });
 
 // Admin-only: list pending/past invites for the active business.
 export const GET = handler(async () => {
