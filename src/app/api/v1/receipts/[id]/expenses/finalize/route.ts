@@ -14,7 +14,7 @@ const bodySchema = z.object({ finalized: z.boolean() });
 // what makes the record count toward the Income/P&L page.
 export const POST = handler(async (req: NextRequest, { params }: Ctx) => {
   const user = await requireAdmin();
-  await requireSection(user.businessId, "EXPENSES");
+  await requireSection(user.businessId, user.role, "EXPENSES");
   const { id } = await params;
   const { finalized } = bodySchema.parse(await req.json());
   const record = await expenseRecordService.setFinalized(id, finalized, user.id, user.businessId);

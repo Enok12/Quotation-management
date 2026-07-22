@@ -19,8 +19,8 @@ const LIMIT = 8;
 // without that section should simply never see the popup — not have a failed
 // request logged on every first visit of the day.
 export const GET = handler(async () => {
-  const { businessId } = await requireBusiness();
-  const access = await getBusinessAccess(businessId);
+  const { businessId, role } = await requireBusiness();
+  const access = await getBusinessAccess(businessId, role);
   if (!hasSection(access, "PRODUCTION")) return ok({ orders: [], total: 0 });
 
   const where = {

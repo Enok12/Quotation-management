@@ -7,7 +7,9 @@ import { ChevronsUpDown, Check, Loader2 } from "lucide-react";
 export interface Membership {
   businessId: string;
   name: string;
-  role: "ADMIN" | "STAFF";
+  /** Mirrors the Role enum — a user's role can differ per business, and a
+   * narrow role like PATTERN_MAKER is just as valid here as ADMIN/STAFF. */
+  role: "ADMIN" | "STAFF" | "PATTERN_MAKER";
   active: boolean;
 }
 

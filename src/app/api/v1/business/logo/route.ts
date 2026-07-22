@@ -10,8 +10,8 @@ import { MAX_LOGO_BYTES, isAcceptedLogoFile } from "@/lib/logo-upload-limits";
 
 // Admin-only: upload (or replace) the active business's logo.
 export const POST = handler(async (req: NextRequest) => {
-  const { id: userId, businessId } = await requireAdmin();
-  await requireSection(businessId, "SETTINGS");
+  const { id: userId, businessId, role } = await requireAdmin();
+  await requireSection(businessId, role, "SETTINGS");
 
   const form = await req.formData();
   const file = form.get("file");
@@ -38,8 +38,8 @@ export const POST = handler(async (req: NextRequest) => {
 
 // Admin-only: remove the current logo (falls back to the default MONTRA mark).
 export const DELETE = handler(async () => {
-  const { id: userId, businessId } = await requireAdmin();
-  await requireSection(businessId, "SETTINGS");
+  const { id: userId, businessId, role } = await requireAdmin();
+  await requireSection(businessId, role, "SETTINGS");
   const existing = await prisma.business.findUniqueOrThrow({ where: { id: businessId }, select: { logoUrl: true } });
   const business = await businessService.setLogo(businessId, userId, null);
   if (existing.logoUrl) await del(existing.logoUrl).catch(() => {});

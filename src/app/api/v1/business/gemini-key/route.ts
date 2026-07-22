@@ -24,8 +24,8 @@ async function verifyGeminiKey(apiKey: string): Promise<boolean> {
 // OCR import, so its usage draws from its own quota instead of the shared
 // default key's.
 export const PUT = handler(async (req: NextRequest) => {
-  const { id: userId, businessId } = await requireAdmin();
-  await requireSection(businessId, "SETTINGS");
+  const { id: userId, businessId, role } = await requireAdmin();
+  await requireSection(businessId, role, "SETTINGS");
   const { apiKey } = bodySchema.parse(await req.json());
 
   if (!(await verifyGeminiKey(apiKey))) {
@@ -38,8 +38,8 @@ export const PUT = handler(async (req: NextRequest) => {
 
 // Admin-only: remove the business's own key — falls back to the shared default.
 export const DELETE = handler(async () => {
-  const { id: userId, businessId } = await requireAdmin();
-  await requireSection(businessId, "SETTINGS");
+  const { id: userId, businessId, role } = await requireAdmin();
+  await requireSection(businessId, role, "SETTINGS");
   await businessService.setGeminiApiKey(businessId, userId, null);
   return ok({ hasCustomApiKey: false });
 });

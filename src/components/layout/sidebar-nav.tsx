@@ -14,6 +14,7 @@ import {
   TrendingUp,
   UserCog,
   Settings,
+  Shirt,
   type LucideIcon,
 } from "lucide-react";
 
@@ -28,6 +29,7 @@ const ICONS = {
   TrendingUp,
   UserCog,
   Settings,
+  Shirt,
 } satisfies Record<string, LucideIcon>;
 
 export type NavIcon = keyof typeof ICONS;

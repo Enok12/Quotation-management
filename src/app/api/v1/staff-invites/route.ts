@@ -9,15 +9,16 @@ const bodySchema = z.object({ role: z.enum(["ADMIN", "STAFF"]) });
 
 // Admin-only: list pending/past invites for the active business.
 export const GET = handler(async () => {
-  const { businessId } = await requireAdmin();
-  await requireSection(businessId, "TEAM");
+  const { businessId, role } = await requireAdmin();
+  await requireSection(businessId, role, "TEAM");
   return ok(await staffInviteService.list(businessId));
 });
 
 // Admin-only: mint a fresh 48h, single-use staff invite link.
 export const POST = handler(async (req: NextRequest) => {
-  const { id: userId, businessId } = await requireAdmin();
-  await requireSection(businessId, "TEAM");
+  // actorRole = who is issuing the invite; role = the role being granted.
+  const { id: userId, businessId, role: actorRole } = await requireAdmin();
+  await requireSection(businessId, actorRole, "TEAM");
   const { role } = bodySchema.parse(await req.json());
   const invite = await staffInviteService.create(businessId, userId, role);
   return ok({ token: invite.token, role: invite.role, expiresAt: invite.expiresAt }, 201);

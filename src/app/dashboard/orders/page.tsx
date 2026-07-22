@@ -13,8 +13,8 @@ interface Props { searchParams: Promise<{ status?: string; page?: string; from?:
 export const metadata = { title: "Production" };
 
 export default async function OrdersPage({ searchParams }: Props) {
-  const { businessId } = await requireBusiness();
-  const access = await getBusinessAccess(businessId);
+  const { businessId, role } = await requireBusiness();
+  const access = await getBusinessAccess(businessId, role);
   if (!hasSection(access, "PRODUCTION")) return <SectionUnavailable section="Production" />;
   const sp = await searchParams;
   const page = Math.max(1, Number(sp.page ?? 1));

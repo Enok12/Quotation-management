@@ -66,7 +66,7 @@ type OrderType = (typeof ORDER_TYPES)[number];
 
 export default async function ExpensesPage({ searchParams }: Props) {
   const { role, businessId } = await requireBusiness();
-  const access = await getBusinessAccess(businessId);
+  const access = await getBusinessAccess(businessId, role);
   if (!hasSection(access, "EXPENSES")) return <SectionUnavailable section="Expenses" />;
   const isAdmin = role === "ADMIN";
   const sp = await searchParams;

@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import type { Role } from "@prisma/client";
 import { requireBusiness } from "@/lib/auth";
 import { ForbiddenError } from "@/lib/api/errors";
 import { prisma } from "@/lib/db";
@@ -22,7 +23,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
       include: { business: { select: { id: true, name: true } } },
       orderBy: { createdAt: "asc" },
     }),
-    getBusinessAccess(businessId),
+    getBusinessAccess(businessId, role as Role),
   ]);
 
   // Each nav item's gating Section — null means always shown (never gated).
@@ -32,6 +33,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
     { href: "/dashboard/receipts", icon: "FileText", label: "Receipts", section: "RECEIPTS" },
     { href: "/dashboard/payments", icon: "Wallet", label: "Orders", section: "ORDERS" },
     { href: "/dashboard/orders", icon: "Package", label: "Production", section: "PRODUCTION" },
+    { href: "/dashboard/styles", icon: "Shirt", label: "Styles", section: "STYLES" },
     { href: "/dashboard/expenses", icon: "Banknote", label: "Expenses", section: "EXPENSES" },
     { href: "/dashboard/income", icon: "TrendingUp", label: "Income", section: "INCOME" },
     { href: "/dashboard/team", icon: "UserCog", label: "Team", section: "TEAM" },

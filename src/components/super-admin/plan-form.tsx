@@ -4,12 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check } from "lucide-react";
 import { AnimatedCheckbox } from "@/components/ui/animated-checkbox";
-
-const ALL_SECTIONS = ["CUSTOMERS", "RECEIPTS", "ORDERS", "PRODUCTION", "EXPENSES", "INCOME", "TEAM", "AUDIT_LOG", "SETTINGS"] as const;
-const SECTION_LABELS: Record<(typeof ALL_SECTIONS)[number], string> = {
-  CUSTOMERS: "Customers", RECEIPTS: "Receipts", ORDERS: "Orders", PRODUCTION: "Production",
-  EXPENSES: "Expenses", INCOME: "Income", TEAM: "Team", AUDIT_LOG: "Audit Log", SETTINGS: "Settings",
-};
+import { ALL_SECTIONS, SECTION_LABELS } from "@/lib/sections";
 
 export function PlanForm({
   planId,

@@ -9,8 +9,8 @@ const bodySchema = z.object({ name: z.string().trim().min(2).max(120) });
 
 // Admin-only: rename the active business.
 export const PUT = handler(async (req: NextRequest) => {
-  const { id: userId, businessId } = await requireAdmin();
-  await requireSection(businessId, "SETTINGS");
+  const { id: userId, businessId, role } = await requireAdmin();
+  await requireSection(businessId, role, "SETTINGS");
   const { name } = bodySchema.parse(await req.json());
   const business = await businessService.updateName(businessId, userId, name);
   return ok({ id: business.id, name: business.name });

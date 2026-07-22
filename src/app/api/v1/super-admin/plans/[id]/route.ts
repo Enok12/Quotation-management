@@ -3,11 +3,13 @@ import { z } from "zod";
 import { handler, ok } from "@/lib/api/response";
 import { requireSuperAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { Section } from "@prisma/client";
 
-const SECTIONS = ["CUSTOMERS", "RECEIPTS", "ORDERS", "PRODUCTION", "EXPENSES", "INCOME", "TEAM", "AUDIT_LOG", "SETTINGS"] as const;
 const bodySchema = z.object({
   name: z.string().trim().min(2).max(60),
-  enabledSections: z.array(z.enum(SECTIONS)),
+  // nativeEnum, not a hand-listed tuple: a new Section in the schema is
+  // accepted automatically instead of being silently rejected as invalid.
+  enabledSections: z.array(z.nativeEnum(Section)),
 });
 
 type Ctx = { params: Promise<{ id: string }> };

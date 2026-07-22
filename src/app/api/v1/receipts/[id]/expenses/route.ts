@@ -20,7 +20,7 @@ const expenseRecordSchema = z.object({
 // Create or update the receipt's expense record (six cost categories + profit).
 export const PUT = handler(async (req: NextRequest, { params }: Ctx) => {
   const user = await requireBusiness();
-  await requireSection(user.businessId, "EXPENSES");
+  await requireSection(user.businessId, user.role, "EXPENSES");
   const { id } = await params;
   const input = expenseRecordSchema.parse(await req.json());
   const record = await expenseRecordService.upsert(id, input, user.id, user.businessId);

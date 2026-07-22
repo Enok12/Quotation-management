@@ -27,8 +27,8 @@ const ACTION_LABELS: Record<string, string> = {
 };
 
 export default async function AuditPage({ searchParams }: Props) {
-  const { businessId } = await requireBusiness();
-  const access = await getBusinessAccess(businessId);
+  const { businessId, role } = await requireBusiness();
+  const access = await getBusinessAccess(businessId, role);
   if (!hasSection(access, "AUDIT_LOG")) return <SectionUnavailable section="Audit Log" />;
   const sp = await searchParams;
   const page = Math.max(1, Number(sp.page ?? 1));

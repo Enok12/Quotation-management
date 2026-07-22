@@ -11,7 +11,7 @@ export const metadata = { title: "Team" };
 
 export default async function TeamPage() {
   const { role, businessId, id: userId } = await requireBusiness();
-  const access = await getBusinessAccess(businessId);
+  const access = await getBusinessAccess(businessId, role);
   if (!hasSection(access, "TEAM")) return <SectionUnavailable section="Team" />;
   const isAdmin = role === "ADMIN";
 

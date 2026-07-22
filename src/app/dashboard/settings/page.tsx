@@ -12,8 +12,8 @@ export const metadata = { title: "Settings" };
 // PDF and public customer-facing page) — admin-only, unlike Team which any
 // member can at least view.
 export default async function SettingsPage() {
-  const { businessId } = await requireAdmin();
-  const access = await getBusinessAccess(businessId);
+  const { businessId, role } = await requireAdmin();
+  const access = await getBusinessAccess(businessId, role);
   if (!hasSection(access, "SETTINGS")) return <SectionUnavailable section="Settings" />;
   const business = await prisma.business.findUniqueOrThrow({
     where: { id: businessId },

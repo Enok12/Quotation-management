@@ -14,8 +14,8 @@ export const metadata = { title: "Income" };
 const toISODate = (d: Date) => d.toISOString().slice(0, 10);
 
 export default async function IncomePage({ searchParams }: Props) {
-  const { businessId } = await requireBusiness();
-  const access = await getBusinessAccess(businessId);
+  const { businessId, role } = await requireBusiness();
+  const access = await getBusinessAccess(businessId, role);
   if (!hasSection(access, "INCOME")) return <SectionUnavailable section="Income" />;
   const sp = await searchParams;
 

@@ -15,6 +15,12 @@ datasource db {
 enum Role {
   ADMIN
   STAFF
+  // A pattern maker only ever sees the Styles section — enforced by
+  // ROLE_SECTIONS in src/lib/section-access.ts, which intersects a user's
+  // role with whatever their business's plan allows. Unlike ADMIN/STAFF
+  // (who see everything the plan includes), this role is deliberately
+  // narrow: an outside contractor who uploads patterns and nothing more.
+  PATTERN_MAKER
 }
 
 enum ReceiptStatus {
@@ -104,6 +110,7 @@ enum Section {
   PRODUCTION
   EXPENSES
   INCOME
+  STYLES
   TEAM
   AUDIT_LOG
   SETTINGS
@@ -171,6 +178,7 @@ model User {
   auditLogs           AuditLog[]
   customerInvites     CustomerInvite[]
   payments            Payment[]
+  patternsCreated     Pattern[]            @relation("PatternCreatedBy")
   expenseRecords      ExpenseRecord[]      @relation("ExpenseRecordedBy")
   finalizedExpenses   ExpenseRecord[]      @relation("ExpenseFinalizedBy")
 }
@@ -218,6 +226,7 @@ model Business {
   activeForUsers  User[]           @relation("ActiveBusiness")
   customers       Customer[]
   receipts        Receipt[]
+  patterns        Pattern[]
   customerInvites CustomerInvite[]
   auditLogs       AuditLog[]
 }
@@ -452,7 +461,53 @@ model ReceiptItem {
   orderStatus OrderStatus          @default(FABRIC_SELECTION)
   history     OrderStatusHistory[]
 
+  // Which pattern (style) this item is made from, assigned by an admin from
+  // the Production page. Nullable: most items have none until assigned. Not
+  // unique — one pattern is deliberately reusable across many order items,
+  // which is the whole point of a pattern. onDelete: SetNull so removing a
+  // pattern never cascades into deleting live order items.
+  patternId String?
+  pattern   Pattern? @relation(fields: [patternId], references: [id], onDelete: SetNull)
+
   @@index([receiptId])
+  @@index([patternId])
+}
+
+// A style/pattern uploaded by a Pattern Maker, later assigned to order items.
+// patternCode is the human-facing "Pattern ID" that gets read aloud and typed
+// by hand into the Assign Pattern dialog — system-generated, never chosen.
+model Pattern {
+  id         String @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  // e.g. "PTN-7K2M9Q". Unique per business (not globally), same rule as
+  // receipt numbers — two businesses can each have their own PTN-7K2M9Q.
+  patternCode String
+  description String
+  // Optional reference photo, plus three mandatory attachments which are
+  // usually images but may be any file type (e.g. a DXF/PDF cutting file),
+  // so these are never assumed to be renderable as an <img>.
+  imageUrl String?
+  file1Url String
+  file2Url String
+  file3Url String
+  // Original upload filenames — Blob URLs are opaque, so without these there'd
+  // be nothing meaningful to label a download link with.
+  file1Name String
+  file2Name String
+  file3Name String
+
+  createdById String
+  createdBy   User   @relation("PatternCreatedBy", fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  items ReceiptItem[]
+
+  @@unique([businessId, patternCode])
+  @@index([businessId])
+  @@index([createdById])
 }
 
 // Free-form +/- lines such as "Pattern" (-6,600 in the sample receipt).

@@ -34,7 +34,7 @@ function whereForFolder(folder?: FolderKey): Prisma.ReceiptWhereInput {
 
 export default async function OrdersFolderPage({ searchParams }: Props) {
   const { role, businessId } = await requireBusiness();
-  const access = await getBusinessAccess(businessId);
+  const access = await getBusinessAccess(businessId, role);
   if (!hasSection(access, "ORDERS")) return <SectionUnavailable section="Orders" />;
   const isAdmin = role === "ADMIN";
   const sp = await searchParams;
