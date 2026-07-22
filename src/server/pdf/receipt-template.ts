@@ -1,5 +1,11 @@
+// Must be imported before fontkit: @pdf-lib/fontkit's Indic shaping engine
+// (which Sinhala goes through) is compiled to generator functions that expect
+// this polyfill, and throws "regeneratorRuntime is not defined" without it.
+import "regenerator-runtime/runtime.js";
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from "pdf-lib";
+import fontkit from "@pdf-lib/fontkit";
 import { drawTermsPages } from "./terms-page";
+import { loadUnicodeFonts, pickFont, type FontSet } from "./font-support";
 
 // ---------- Template (data-driven; register new templates without touching logic) ----------
 export const MONTRA_TEMPLATE = {
@@ -47,16 +53,33 @@ export async function generateReceiptPdf(
   const { width: W, height: H } = template.page;
   const C = template.colors;
 
+  doc.registerFontkit(fontkit);
   const serif = await doc.embedFont(StandardFonts.TimesRoman);
   const serifBold = await doc.embedFont(StandardFonts.TimesRomanBold);
   const sans = await doc.embedFont(StandardFonts.Helvetica);
   const sansBold = await doc.embedFont(StandardFonts.HelveticaBold);
+
+  // Embedded only as a fallback for text the standard fonts can't encode, so
+  // an all-Latin receipt keeps its existing Times/Helvetica look exactly.
+  // subset: true keeps only the glyphs actually used, so a receipt with a
+  // couple of Sinhala words adds a few KB rather than the full 230KB face.
+  const unicodeBytes = await loadUnicodeFonts();
+  const uni = await doc.embedFont(unicodeBytes.regular, { subset: true });
+  const uniBold = await doc.embedFont(unicodeBytes.bold, { subset: true });
+
+  // Two sets: the receipt body is Helvetica-based, the terms pages are Times-based.
+  const sansSet: FontSet = { reg: sans, bold: sansBold, uni, uniBold };
+  const serifSet: FontSet = { reg: serif, bold: serifBold, uni, uniBold };
+
+  /** Picks the Unicode face only when the standard one would throw on this text. */
+  const F = (text: string, latin: PDFFont, bold = false): PDFFont =>
+    pickFont(text, latin === serif || latin === serifBold ? serifSet : sansSet, bold);
   const logo = assets.logo
     ? assets.logoIsPng ? await doc.embedPng(assets.logo) : await doc.embedJpg(assets.logo)
     : null;
 
   // Pages 1–2: Terms & Conditions (drawn first so the receipt is the last page).
-  drawTermsPages(doc, { reg: serif, bold: serifBold }, logo, template, data.businessName);
+  drawTermsPages(doc, serifSet, logo, template, data.businessName);
 
   // Page 3: the receipt itself.
   const page = doc.addPage([W, H]);
@@ -72,8 +95,9 @@ export async function generateReceiptPdf(
     page.drawImage(logo, { x: (W - lw) / 2, y: y - lh, width: lw, height: lh });
     y -= lh + 22;
   } else {
-    const tw = serifBold.widthOfTextAtSize(data.businessName, 22);
-    page.drawText(data.businessName, { x: (W - tw) / 2, y: y - 22, size: 22, font: serifBold, color: C.ink });
+    const nameFont = F(data.businessName, serifBold, true);
+    const tw = nameFont.widthOfTextAtSize(data.businessName, 22);
+    page.drawText(data.businessName, { x: (W - tw) / 2, y: y - 22, size: 22, font: nameFont, color: C.ink });
     y -= 22 + 20;
   }
   page.drawText(template.heading, { x: innerL, y: y - 24, size: 25, font: serif, color: C.ink });
@@ -115,7 +139,12 @@ export async function generateReceiptPdf(
   const lineH = 11.5;
   let rowTop = tableTop - rowH;
   for (let i = 0; i < nRows; i++) {
-    const lines = wrapLines(cust[i][1] ?? "", custValueW, sans, 9.5);
+    // Customer name/address/email are all free text a customer supplied, so
+    // any of them can be Sinhala — measured and drawn with the same picked
+    // font so the wrap widths match what actually gets rendered.
+    const custValue = cust[i][1] ?? "";
+    const custFont = F(custValue, sans);
+    const lines = wrapLines(custValue, custValueW, custFont, 9.5);
     const thisRowH = rowH + (Math.max(1, lines.length) - 1) * lineH;
     const ry = rowTop - thisRowH;
     const firstLineY = ry + thisRowH - 18;
@@ -123,7 +152,7 @@ export async function generateReceiptPdf(
     cell(page, C, innerL, ry, custLabelW, thisRowH);
     cell(page, C, innerL + custLabelW, ry, colMid - innerL - custLabelW, thisRowH);
     page.drawText(cust[i][0], { x: innerL + 6, y: firstLineY, size: 9.5, font: sansBold, color: C.ink });
-    drawLines(page, lines, innerL + custLabelW + 6, firstLineY, lineH, sans, 9.5, C.ink);
+    drawLines(page, lines, innerL + custLabelW + 6, firstLineY, lineH, custFont, 9.5, C.ink);
 
     cell(page, C, colMid, ry, payLabelW, thisRowH);
     cell(page, C, colMid + payLabelW, ry, innerR - colMid - payLabelW, thisRowH);
@@ -151,7 +180,7 @@ export async function generateReceiptPdf(
     cell(page, C, xQty, ry, qtyW, ih); cell(page, C, xDesc, ry, descW, ih);
     cell(page, C, xPrice, ry, priceW, ih); cell(page, C, xTotal, ry, totalW, ih);
     center(page, String(it.quantity), xQty, xQty + qtyW, ry + 8, sans, 9.5, C.ink);
-    page.drawText(it.description, { x: xDesc + 6, y: ry + 8, size: 9.5, font: sans, color: C.ink });
+    page.drawText(it.description, { x: xDesc + 6, y: ry + 8, size: 9.5, font: F(it.description, sans), color: C.ink });
     page.drawText(`${money(it.unitPrice)} x ${it.quantity}`, { x: xPrice + 6, y: ry + 8, size: 9.5, font: sans, color: C.ink });
     page.drawText(money(it.lineTotal), { x: xTotal + 6, y: ry + 8, size: 9.5, font: sans, color: C.ink });
   }
@@ -165,7 +194,8 @@ export async function generateReceiptPdf(
   for (const [label, val] of totalsRows) {
     ry -= ih;
     cell(page, C, xPrice, ry, priceW, ih, C.headerFill); cell(page, C, xTotal, ry, totalW, ih);
-    page.drawText(label, { x: xPrice + 6, y: ry + 8, size: 9.5, font: sansBold, color: C.ink });
+    // Adjustment labels are free text too (e.g. a Sinhala discount label).
+    page.drawText(label, { x: xPrice + 6, y: ry + 8, size: 9.5, font: F(label, sansBold, true), color: C.ink });
     page.drawText(val, { x: xTotal + 6, y: ry + 8, size: 9.5, font: sans, color: C.ink });
   }
   return doc.save();

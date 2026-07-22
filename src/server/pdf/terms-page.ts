@@ -1,3 +1,4 @@
+import { pickFont, type FontSet } from "./font-support";
 import { rgb, type PDFDocument, type PDFFont, type PDFImage, type PDFPage } from "pdf-lib";
 import type { ReceiptTemplate } from "./receipt-template";
 
@@ -84,7 +85,10 @@ const buildPage2 = (name: string): Block[] => [
   { k: "para", r: [p("By placing an order, you acknowledge that you have read, understood, and agree to the above Terms and Conditions.")] },
 ];
 
-interface Fonts { reg: PDFFont; bold: PDFFont }
+// Reuses the shared FontSet so every draw site can fall back to the Unicode
+// face for non-Latin text (e.g. a Sinhala business name substituted into the
+// terms boilerplate), instead of throwing on WinAnsi encoding.
+type Fonts = FontSet;
 const INK = rgb(0.07, 0.07, 0.07);
 const BODY = 10;
 const LINE_GAP = 3.5;
@@ -103,7 +107,7 @@ function drawRich(page: PDFPage, runs: Run[], x: number, y: number, maxW: number
   const flush = () => {
     let cx = x;
     for (const { w, b: isBold } of line) {
-      const f = isBold ? fonts.bold : fonts.reg;
+      const f = pickFont(w, fonts, isBold);
       page.drawText(w, { x: cx, y: yy, size, font: f, color: INK });
       cx += f.widthOfTextAtSize(w, size) + spaceW;
     }
@@ -113,7 +117,7 @@ function drawRich(page: PDFPage, runs: Run[], x: number, y: number, maxW: number
   };
 
   for (const { w, b: isBold } of words) {
-    const f = isBold ? fonts.bold : fonts.reg;
+    const f = pickFont(w, fonts, isBold);
     const ww = f.widthOfTextAtSize(w, size);
     const add = line.length ? spaceW + ww : ww;
     if (lineW + add > maxW && line.length) {
@@ -141,14 +145,15 @@ function drawBlocks(page: PDFPage, blocks: Block[], fonts: Fonts, template: Rece
         y -= blk.h;
         break;
       case "title": {
-        const tw = fonts.bold.widthOfTextAtSize(blk.t, 12.5);
-        page.drawText(blk.t, { x: leftX + (fullW - tw) / 2, y, size: 12.5, font: fonts.bold, color: INK });
+        const hf = pickFont(blk.t, fonts, true);
+        const tw = hf.widthOfTextAtSize(blk.t, 12.5);
+        page.drawText(blk.t, { x: leftX + (fullW - tw) / 2, y, size: 12.5, font: hf, color: INK });
         y -= 12.5 + 14;
         break;
       }
       case "heading":
         y -= 5;
-        page.drawText(blk.t, { x: leftX, y, size: 11, font: fonts.bold, color: INK });
+        page.drawText(blk.t, { x: leftX, y, size: 11, font: pickFont(blk.t, fonts, true), color: INK });
         y -= 11 + 7;
         break;
       case "rule":
@@ -207,8 +212,9 @@ export function drawTermsPages(
     p1.drawImage(logo, { x: (W - lw) / 2, y: y - lh, width: lw, height: lh });
     y -= lh + 14;
   } else {
-    const tw = fonts.bold.widthOfTextAtSize(businessName, 20);
-    p1.drawText(businessName, { x: (W - tw) / 2, y: y - 20, size: 20, font: fonts.bold, color: INK });
+    const bnFont = pickFont(businessName, fonts, true);
+    const tw = bnFont.widthOfTextAtSize(businessName, 20);
+    p1.drawText(businessName, { x: (W - tw) / 2, y: y - 20, size: 20, font: bnFont, color: INK });
     y -= 20 + 18;
   }
   const page1EndY = drawBlocks(p1, buildPage1(businessName), fonts, template, y);

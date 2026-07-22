@@ -13,18 +13,25 @@ export const metadata = { title: "Income" };
 
 const toISODate = (d: Date) => d.toISOString().slice(0, 10);
 
+// The earliest month with real income data — the Income statement defaults to
+// starting here so it opens on the full trading history. Anything before this
+// is pre-launch and has nothing to report. Staff can still pick an earlier
+// date manually; this only sets where the filter starts.
+const INCOME_START_DATE = "2025-09-01";
+
 export default async function IncomePage({ searchParams }: Props) {
   const { businessId, role } = await requireBusiness();
   const access = await getBusinessAccess(businessId, role);
   if (!hasSection(access, "INCOME")) return <SectionUnavailable section="Income" />;
   const sp = await searchParams;
 
-  // Default to "this month" without redirecting to write it into the URL —
-  // a server-side redirect here would cost an extra round trip and cause a
+  // Default range runs from when the business started trading through today,
+  // so the Income statement opens on the full history rather than just the
+  // current month. Applied without redirecting to write it into the URL — a
+  // server-side redirect here would cost an extra round trip and cause a
   // visible flash between the loading skeleton and the real content.
   const now = new Date();
-  const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-  const effectiveFrom = sp.from ?? toISODate(firstOfMonth);
+  const effectiveFrom = sp.from ?? INCOME_START_DATE;
   const effectiveTo = sp.to ?? toISODate(now);
 
   const dateWhere = dateRangeFilter(effectiveFrom, effectiveTo);
