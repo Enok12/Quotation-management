@@ -103,21 +103,16 @@ export function ExpandableOrderRow({ receiptId, receiptNumber, orderType, custNa
             {error && <p className="text-xs text-red-500 py-2">{error}</p>}
             {items && items.length === 0 && <p className="text-xs text-stone-400 py-2">No items on this receipt.</p>}
             {items && items.length > 0 && (
-              <ul className="space-y-2 max-w-lg">
+              // Wider than the original max-w-lg: each row now carries a
+              // description, a pattern control and a status control.
+              <ul className="space-y-2 max-w-3xl">
                 {items.map((item) => (
                   <li key={item.id} className="flex items-center justify-between gap-3">
-                    <span className="text-sm text-ink truncate flex-1">
-                      {item.description}
-                      {isAdmin && (
-                        <span className="ml-2">
-                          <AssignPatternButton
-                            itemId={item.id}
-                            itemDescription={item.description}
-                            assignedCode={item.patternCode}
-                          />
-                        </span>
-                      )}
-                    </span>
+                    {/* The description truncates, so every control must be a
+                        SIBLING of it rather than a child — nested inside, they
+                        get clipped by the same overflow rule whenever the
+                        description is long enough to ellipsize. */}
+                    <span className="text-sm text-ink truncate flex-1 min-w-0">{item.description}</span>
                     {editingItemId === item.id ? (
                       <div className="flex items-center gap-1.5 flex-none">
                         <OrderStatusSelect
@@ -148,6 +143,13 @@ export function ExpandableOrderRow({ receiptId, receiptNumber, orderType, custNa
                         >
                           <Pencil size={12} /> Change Status
                         </button>
+                        {isAdmin && (
+                          <AssignPatternButton
+                            itemId={item.id}
+                            itemDescription={item.description}
+                            assignedCode={item.patternCode}
+                          />
+                        )}
                       </div>
                     )}
                   </li>
