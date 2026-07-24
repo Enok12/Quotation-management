@@ -194,6 +194,12 @@ model Business {
   id        String   @id @default(cuid())
   name      String
   logoUrl   String?
+  // Where transactional notifications go (currently: a customer completing
+  // self-registration via an invite link). Deliberately its own field rather
+  // than reusing admin members' addresses — those come from Clerk and can be
+  // placeholders that hard-bounce, and the right recipient is often a shared
+  // inbox rather than one person. Null disables notifications for this business.
+  notificationEmail String?
   // Encrypted (see src/lib/crypto/secret-box.ts) — a business's own Gemini
   // API key for the receipt-photo OCR import, so heavy usage on one tenant
   // doesn't exhaust the shared default key's free-tier quota for everyone

@@ -26,12 +26,25 @@ export const businessService = {
     });
   },
 
-  async updateName(businessId: string, actorId: string, name: string) {
+  // notificationEmail is optional so callers that only rename a business
+  // don't have to pass it; an explicit null clears it (turning notifications
+  // off), while undefined leaves whatever is stored untouched.
+  async updateDetails(
+    businessId: string,
+    actorId: string,
+    input: { name: string; notificationEmail?: string | null },
+  ) {
     return prisma.$transaction(async (tx) => {
-      const business = await tx.business.update({ where: { id: businessId }, data: { name } });
+      const business = await tx.business.update({
+        where: { id: businessId },
+        data: {
+          name: input.name,
+          ...(input.notificationEmail === undefined ? {} : { notificationEmail: input.notificationEmail }),
+        },
+      });
       await auditService.log(tx, {
         businessId, actorId, action: "BUSINESS_UPDATED", entityType: "Business", entityId: businessId,
-        metadata: { name },
+        metadata: { name: input.name, notificationEmail: business.notificationEmail },
       });
       return business;
     });

@@ -17,7 +17,7 @@ export default async function SettingsPage() {
   if (!hasSection(access, "SETTINGS")) return <SectionUnavailable section="Settings" />;
   const business = await prisma.business.findUniqueOrThrow({
     where: { id: businessId },
-    select: { name: true, logoUrl: true, geminiApiKeyEncrypted: true },
+    select: { name: true, logoUrl: true, geminiApiKeyEncrypted: true, notificationEmail: true },
   });
 
   return (
@@ -30,8 +30,8 @@ export default async function SettingsPage() {
       </div>
 
       <div className="card card-body mb-6">
-        <h2 className="heading-2 mb-4">Business name</h2>
-        <BusinessNameForm initialName={business.name} />
+        <h2 className="heading-2 mb-4">Business details</h2>
+        <BusinessNameForm initialName={business.name} initialNotificationEmail={business.notificationEmail ?? ""} />
       </div>
 
       <div className="card card-body mb-6">

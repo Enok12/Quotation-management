@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { ok, fail } from "@/lib/api/response";
 import { prisma } from "@/lib/db";
 import { customerCreateSchema } from "@/lib/validation/customer.schema";
+import { notifyCustomerRegistered } from "@/server/email/notify";
 import { z, ZodError } from "zod";
 
 // Public self-registration — gated by a one-time invite token, so the form
@@ -41,6 +42,14 @@ export async function POST(req: NextRequest) {
       });
       return created;
     });
+
+    // Notify the business — deliberately AFTER the transaction has committed
+    // and awaited before responding. Awaiting matters on serverless: the
+    // function can be frozen the moment the response is returned, so a
+    // fire-and-forget promise would often never actually run. The call
+    // swallows all of its own failures, so this can't turn a successful
+    // registration into an error for the customer.
+    await notifyCustomerRegistered(customer.id);
 
     return ok({ id: customer.id }, 201);
   } catch (err) {

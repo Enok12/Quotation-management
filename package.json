@@ -34,6 +34,7 @@
     "react-dom": "^19.0.0",
     "react-hook-form": "^7.53.0",
     "regenerator-runtime": "^0.14.1",
+    "resend": "^6.18.0",
     "tailwind-merge": "^2.5.4",
     "zod": "^3.23.8"
   },
