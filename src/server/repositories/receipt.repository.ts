@@ -41,6 +41,14 @@ export const receiptRepository = {
     return prisma.receipt.findFirst({ where: { id, businessId }, include: fullInclude });
   },
 
+  // Unscoped by business ON PURPOSE — for the public signed-PDF link only,
+  // where a valid HMAC signature over the id (see receipt-pdf-token.ts) is
+  // the authorization, so there's no session/business to scope by. Never call
+  // this from an authenticated path; use findFull(id, businessId) there.
+  findFullForSignedPdf(id: string) {
+    return prisma.receipt.findUnique({ where: { id }, include: fullInclude });
+  },
+
   listVersions(receiptId: string, businessId: string) {
     return prisma.receiptVersion.findMany({
       where: { receiptId, receipt: { businessId } },

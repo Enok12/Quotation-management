@@ -6,6 +6,9 @@ import { ArrowLeft, Edit, HelpCircle } from "lucide-react";
 import { fmtMoney, fmtDate, fmtDateTime } from "@/lib/utils/format";
 import { OrderStatusBadge, PaymentStatusBadge, OrderTypeBadge, CategoryBadge } from "@/components/receipts/status-badges";
 import { GeneratePdfButton } from "@/components/receipts/generate-pdf-button";
+import { SendWhatsappButton } from "@/components/receipts/send-whatsapp-button";
+import { appBaseUrl } from "@/lib/app-url";
+import { signReceiptId } from "@/lib/utils/receipt-pdf-token";
 import { ConvertToBulkButton } from "@/components/receipts/convert-to-bulk-button";
 import { DeleteReceiptButton } from "@/components/receipts/delete-receipt-button";
 import { TrackingLinkButton } from "@/components/receipts/tracking-link-button";
@@ -27,6 +30,7 @@ export default async function ReceiptDetailPage({ params }: Props) {
   const receipt = await prisma.receipt.findFirst({
     where: { id, businessId },
     include: {
+      business: { select: { name: true } },
       items: { orderBy: { sortOrder: "asc" } },
       adjustments: { orderBy: { sortOrder: "asc" } },
       versions: { orderBy: { versionNumber: "desc" }, select: { id: true, versionNumber: true, changeSummary: true, createdAt: true } },
@@ -89,6 +93,15 @@ export default async function ReceiptDetailPage({ params }: Props) {
             />
           )}
           <GeneratePdfButton receiptId={id} receiptNumber={receipt.receiptNumber} custName={receipt.custName} orderType={receipt.orderType} />
+          <SendWhatsappButton
+            receiptId={id}
+            receiptNumber={receipt.receiptNumber}
+            orderType={receipt.orderType}
+            custName={receipt.custName}
+            custPhone={receipt.custPhone}
+            businessName={receipt.business.name}
+            pdfUrl={`${appBaseUrl()}/api/public/receipt-pdf?id=${id}&sig=${signReceiptId(id)}`}
+          />
           <LinkButton href={`/dashboard/receipts/${id}/edit`} className="btn-outline" icon={<Edit size={14} />} iconSize={14}>
             Edit
           </LinkButton>

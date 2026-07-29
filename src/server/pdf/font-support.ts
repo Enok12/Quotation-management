@@ -9,6 +9,36 @@ import type { PDFFont } from "pdf-lib";
 // the bulk-upload save path all at once.
 export const needsUnicodeFont = (text: string) => /[^ -ÿ]/.test(text);
 
+// Phone keyboards and OCR routinely turn a plain apostrophe into a "smart"
+// curly one (U+2019), hyphens into en/em dashes, and so on. Those characters
+// sit above U+00FF, so needsUnicodeFont() sent the whole word to the Sinhala
+// fallback font — and Latin text drawn through that font's Indic shaping came
+// out BLANK. That's exactly why "Men's" vanished from receipts while "Mens"
+// rendered fine.
+//
+// Mapping these typographic variants back to their ASCII equivalents keeps
+// such text on the normal Helvetica/Times path, where it renders correctly —
+// and they look essentially identical on a printed receipt anyway. Genuine
+// non-Latin scripts (e.g. Sinhala) are untouched and still route to the
+// Unicode font. Keyed by \u escapes so the mapping never depends on invisible
+// bytes surviving an editor round-trip.
+const PUNCTUATION_MAP: Record<string, string> = {
+  "‘": "'", "’": "'", "‚": "'", "‛": "'", "′": "'", // single quotes / apostrophe / prime
+  "“": '"', "”": '"', "„": '"', "‟": '"', "″": '"', // double quotes / double prime
+  "–": "-", "—": "-", "―": "-", "−": "-",                 // en/em dash, horizontal bar, minus
+  "…": "...",                                                            // ellipsis
+  " ": " ", " ": " ", " ": " ", " ": " ",                 // non-breaking / figure / thin / narrow spaces
+  "•": "-",                                                              // bullet
+  "​": "", "‌": "", "‍": "", "﻿": "",                     // zero-width — drop entirely
+};
+
+const PUNCTUATION_RE = new RegExp("[" + Object.keys(PUNCTUATION_MAP).join("") + "]", "g");
+
+/** Fold typographic punctuation to ASCII so it renders in the standard fonts. */
+export function normalizePdfText(text: string): string {
+  return text.replace(PUNCTUATION_RE, (c) => PUNCTUATION_MAP[c] ?? c);
+}
+
 // Font files sit next to this module. process.cwd() rather than import.meta
 // so the path resolves the same in dev and in the bundled server build.
 const FONT_DIR = path.join(process.cwd(), "src", "server", "pdf", "fonts");

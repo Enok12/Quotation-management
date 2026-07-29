@@ -10,6 +10,7 @@ const isPublicRoute = createRouteMatcher([
   "/sign-up(.*)",
   "/api/v1/customers/public", // public form submission endpoint
   "/api/v1/track", // public invoice-number tracking lookup
+  "/api/public/(.*)", // signed public endpoints (e.g. WhatsApp receipt-PDF link)
 ]);
 
 export default clerkMiddleware(async (auth, req) => {

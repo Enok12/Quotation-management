@@ -1,9 +1,16 @@
 import { generateReceiptPdf, type ReceiptAssets, type ReceiptPdfData } from "./receipt-template";
 import type { FullReceipt } from "../repositories/receipt.repository";
 import { receiptNumberSlug } from "@/lib/utils/receipt-number";
+import { normalizePdfText } from "./font-support";
 
 const has = (m: string[], v: string) => m.includes(v);
 const num = (d: { toNumber(): number } | number) => (typeof d === "number" ? d : d.toNumber());
+// Fold smart punctuation to ASCII for every human-entered string, so a curly
+// apostrophe (etc.) doesn't get routed to the Unicode fallback font and render
+// blank — see normalizePdfText. Applied here, at the single boundary where a
+// receipt becomes PDF input, so it covers every path: the PDF button, folder
+// sync, and the public WhatsApp link alike. Null passes through untouched.
+const t = <T extends string | null | undefined>(s: T): T => (s == null ? s : (normalizePdfText(s) as T));
 
 // Fetches the tenant's own uploaded logo (if any) for embedding — receipts
 // carry the issuing business's brand, not MONTRA's (MONTRA is the software
@@ -29,13 +36,13 @@ async function fetchLogo(logoUrl: string | null): Promise<ReceiptAssets> {
 // see receipt-template.ts — so folder sync has something to place for it.
 export async function renderReceiptPdf(r: FullReceipt): Promise<Uint8Array> {
   const data: ReceiptPdfData = {
-    businessName: r.business.name,
+    businessName: t(r.business.name),
     // Formatted, not raw: Bulk and Sample are separate sequences, so the
     // printed document has to carry the Sample marker ("S-01") or two
     // different invoices would both read "Receipt #: 1".
     receiptNumber: r.receiptNumber === null ? null : receiptNumberSlug(r.receiptNumber, r.orderType),
     date: new Intl.DateTimeFormat("en-GB").format(r.date),
-    customer: { name: r.custName, address: r.custAddress, phone: r.custPhone, email: r.custEmail },
+    customer: { name: t(r.custName), address: t(r.custAddress), phone: r.custPhone, email: r.custEmail },
     payment: {
       cash: has(r.paymentMethods, "CASH"),
       card: has(r.paymentMethods, "CARD"),
@@ -43,10 +50,10 @@ export async function renderReceiptPdf(r: FullReceipt): Promise<Uint8Array> {
       other: has(r.paymentMethods, "OTHER"),
     },
     items: r.items.map((i) => ({
-      quantity: i.quantity, description: i.description,
+      quantity: i.quantity, description: t(i.description),
       unitPrice: num(i.unitPrice), lineTotal: num(i.lineTotal),
     })),
-    adjustments: r.adjustments.map((a) => ({ label: a.label, amount: num(a.amount) })),
+    adjustments: r.adjustments.map((a) => ({ label: t(a.label), amount: num(a.amount) })),
     totalDue: num(r.totalDue),
     advanceAmount: num(r.advanceAmount),
     amountPaid: num(r.amountPaid),

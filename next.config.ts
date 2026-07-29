@@ -11,6 +11,9 @@ const nextConfig: NextConfig = {
   // into the trace keeps the deployed bundle self-sufficient.
   outputFileTracingIncludes: {
     "/api/v1/receipts/**": ["./src/server/pdf/fonts/**"],
+    // The public signed-PDF link renders receipts too, so it needs the
+    // Sinhala fonts bundled just like the authenticated PDF route.
+    "/api/public/receipt-pdf/**": ["./src/server/pdf/fonts/**"],
   },
 };
 

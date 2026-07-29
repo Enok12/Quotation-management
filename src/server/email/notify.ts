@@ -1,16 +1,7 @@
 import { prisma } from "@/lib/db";
 import { sendEmail } from "./client";
 import { customerRegisteredEmail } from "./templates/customer-registered";
-
-// Absolute URL for links inside emails. VERCEL_URL is set automatically on
-// every deployment (without a scheme), so this works in production without
-// extra configuration; NEXT_PUBLIC_APP_URL overrides it once a custom domain
-// is in place.
-function appUrl(): string {
-  if (process.env.NEXT_PUBLIC_APP_URL) return process.env.NEXT_PUBLIC_APP_URL;
-  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
-  return "http://localhost:3000";
-}
+import { appBaseUrl } from "@/lib/app-url";
 
 /**
  * Tells a business that a customer self-registered through its invite link.
@@ -42,7 +33,7 @@ export async function notifyCustomerRegistered(customerId: string): Promise<void
       email: customer.email,
       address: customer.address,
       nic: customer.nic,
-      appUrl: appUrl(),
+      appUrl: appBaseUrl(),
     });
 
     await sendEmail({ ...message, to: customer.business.notificationEmail });
