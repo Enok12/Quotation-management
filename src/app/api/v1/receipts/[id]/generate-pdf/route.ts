@@ -13,21 +13,13 @@ type Ctx = { params: Promise<{ id: string }> };
 // Only takes effect on Vercel Pro+; harmless (ignored) on Hobby.
 export const maxDuration = 60;
 
-// Explicit generation only — never during typing (the UI uses a live HTML preview).
-// Works for an Unconfirmed receipt too — renders as a clearly-marked draft
-// (see receipt-template.ts) so folder sync has something to place for it.
-export const POST = handler(async (req: NextRequest, { params }: Ctx) => {
-  const user = await requireBusiness();
-  const { id } = await params;
-  const receipt = await receiptService.getFull(id, user.businessId);
+async function renderPdf(id: string, businessId: string, actorId: string, audit: boolean) {
+  const receipt = await receiptService.getFull(id, businessId);
   const bytes = await renderReceiptPdf(receipt);
 
-  // Folder-sync fetches the PDF purely to write it to disk — skip the audit
-  // entry in that case so reconciling many invoices doesn't flood the log.
-  const silent = new URL(req.url).searchParams.get("silent") === "1";
-  if (!silent) {
+  if (audit) {
     await prisma.auditLog.create({
-      data: { businessId: receipt.businessId, actorId: user.id, action: "PDF_GENERATED", entityType: "Receipt", entityId: id },
+      data: { businessId: receipt.businessId, actorId, action: "PDF_GENERATED", entityType: "Receipt", entityId: id },
     });
   }
 
@@ -38,7 +30,31 @@ export const POST = handler(async (req: NextRequest, { params }: Ctx) => {
   return new NextResponse(Buffer.from(bytes), {
     headers: {
       "Content-Type": "application/pdf",
+      // inline: the browser opens the PDF in its own viewer, from which the
+      // user can save or share. This is the ONE behavior that works reliably
+      // on both desktop and mobile — a blob download with an <a download> is
+      // silently ignored by iOS Safari, which is why the button "didn't work"
+      // on phones. The filename is still offered for the viewer's Save action.
       "Content-Disposition": `inline; filename="${filename}"`,
     },
   });
+}
+
+// GET: opened by the PDF button as a top-level navigation in a new tab (the
+// browser sends the session cookie, so requireBusiness() still authenticates).
+// Always audited — it's an explicit user action, not folder-sync traffic.
+export const GET = handler(async (_req: NextRequest, { params }: Ctx) => {
+  const user = await requireBusiness();
+  const { id } = await params;
+  return renderPdf(id, user.businessId, user.id, true);
+});
+
+// POST: used by folder sync (with ?silent=1 to skip the audit entry so
+// reconciling many invoices doesn't flood the log). Works for an Unconfirmed
+// receipt too — rendered as a clearly-marked draft (see receipt-template.ts).
+export const POST = handler(async (req: NextRequest, { params }: Ctx) => {
+  const user = await requireBusiness();
+  const { id } = await params;
+  const silent = new URL(req.url).searchParams.get("silent") === "1";
+  return renderPdf(id, user.businessId, user.id, !silent);
 });

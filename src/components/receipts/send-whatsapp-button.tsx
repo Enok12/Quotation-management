@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { MessageCircle, Loader2 } from "lucide-react";
+import { Share2, Loader2 } from "lucide-react";
 import { receiptNumberLabelOr, type ReceiptOrderType } from "@/lib/utils/receipt-number";
 
 interface Props {
@@ -30,12 +30,11 @@ function toWaNumber(phone: string | null): string {
   return d;
 }
 
-// Sends the receipt to the customer over WhatsApp. Best behavior per device:
-//  • Phone with file-sharing: shares the ACTUAL PDF via the native share sheet.
-//  • Otherwise (desktop, or no file-share support): opens WhatsApp to the
-//    customer's number with a pre-typed message containing the PDF link.
-// WhatsApp itself allows neither attaching a file via a link nor targeting a
-// number with a file, so this is as close as it gets without the Business API.
+// Shares the receipt to the customer. Mobile-only (hidden on desktop via
+// md:hidden below), because the whole point is the phone's native share sheet:
+// tap Share → the OS sheet opens → pick WhatsApp (or anything) → the ACTUAL
+// PDF file is attached. If file-sharing isn't available, it falls back to
+// opening WhatsApp to the customer's number with a message + PDF link.
 export function SendWhatsappButton({
   receiptId, receiptNumber, orderType, custName, custPhone, businessName, pdfSig,
 }: Props) {
@@ -94,11 +93,13 @@ export function SendWhatsappButton({
       type="button"
       onClick={onClick}
       disabled={busy}
-      className="btn-outline"
-      title="Send this receipt to the customer on WhatsApp"
+      // md:hidden → shown on phones/small tablets, hidden on desktop, since it
+      // relies on the mobile native share sheet.
+      className="btn-outline md:hidden"
+      title="Share this receipt (e.g. to the customer on WhatsApp)"
     >
-      {busy ? <Loader2 size={14} className="animate-spin" /> : <MessageCircle size={14} />}
-      WhatsApp
+      {busy ? <Loader2 size={14} className="animate-spin" /> : <Share2 size={14} />}
+      Share
     </button>
   );
 }
