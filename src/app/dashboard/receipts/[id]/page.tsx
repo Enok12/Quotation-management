@@ -7,7 +7,6 @@ import { fmtMoney, fmtDate, fmtDateTime } from "@/lib/utils/format";
 import { OrderStatusBadge, PaymentStatusBadge, OrderTypeBadge, CategoryBadge } from "@/components/receipts/status-badges";
 import { GeneratePdfButton } from "@/components/receipts/generate-pdf-button";
 import { SendWhatsappButton } from "@/components/receipts/send-whatsapp-button";
-import { appBaseUrl } from "@/lib/app-url";
 import { signReceiptId } from "@/lib/utils/receipt-pdf-token";
 import { ConvertToBulkButton } from "@/components/receipts/convert-to-bulk-button";
 import { DeleteReceiptButton } from "@/components/receipts/delete-receipt-button";
@@ -100,7 +99,7 @@ export default async function ReceiptDetailPage({ params }: Props) {
             custName={receipt.custName}
             custPhone={receipt.custPhone}
             businessName={receipt.business.name}
-            pdfUrl={`${appBaseUrl()}/api/public/receipt-pdf?id=${id}&sig=${signReceiptId(id)}`}
+            pdfSig={signReceiptId(id)}
           />
           <LinkButton href={`/dashboard/receipts/${id}/edit`} className="btn-outline" icon={<Edit size={14} />} iconSize={14}>
             Edit
