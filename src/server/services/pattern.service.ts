@@ -6,15 +6,38 @@ import { generatePatternCode, normalizePatternCode } from "@/lib/utils/pattern-c
 export interface PatternCreateInput {
   description: string;
   imageUrl: string | null;
-  file1Url: string; file1Name: string;
-  file2Url: string; file2Name: string;
-  file3Url: string; file3Name: string;
+  // All optional — a pattern may be saved with some, or none, of its
+  // DXF/HPGL/RUL attachments. Url and Name are always set (or cleared) together.
+  file1Url: string | null; file1Name: string | null;
+  file2Url: string | null; file2Name: string | null;
+  file3Url: string | null; file3Name: string | null;
 }
 
 // How many times to re-roll a colliding pattern code before giving up. With
 // 27^6 (~387 million) possible codes a single retry is already unlikely;
 // five makes exhausting them effectively impossible.
 const MAX_CODE_ATTEMPTS = 5;
+
+export interface PatternFile {
+  label: string; // DXF / HPGL / RUL
+  url: string;
+  name: string;
+}
+
+// The present attachments of a pattern, in DXF/HPGL/RUL order, skipping any
+// slot that wasn't uploaded. Shared by every read path (list page, list API,
+// assign-dialog lookup) so they all render optional files identically.
+export function patternFiles(p: {
+  file1Url: string | null; file1Name: string | null;
+  file2Url: string | null; file2Name: string | null;
+  file3Url: string | null; file3Name: string | null;
+}): PatternFile[] {
+  return [
+    { label: "DXF", url: p.file1Url, name: p.file1Name },
+    { label: "HPGL", url: p.file2Url, name: p.file2Name },
+    { label: "RUL", url: p.file3Url, name: p.file3Name },
+  ].flatMap((f) => (f.url ? [{ label: f.label, url: f.url, name: f.name ?? f.label }] : []));
+}
 
 export const patternService = {
   /**

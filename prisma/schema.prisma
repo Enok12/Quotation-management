@@ -494,18 +494,20 @@ model Pattern {
   // receipt numbers — two businesses can each have their own PTN-7K2M9Q.
   patternCode String
   description String
-  // Optional reference photo, plus three mandatory attachments which are
-  // usually images but may be any file type (e.g. a DXF/PDF cutting file),
-  // so these are never assumed to be renderable as an <img>.
+  // Optional reference photo, plus three attachments — the DXF, HPGL and RUL
+  // cutting files (file1/file2/file3 respectively). All optional: a pattern
+  // maker can save with some or none, after confirming the warning. Any file
+  // type is accepted, so these are never assumed to be renderable as an <img>.
   imageUrl String?
-  file1Url String
-  file2Url String
-  file3Url String
+  file1Url String? // DXF
+  file2Url String? // HPGL
+  file3Url String? // RUL
   // Original upload filenames — Blob URLs are opaque, so without these there'd
-  // be nothing meaningful to label a download link with.
-  file1Name String
-  file2Name String
-  file3Name String
+  // be nothing meaningful to label a download link with. Null when the
+  // matching file wasn't uploaded.
+  file1Name String?
+  file2Name String?
+  file3Name String?
 
   createdById String
   createdBy   User   @relation("PatternCreatedBy", fields: [createdById], references: [id])

@@ -9,7 +9,7 @@ interface FoundPattern {
   patternCode: string;
   description: string;
   imageUrl: string | null;
-  files: { url: string; name: string }[];
+  files: { label: string; url: string; name: string }[];
   createdBy: string;
   createdAt: string;
 }
@@ -141,14 +141,20 @@ export function AssignPatternButton({
                   </div>
                 </div>
                 <div className="flex flex-col gap-0.5 mt-2.5">
-                  {found.files.map((f, i) => (
-                    <a
-                      key={i} href={f.url} target="_blank" rel="noreferrer"
-                      className="flex items-center gap-1 text-xs text-amber-600 hover:underline truncate"
-                    >
-                      <FileDown size={11} className="flex-none" /> {f.name}
-                    </a>
-                  ))}
+                  {found.files.length === 0 ? (
+                    <span className="text-xs text-stone-400">No files attached</span>
+                  ) : (
+                    found.files.map((f) => (
+                      <a
+                        key={f.label} href={f.url} target="_blank" rel="noreferrer"
+                        className="flex items-center gap-1 text-xs text-amber-600 hover:underline truncate"
+                      >
+                        <FileDown size={11} className="flex-none" />
+                        <span className="font-medium">{f.label}</span>
+                        <span className="text-stone-400 truncate">· {f.name}</span>
+                      </a>
+                    ))
+                  )}
                 </div>
               </div>
             )}

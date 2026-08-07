@@ -2,8 +2,8 @@
 
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, Upload, Check, Copy, X } from "lucide-react";
-import { MAX_PATTERN_FILE_BYTES } from "@/lib/pattern-upload-limits";
+import { Loader2, Upload, Check, Copy, X, AlertTriangle } from "lucide-react";
+import { MAX_PATTERN_FILE_BYTES, PATTERN_FILE_SLOTS } from "@/lib/pattern-upload-limits";
 
 // Upload form for a new pattern. There is deliberately no Pattern ID field —
 // the code is generated server-side on save and shown afterwards for the
@@ -15,20 +15,25 @@ export function PatternUploadForm() {
   const [error, setError] = useState<string | null>(null);
   const [createdCode, setCreatedCode] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  // Holds a submission that's paused on the "missing files" confirmation, plus
+  // which slots are missing (to name them in the prompt). null = no prompt.
+  const [pending, setPending] = useState<{ fd: FormData; missing: string[] } | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
 
-  const submit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
+  // The actual upload. Kept separate from the submit handler so it can run
+  // either straight away (all files present) or after the confirmation.
+  const doUpload = async (fd: FormData) => {
     setSaving(true);
     setError(null);
+    setPending(null);
     try {
-      const fd = new FormData(e.currentTarget);
       // Client-side size check purely for a fast, clear message — the server
       // re-validates everything regardless.
-      for (const slot of ["picture", "file1", "file2", "file3"]) {
+      for (const slot of ["picture", ...PATTERN_FILE_SLOTS.map((s) => s.field)]) {
         const f = fd.get(slot);
         if (f instanceof File && f.size > MAX_PATTERN_FILE_BYTES) {
-          throw new Error(`${slot === "picture" ? "The picture" : slot} is too large (max 10MB).`);
+          const label = slot === "picture" ? "The picture" : PATTERN_FILE_SLOTS.find((s) => s.field === slot)?.label;
+          throw new Error(`${label} is too large (max 10MB).`);
         }
       }
 
@@ -45,6 +50,22 @@ export function PatternUploadForm() {
     } finally {
       setSaving(false);
     }
+  };
+
+  const submit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setError(null);
+    const fd = new FormData(e.currentTarget);
+
+    // Which of the DXF/HPGL/RUL slots weren't given a file?
+    const missing = PATTERN_FILE_SLOTS.filter((s) => {
+      const f = fd.get(s.field);
+      return !(f instanceof File) || f.size === 0;
+    }).map((s) => s.label);
+
+    // Any missing → confirm before proceeding. All three present → upload now.
+    if (missing.length > 0) setPending({ fd, missing });
+    else doUpload(fd);
   };
 
   const copyCode = async () => {
@@ -112,20 +133,38 @@ export function PatternUploadForm() {
         {fileField("picture", "Picture", false, "image/*")}
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          {fileField("file1", "File 1", true)}
-          {fileField("file2", "File 2", true)}
-          {fileField("file3", "File 3", true)}
+          {PATTERN_FILE_SLOTS.map((s) => fileField(s.field, s.label, false))}
         </div>
         <p className="text-xs text-stone-400">
-          Files can be images or any other type (PDF, DXF, ZIP…). Max 10MB each.
+          DXF, HPGL and RUL cutting files. Any file type is accepted; max 10MB each.
         </p>
 
         {error && <p className="text-sm text-red-500">{error}</p>}
 
-        <button type="submit" disabled={saving} className="btn-primary">
-          {saving ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
-          {saving ? "Uploading…" : "Save Pattern"}
-        </button>
+        {pending ? (
+          <div className="rounded-md border border-amber-200 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-500/10 px-4 py-3 space-y-3">
+            <div className="flex items-start gap-2.5">
+              <AlertTriangle size={16} className="text-amber-500 mt-0.5 flex-none" />
+              <p className="text-sm text-amber-800 dark:text-amber-300">
+                You&apos;re adding this pattern without all 3 files — missing{" "}
+                <strong>{pending.missing.join(", ")}</strong>. Are you sure you want to proceed?
+              </p>
+            </div>
+            <div className="flex gap-2 justify-end">
+              <button type="button" onClick={() => setPending(null)} className="btn-ghost text-xs py-1.5">
+                Cancel
+              </button>
+              <button type="button" onClick={() => doUpload(pending.fd)} className="btn-primary text-xs py-1.5">
+                <Upload size={13} /> Yes, add it
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button type="submit" disabled={saving} className="btn-primary">
+            {saving ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
+            {saving ? "Uploading…" : "Save Pattern"}
+          </button>
+        )}
       </form>
     </div>
   );

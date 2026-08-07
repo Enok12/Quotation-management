@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { handler, ok } from "@/lib/api/response";
 import { requireBusiness } from "@/lib/auth";
 import { requireSection } from "@/lib/section-access";
-import { patternService } from "@/server/services/pattern.service";
+import { patternService, patternFiles } from "@/server/services/pattern.service";
 
 // Resolve a typed-in Pattern ID for the Assign Pattern dialog.
 //
@@ -29,11 +29,7 @@ export const GET = handler(async (req: NextRequest) => {
       patternCode: pattern.patternCode,
       description: pattern.description,
       imageUrl: pattern.imageUrl,
-      files: [
-        { url: pattern.file1Url, name: pattern.file1Name },
-        { url: pattern.file2Url, name: pattern.file2Name },
-        { url: pattern.file3Url, name: pattern.file3Name },
-      ],
+      files: patternFiles(pattern),
       createdBy: pattern.createdBy.name ?? pattern.createdBy.email,
       createdAt: pattern.createdAt.toISOString(),
     },

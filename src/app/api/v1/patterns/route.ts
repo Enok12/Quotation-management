@@ -4,7 +4,7 @@ import { handler, ok } from "@/lib/api/response";
 import { requireBusiness } from "@/lib/auth";
 import { requireSection } from "@/lib/section-access";
 import { AppError } from "@/lib/api/errors";
-import { patternService } from "@/server/services/pattern.service";
+import { patternService, patternFiles } from "@/server/services/pattern.service";
 import {
   MAX_PATTERN_FILE_BYTES,
   isAcceptedPatternImage,
@@ -31,11 +31,7 @@ export const GET = handler(async () => {
     patternCode: p.patternCode,
     description: p.description,
     imageUrl: p.imageUrl,
-    files: [
-      { url: p.file1Url, name: p.file1Name },
-      { url: p.file2Url, name: p.file2Name },
-      { url: p.file3Url, name: p.file3Name },
-    ],
+    files: patternFiles(p),
     createdAt: p.createdAt.toISOString(),
     createdBy: p.createdBy.name ?? p.createdBy.email,
     assignedCount: p._count.items,
@@ -52,14 +48,15 @@ export const POST = handler(async (req: NextRequest) => {
   if (!description) throw new AppError("An item description is required.", 400);
   if (description.length > 500) throw new AppError("Description is too long (max 500 characters).", 400);
 
-  // Validate every file BEFORE uploading any of them — otherwise a rejection
-  // on file 3 would leave files 1 and 2 orphaned in Blob storage, paid for
-  // and unreferenced by any row.
-  const files = PATTERN_FILE_SLOTS.map((slot, i) => {
-    const f = form.get(slot);
-    if (!(f instanceof File) || f.size === 0) throw new AppError(`File ${i + 1} is required.`, 400);
-    if (f.size > MAX_PATTERN_FILE_BYTES) throw new AppError(`File ${i + 1} is too large (max 10MB).`, 400);
-    return f;
+  // Files are OPTIONAL — a pattern maker may save with some, or none (the form
+  // warns them first). Collect only the slots that actually have a file, and
+  // validate size BEFORE uploading any, so a too-large file on one slot can't
+  // leave earlier uploads orphaned in Blob storage.
+  const provided = PATTERN_FILE_SLOTS.map((slot) => {
+    const f = form.get(slot.field);
+    if (!(f instanceof File) || f.size === 0) return { slot, file: null as File | null };
+    if (f.size > MAX_PATTERN_FILE_BYTES) throw new AppError(`${slot.label} file is too large (max 10MB).`, 400);
+    return { slot, file: f };
   });
 
   const pictureRaw = form.get("picture");
@@ -72,20 +69,22 @@ export const POST = handler(async (req: NextRequest) => {
   // addRandomSuffix keeps two uploads of the same filename from overwriting
   // each other — unlike the business logo, which is deliberately one-per-business.
   const folder = `patterns/${businessId}`;
-  const [pictureBlob, f1, f2, f3] = await Promise.all([
+  const [pictureBlob, ...uploaded] = await Promise.all([
     picture ? put(`${folder}/picture-${Date.now()}`, picture, { access: "public", addRandomSuffix: true }) : null,
-    put(`${folder}/${files[0].name}`, files[0], { access: "public", addRandomSuffix: true }),
-    put(`${folder}/${files[1].name}`, files[1], { access: "public", addRandomSuffix: true }),
-    put(`${folder}/${files[2].name}`, files[2], { access: "public", addRandomSuffix: true }),
+    ...provided.map(({ file }) =>
+      file ? put(`${folder}/${file.name}`, file, { access: "public", addRandomSuffix: true }) : null,
+    ),
   ]);
 
+  // uploaded[] aligns 1:1 with provided[] / PATTERN_FILE_SLOTS order.
+  const [f1, f2, f3] = uploaded;
   const pattern = await patternService.create(
     {
       description,
       imageUrl: pictureBlob?.url ?? null,
-      file1Url: f1.url, file1Name: files[0].name,
-      file2Url: f2.url, file2Name: files[1].name,
-      file3Url: f3.url, file3Name: files[2].name,
+      file1Url: f1?.url ?? null, file1Name: provided[0].file?.name ?? null,
+      file2Url: f2?.url ?? null, file2Name: provided[1].file?.name ?? null,
+      file3Url: f3?.url ?? null, file3Name: provided[2].file?.name ?? null,
     },
     userId,
     businessId,

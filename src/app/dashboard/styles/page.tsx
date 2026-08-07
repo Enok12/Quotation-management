@@ -1,7 +1,7 @@
 import { requireBusiness } from "@/lib/auth";
 import { getBusinessAccess, hasSection } from "@/lib/section-access";
 import { SectionUnavailable } from "@/components/dashboard/section-unavailable";
-import { patternService } from "@/server/services/pattern.service";
+import { patternService, patternFiles } from "@/server/services/pattern.service";
 import { PatternUploadForm } from "@/components/styles/pattern-upload-form";
 import { fmtDate } from "@/lib/utils/format";
 import { FileDown, ImageOff } from "lucide-react";
@@ -80,20 +80,22 @@ export default async function StylesPage() {
                   </td>
                   <td className="td text-sm">{p.description}</td>
                   <td className="td">
-                    <div className="flex flex-col gap-0.5">
-                      {[
-                        { url: p.file1Url, name: p.file1Name },
-                        { url: p.file2Url, name: p.file2Name },
-                        { url: p.file3Url, name: p.file3Name },
-                      ].map((f, i) => (
-                        <a
-                          key={i} href={f.url} target="_blank" rel="noreferrer"
-                          className="flex items-center gap-1 text-xs text-amber-600 hover:underline truncate max-w-[180px]"
-                        >
-                          <FileDown size={11} className="flex-none" /> {f.name}
-                        </a>
-                      ))}
-                    </div>
+                    {patternFiles(p).length === 0 ? (
+                      <span className="text-xs text-stone-400">No files</span>
+                    ) : (
+                      <div className="flex flex-col gap-0.5">
+                        {patternFiles(p).map((f) => (
+                          <a
+                            key={f.label} href={f.url} target="_blank" rel="noreferrer"
+                            className="flex items-center gap-1 text-xs text-amber-600 hover:underline truncate max-w-[200px]"
+                          >
+                            <FileDown size={11} className="flex-none" />
+                            <span className="font-medium">{f.label}</span>
+                            <span className="text-stone-400 truncate">· {f.name}</span>
+                          </a>
+                        ))}
+                      </div>
+                    )}
                   </td>
                   {!isPatternMaker && (
                     <td className="td text-xs text-stone-500">{p.createdBy.name ?? p.createdBy.email}</td>
