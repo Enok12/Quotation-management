@@ -54,7 +54,7 @@ export function GenerateInviteButton() {
             <div className="flex items-start justify-between mb-4">
               <div>
                 <h3 className="font-serif text-xl text-ink">Customer registration link</h3>
-                <p className="text-sm text-stone-500 mt-0.5">One-time use · expires in 48 hours.</p>
+                <p className="text-sm text-stone-500 mt-0.5">One-time use · doesn&apos;t expire.</p>
               </div>
               <button onClick={() => setOpen(false)} className="text-stone-400 hover:text-ink">
                 <X size={18} />

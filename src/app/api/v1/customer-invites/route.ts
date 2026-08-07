@@ -4,19 +4,19 @@ import { requireBusiness } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { generateToken } from "@/lib/utils/token";
 
-// Invite links are valid for 48 hours from generation (and single-use).
-const EXPIRY_MS = 48 * 60 * 60 * 1000;
-
 // Staff-only: mint a fresh one-time registration link for a customer.
 export const POST = handler(async (_req: NextRequest) => {
   const { id: userId, businessId } = await requireBusiness();
 
   const token = generateToken();
-  const expiresAt = new Date(Date.now() + EXPIRY_MS);
+  // No expiry for now (expiresAt = null). The public submission route treats a
+  // null expiry as "never expires", so the link stays valid until it's used —
+  // it remains single-use, just not time-limited. (Set a date here to
+  // reinstate a time limit.)
   await prisma.customerInvite.create({
-    data: { token, expiresAt, businessId, createdById: userId },
+    data: { token, expiresAt: null, businessId, createdById: userId },
   });
 
   // The client builds the absolute URL from window.location.origin.
-  return ok({ token, expiresAt }, 201);
+  return ok({ token, expiresAt: null }, 201);
 });
