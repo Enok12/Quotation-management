@@ -340,10 +340,11 @@ export const receiptService = {
   },
 
   // -------- Create a bulk order from an approved sample --------
-  // The sample receipt is left completely untouched (it stays in Sample
-  // Orders); a brand-new BULK receipt is created from its items/adjustments
-  // so staff can set the real bulk quantities on it. Starts Unconfirmed, same
-  // as any other new bulk order with nothing paid yet.
+  // A brand-new BULK receipt is created from the sample's items/adjustments so
+  // staff can set the real bulk quantities on it (starts Unconfirmed, like any
+  // new bulk order with nothing paid). The sample itself stays in Sample
+  // Orders, but is stamped with convertedToBulkId pointing at the new bulk —
+  // which records the link and stops the "unconverted sample" prompt for it.
   async createBulkFromSample(sampleId: string, actorId: string, businessId: string) {
     const sample = await this.getFull(sampleId, businessId);
     if (sample.orderType !== "SAMPLE") throw new ConflictError("Only sample orders can be converted");
@@ -404,6 +405,9 @@ export const receiptService = {
           note: `Created from sample receipt ${sample.receiptNumber !== null ? receiptNumberLabel(sample.receiptNumber, "SAMPLE") : "(unnumbered)"}`,
         })),
       });
+      // Link the sample to the bulk it became (repoints if it was somehow
+      // converted before — the 1:1 constraint is on the value, not a re-set).
+      await tx.receipt.update({ where: { id: sampleId }, data: { convertedToBulkId: receipt.id } });
       await auditService.log(tx, {
         businessId: sample.businessId, actorId, action: "RECEIPT_CREATED", entityType: "Receipt", entityId: receipt.id,
         metadata: { fromSampleId: sampleId, fromSampleReceiptNumber: sample.receiptNumber },

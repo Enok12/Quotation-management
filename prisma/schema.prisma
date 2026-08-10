@@ -385,6 +385,15 @@ model Receipt {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // Sample→bulk conversion link. Set on a SAMPLE when "Convert to Bulk" runs,
+  // pointing at the BULK receipt it produced; null means not yet converted.
+  // 1:1 (@unique) — a bulk comes from at most one sample, and a sample
+  // converts to at most one bulk. onDelete: SetNull so deleting the bulk just
+  // marks the sample un-converted again rather than cascading.
+  convertedToBulkId   String?  @unique
+  convertedToBulk     Receipt? @relation("SampleConversion", fields: [convertedToBulkId], references: [id], onDelete: SetNull)
+  convertedFromSample Receipt? @relation("SampleConversion")
+
   items         ReceiptItem[]
   adjustments   ReceiptAdjustment[]
   versions      ReceiptVersion[]

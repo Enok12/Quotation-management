@@ -7,6 +7,7 @@ import { CustomerSearch } from "@/components/customers/customer-search";
 import { GenerateInviteButton } from "@/components/customers/generate-invite-button";
 import { AddCustomerButton } from "@/components/customers/add-customer-button";
 import { LinkButton } from "@/components/ui/link-button";
+import { NewReceiptButton } from "@/components/receipts/new-receipt-button";
 import { DeleteCustomerButton } from "@/components/customers/delete-customer-button";
 
 interface Props {
@@ -110,9 +111,9 @@ export default async function CustomersPage({ searchParams }: Props) {
                   <td className="td text-stone-400 text-xs">{fmtDate(c.createdAt)}</td>
                   <td className="td">
                     <div className="flex items-center gap-1">
-                      <LinkButton href={`/dashboard/receipts/new?customerId=${c.id}`} className="btn-ghost text-xs py-1" iconSize={12}>
-                        + Receipt
-                      </LinkButton>
+                      <NewReceiptButton customerId={c.id} className="btn-ghost text-xs py-1" icon={<Plus size={12} />}>
+                        Receipt
+                      </NewReceiptButton>
                       <DeleteCustomerButton
                         customerId={c.id}
                         customerName={c.name}
