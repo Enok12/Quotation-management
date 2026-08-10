@@ -4,19 +4,28 @@ import { requireBusiness } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { generateToken } from "@/lib/utils/token";
 
-// Staff-only: mint a fresh one-time registration link for a customer.
+// Staff-only: return the business's single, shareable customer-registration
+// link. It's REUSABLE — one common link that any number of customers can
+// register through — so repeated calls hand back the SAME token rather than
+// minting a new one. Only created the first time (or if none exists yet).
 export const POST = handler(async (_req: NextRequest) => {
   const { id: userId, businessId } = await requireBusiness();
 
-  const token = generateToken();
-  // No expiry for now (expiresAt = null). The public submission route treats a
-  // null expiry as "never expires", so the link stays valid until it's used —
-  // it remains single-use, just not time-limited. (Set a date here to
-  // reinstate a time limit.)
-  await prisma.customerInvite.create({
-    data: { token, expiresAt: null, businessId, createdById: userId },
+  let invite = await prisma.customerInvite.findFirst({
+    where: { businessId },
+    orderBy: { createdAt: "desc" },
+    select: { token: true },
   });
 
+  if (!invite) {
+    // No expiry (expiresAt = null) — the link never lapses, and the public
+    // route never consumes it, so it stays valid for every customer.
+    invite = await prisma.customerInvite.create({
+      data: { token: generateToken(), expiresAt: null, businessId, createdById: userId },
+      select: { token: true },
+    });
+  }
+
   // The client builds the absolute URL from window.location.origin.
-  return ok({ token, expiresAt: null }, 201);
+  return ok({ token: invite.token, expiresAt: null }, 201);
 });

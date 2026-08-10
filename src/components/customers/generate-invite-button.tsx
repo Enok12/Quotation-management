@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { Link2, Copy, Check, X } from "lucide-react";
 
-// Generates a one-time, 48h customer-registration link and shows a copyable URL.
+// Shows the business's single shareable customer-registration link (reusable
+// by any number of customers) with a copyable URL.
 export function GenerateInviteButton() {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -54,7 +55,7 @@ export function GenerateInviteButton() {
             <div className="flex items-start justify-between mb-4">
               <div>
                 <h3 className="font-serif text-xl text-ink">Customer registration link</h3>
-                <p className="text-sm text-stone-500 mt-0.5">One-time use · doesn&apos;t expire.</p>
+                <p className="text-sm text-stone-500 mt-0.5">Shareable · reusable by any customer · doesn&apos;t expire.</p>
               </div>
               <button onClick={() => setOpen(false)} className="text-stone-400 hover:text-ink">
                 <X size={18} />
@@ -83,8 +84,8 @@ export function GenerateInviteButton() {
                   </button>
                 </div>
                 <p className="text-xs text-stone-400 mt-3">
-                  Send this to one customer. It works only once — after they submit their details,
-                  the link stops working.
+                  Share this link with any customer — the same link works for everyone. Each person
+                  who fills it in is added as a new customer, and the link keeps working.
                 </p>
               </>
             )}

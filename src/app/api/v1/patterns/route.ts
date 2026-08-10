@@ -8,8 +8,9 @@ import { patternService, patternFiles } from "@/server/services/pattern.service"
 import {
   MAX_PATTERN_FILE_BYTES,
   isAcceptedPatternImage,
-  PATTERN_FILE_SLOTS,
+  MODULE_FILE_FIELD,
 } from "@/lib/pattern-upload-limits";
+import { normalizePatternCode } from "@/lib/utils/pattern-code";
 
 // Everything here is gated on the STYLES section, which is what confines a
 // Pattern Maker to this module — see ROLE_SECTIONS in lib/section-access.ts.
@@ -44,20 +45,21 @@ export const POST = handler(async (req: NextRequest) => {
 
   const form = await req.formData();
 
+  // Pattern ID — entered by the pattern maker, normalized so uniqueness and
+  // lookups are case/whitespace-insensitive.
+  const patternCode = normalizePatternCode(String(form.get("patternCode") ?? ""));
+  if (!patternCode) throw new AppError("A Pattern ID is required.", 400);
+  if (patternCode.length > 40) throw new AppError("Pattern ID is too long (max 40 characters).", 400);
+
   const description = String(form.get("description") ?? "").trim();
   if (!description) throw new AppError("An item description is required.", 400);
   if (description.length > 500) throw new AppError("Description is too long (max 500 characters).", 400);
 
-  // Files are OPTIONAL — a pattern maker may save with some, or none (the form
-  // warns them first). Collect only the slots that actually have a file, and
-  // validate size BEFORE uploading any, so a too-large file on one slot can't
-  // leave earlier uploads orphaned in Blob storage.
-  const provided = PATTERN_FILE_SLOTS.map((slot) => {
-    const f = form.get(slot.field);
-    if (!(f instanceof File) || f.size === 0) return { slot, file: null as File | null };
-    if (f.size > MAX_PATTERN_FILE_BYTES) throw new AppError(`${slot.label} file is too large (max 10MB).`, 400);
-    return { slot, file: f };
-  });
+  // The Module file is required. Validate BEFORE uploading anything.
+  const moduleRaw = form.get(MODULE_FILE_FIELD);
+  if (!(moduleRaw instanceof File) || moduleRaw.size === 0) throw new AppError("The Module file is required.", 400);
+  if (moduleRaw.size > MAX_PATTERN_FILE_BYTES) throw new AppError("The Module file is too large (max 10MB).", 400);
+  const moduleFile = moduleRaw;
 
   const pictureRaw = form.get("picture");
   const picture = pictureRaw instanceof File && pictureRaw.size > 0 ? pictureRaw : null;
@@ -69,22 +71,18 @@ export const POST = handler(async (req: NextRequest) => {
   // addRandomSuffix keeps two uploads of the same filename from overwriting
   // each other — unlike the business logo, which is deliberately one-per-business.
   const folder = `patterns/${businessId}`;
-  const [pictureBlob, ...uploaded] = await Promise.all([
+  const [pictureBlob, moduleBlob] = await Promise.all([
     picture ? put(`${folder}/picture-${Date.now()}`, picture, { access: "public", addRandomSuffix: true }) : null,
-    ...provided.map(({ file }) =>
-      file ? put(`${folder}/${file.name}`, file, { access: "public", addRandomSuffix: true }) : null,
-    ),
+    put(`${folder}/${moduleFile.name}`, moduleFile, { access: "public", addRandomSuffix: true }),
   ]);
 
-  // uploaded[] aligns 1:1 with provided[] / PATTERN_FILE_SLOTS order.
-  const [f1, f2, f3] = uploaded;
   const pattern = await patternService.create(
     {
+      patternCode,
       description,
       imageUrl: pictureBlob?.url ?? null,
-      file1Url: f1?.url ?? null, file1Name: provided[0].file?.name ?? null,
-      file2Url: f2?.url ?? null, file2Name: provided[1].file?.name ?? null,
-      file3Url: f3?.url ?? null, file3Name: provided[2].file?.name ?? null,
+      moduleFileUrl: moduleBlob.url,
+      moduleFileName: moduleFile.name,
     },
     userId,
     businessId,

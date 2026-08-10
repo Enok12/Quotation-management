@@ -490,24 +490,21 @@ model Pattern {
   businessId String
   business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
 
-  // e.g. "PTN-7K2M9Q". Unique per business (not globally), same rule as
-  // receipt numbers — two businesses can each have their own PTN-7K2M9Q.
+  // The human-facing "Pattern ID", entered by the pattern maker (not
+  // generated). Unique per business (not globally) — two businesses can each
+  // use the same ID. Stored normalized (trimmed + uppercased) so case variants
+  // can't become near-duplicates; see normalizePatternCode().
   patternCode String
   description String
-  // Optional reference photo, plus three attachments — the DXF, HPGL and RUL
-  // cutting files (file1/file2/file3 respectively). All optional: a pattern
-  // maker can save with some or none, after confirming the warning. Any file
-  // type is accepted, so these are never assumed to be renderable as an <img>.
-  imageUrl String?
-  file1Url String? // DXF
-  file2Url String? // HPGL
-  file3Url String? // RUL
-  // Original upload filenames — Blob URLs are opaque, so without these there'd
-  // be nothing meaningful to label a download link with. Null when the
-  // matching file wasn't uploaded.
-  file1Name String?
-  file2Name String?
-  file3Name String?
+  // Optional reference photo, plus the single required Module (.mdl) file the
+  // pattern maker uploads. Any file type is accepted for the module, so it's
+  // never assumed to be renderable as an <img>. Kept nullable at the DB level
+  // (older rows may lack one); the app requires it on new uploads.
+  imageUrl       String?
+  moduleFileUrl  String?
+  // Original upload filename — Blob URLs are opaque, so without this there'd be
+  // nothing meaningful to label the download link with.
+  moduleFileName String?
 
   createdById String
   createdBy   User   @relation("PatternCreatedBy", fields: [createdById], references: [id])

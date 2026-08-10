@@ -5,56 +5,44 @@ import { customerCreateSchema } from "@/lib/validation/customer.schema";
 import { notifyCustomerRegistered } from "@/server/email/notify";
 import { z, ZodError } from "zod";
 
-// Public self-registration — gated by a one-time invite token, so the form
-// can only be submitted via a link staff explicitly generated.
+// Public self-registration — gated by an invite token, so the form can only
+// be submitted via a link staff explicitly generated. The link is REUSABLE
+// (a single shared link per business): it isn't consumed on submission, so
+// any number of customers can register through the same link.
 const bodySchema = customerCreateSchema.extend({ token: z.string().min(1) });
 
-// Thrown when the token is missing, already used, or expired.
+// Thrown when the token is missing or expired.
 class InviteError extends Error {}
 
 export async function POST(req: NextRequest) {
   try {
     const { token, ...data } = bodySchema.parse(await req.json());
 
-    const customer = await prisma.$transaction(async (tx) => {
-      const invite = await tx.customerInvite.findUnique({ where: { token }, select: { businessId: true } });
-      if (!invite) throw new InviteError();
+    // Resolve the token to its business without consuming it — the link is
+    // shared and stays valid for every customer. (expiresAt is null for links
+    // created now, but an older link may carry one, so it's still honored.)
+    const invite = await prisma.customerInvite.findUnique({
+      where: { token },
+      select: { businessId: true, expiresAt: true },
+    });
+    if (!invite) throw new InviteError();
+    if (invite.expiresAt && invite.expiresAt <= new Date()) throw new InviteError();
 
-      // Atomically claim the token. updateMany with `usedAt: null` acts as the
-      // lock: exactly one concurrent request can flip it, so a shared or
-      // double-submitted link can never create a second customer.
-      const claim = await tx.customerInvite.updateMany({
-        where: {
-          token,
-          usedAt: null,
-          OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
-        },
-        data: { usedAt: new Date() },
-      });
-      if (claim.count !== 1) throw new InviteError();
-
-      const created = await tx.customer.create({
-        data: { ...data, businessId: invite.businessId, email: data.email || null },
-      });
-      await tx.customerInvite.update({
-        where: { token },
-        data: { customerId: created.id },
-      });
-      return created;
+    const customer = await prisma.customer.create({
+      data: { ...data, businessId: invite.businessId, email: data.email || null },
     });
 
-    // Notify the business — deliberately AFTER the transaction has committed
-    // and awaited before responding. Awaiting matters on serverless: the
-    // function can be frozen the moment the response is returned, so a
-    // fire-and-forget promise would often never actually run. The call
-    // swallows all of its own failures, so this can't turn a successful
-    // registration into an error for the customer.
+    // Notify the business — after the customer is saved, and awaited before
+    // responding. Awaiting matters on serverless: the function can be frozen
+    // the moment the response is returned, so a fire-and-forget promise would
+    // often never actually run. The call swallows all of its own failures, so
+    // this can't turn a successful registration into an error for the customer.
     await notifyCustomerRegistered(customer.id);
 
     return ok({ id: customer.id }, 201);
   } catch (err) {
     if (err instanceof InviteError) {
-      return fail("This link is invalid or has already been used.", 410);
+      return fail("This registration link is invalid or has expired.", 410);
     }
     if (err instanceof ZodError) return fail("Validation failed", 422, err.issues);
     return fail("Failed to submit. Please try again.", 500);

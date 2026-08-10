@@ -1,74 +1,61 @@
 import { prisma } from "@/lib/db";
 import { NotFoundError, ConflictError } from "@/lib/api/errors";
 import { auditService } from "./audit.service";
-import { generatePatternCode, normalizePatternCode } from "@/lib/utils/pattern-code";
+import { normalizePatternCode } from "@/lib/utils/pattern-code";
 
 export interface PatternCreateInput {
+  // Already normalized (trim + uppercase) by the caller.
+  patternCode: string;
   description: string;
   imageUrl: string | null;
-  // All optional — a pattern may be saved with some, or none, of its
-  // DXF/HPGL/RUL attachments. Url and Name are always set (or cleared) together.
-  file1Url: string | null; file1Name: string | null;
-  file2Url: string | null; file2Name: string | null;
-  file3Url: string | null; file3Name: string | null;
+  // The single required Module (.mdl) file. Url and Name are set together.
+  moduleFileUrl: string;
+  moduleFileName: string;
 }
 
-// How many times to re-roll a colliding pattern code before giving up. With
-// 27^6 (~387 million) possible codes a single retry is already unlikely;
-// five makes exhausting them effectively impossible.
-const MAX_CODE_ATTEMPTS = 5;
-
 export interface PatternFile {
-  label: string; // DXF / HPGL / RUL
+  label: string; // "Module"
   url: string;
   name: string;
 }
 
-// The present attachments of a pattern, in DXF/HPGL/RUL order, skipping any
-// slot that wasn't uploaded. Shared by every read path (list page, list API,
-// assign-dialog lookup) so they all render optional files identically.
+// The pattern's downloadable file(s) — currently just the single Module file,
+// returned as an array (empty if an older pattern has none) so every read path
+// (list page, list API, assign-dialog lookup) renders it the same way.
 export function patternFiles(p: {
-  file1Url: string | null; file1Name: string | null;
-  file2Url: string | null; file2Name: string | null;
-  file3Url: string | null; file3Name: string | null;
+  moduleFileUrl: string | null;
+  moduleFileName: string | null;
 }): PatternFile[] {
-  return [
-    { label: "DXF", url: p.file1Url, name: p.file1Name },
-    { label: "HPGL", url: p.file2Url, name: p.file2Name },
-    { label: "RUL", url: p.file3Url, name: p.file3Name },
-  ].flatMap((f) => (f.url ? [{ label: f.label, url: f.url, name: f.name ?? f.label }] : []));
+  return p.moduleFileUrl
+    ? [{ label: "Module", url: p.moduleFileUrl, name: p.moduleFileName ?? "Module" }]
+    : [];
 }
 
 export const patternService = {
   /**
-   * Creates a pattern with a system-generated code. The code is minted here
-   * (never supplied by the client) and its uniqueness is enforced by the
-   * database's @@unique([businessId, patternCode]) — a P2002 means another
-   * request won the same code, so we simply re-roll rather than failing.
+   * Creates a pattern with the pattern maker's own Pattern ID. Uniqueness is
+   * enforced by the database's @@unique([businessId, patternCode]) — a P2002
+   * here means that ID is already taken, which (unlike the old auto-generated
+   * scheme) is a real user error to surface, not something to retry.
    */
   async create(input: PatternCreateInput, actorId: string, businessId: string) {
-    for (let attempt = 0; attempt < MAX_CODE_ATTEMPTS; attempt++) {
-      const patternCode = generatePatternCode();
-      try {
-        const pattern = await prisma.$transaction(async (tx) => {
-          const created = await tx.pattern.create({
-            data: { ...input, patternCode, businessId, createdById: actorId },
-          });
-          await auditService.log(tx, {
-            businessId, actorId, action: "PATTERN_CREATED", entityType: "Pattern", entityId: created.id,
-            metadata: { patternCode },
-          });
-          return created;
+    try {
+      return await prisma.$transaction(async (tx) => {
+        const created = await tx.pattern.create({
+          data: { ...input, businessId, createdById: actorId },
         });
-        return pattern;
-      } catch (e) {
-        const isCodeCollision =
-          typeof e === "object" && e !== null && "code" in e && (e as { code?: string }).code === "P2002";
-        if (!isCodeCollision) throw e;
-        // else: fall through and re-roll
-      }
+        await auditService.log(tx, {
+          businessId, actorId, action: "PATTERN_CREATED", entityType: "Pattern", entityId: created.id,
+          metadata: { patternCode: input.patternCode },
+        });
+        return created;
+      });
+    } catch (e) {
+      const isDuplicate =
+        typeof e === "object" && e !== null && "code" in e && (e as { code?: string }).code === "P2002";
+      if (isDuplicate) throw new ConflictError(`Pattern ID "${input.patternCode}" is already taken. Choose a different one.`);
+      throw e;
     }
-    throw new ConflictError("Could not allocate a unique pattern ID. Please try again.");
   },
 
   /**

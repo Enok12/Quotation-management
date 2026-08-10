@@ -2,46 +2,41 @@
 
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, Upload, Check, Copy, X, AlertTriangle } from "lucide-react";
-import { MAX_PATTERN_FILE_BYTES, PATTERN_FILE_SLOTS } from "@/lib/pattern-upload-limits";
+import { Loader2, Upload, Check, X } from "lucide-react";
+import { MAX_PATTERN_FILE_BYTES, MODULE_FILE_FIELD } from "@/lib/pattern-upload-limits";
 
-// Upload form for a new pattern. There is deliberately no Pattern ID field —
-// the code is generated server-side on save and shown afterwards for the
-// pattern maker to pass on to the admin.
+// Upload form for a new pattern. The pattern maker enters their own Pattern ID
+// (must be unique), a description, one required Module (.mdl) file, and an
+// optional reference picture.
 export function PatternUploadForm() {
   const router = useRouter();
+  const [patternCode, setPatternCode] = useState("");
   const [description, setDescription] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [createdCode, setCreatedCode] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
-  // Holds a submission that's paused on the "missing files" confirmation, plus
-  // which slots are missing (to name them in the prompt). null = no prompt.
-  const [pending, setPending] = useState<{ fd: FormData; missing: string[] } | null>(null);
+  // The just-saved Pattern ID, echoed back so the pattern maker can confirm/pass it on.
+  const [savedCode, setSavedCode] = useState<string | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
 
-  // The actual upload. Kept separate from the submit handler so it can run
-  // either straight away (all files present) or after the confirmation.
-  const doUpload = async (fd: FormData) => {
+  const submit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
     setSaving(true);
     setError(null);
-    setPending(null);
     try {
+      const fd = new FormData(e.currentTarget);
       // Client-side size check purely for a fast, clear message — the server
       // re-validates everything regardless.
-      for (const slot of ["picture", ...PATTERN_FILE_SLOTS.map((s) => s.field)]) {
-        const f = fd.get(slot);
-        if (f instanceof File && f.size > MAX_PATTERN_FILE_BYTES) {
-          const label = slot === "picture" ? "The picture" : PATTERN_FILE_SLOTS.find((s) => s.field === slot)?.label;
-          throw new Error(`${label} is too large (max 10MB).`);
-        }
+      for (const [field, label] of [[MODULE_FILE_FIELD, "The Module file"], ["picture", "The picture"]] as const) {
+        const f = fd.get(field);
+        if (f instanceof File && f.size > MAX_PATTERN_FILE_BYTES) throw new Error(`${label} is too large (max 10MB).`);
       }
 
       const res = await fetch("/api/v1/patterns", { method: "POST", body: fd });
       const json = await res.json();
       if (!json.success) throw new Error(json.message ?? "Failed to save pattern");
 
-      setCreatedCode(json.data.patternCode);
+      setSavedCode(json.data.patternCode);
+      setPatternCode("");
       setDescription("");
       formRef.current?.reset();
       router.refresh();
@@ -52,67 +47,17 @@ export function PatternUploadForm() {
     }
   };
 
-  const submit = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setError(null);
-    const fd = new FormData(e.currentTarget);
-
-    // Which of the DXF/HPGL/RUL slots weren't given a file?
-    const missing = PATTERN_FILE_SLOTS.filter((s) => {
-      const f = fd.get(s.field);
-      return !(f instanceof File) || f.size === 0;
-    }).map((s) => s.label);
-
-    // Any missing → confirm before proceeding. All three present → upload now.
-    if (missing.length > 0) setPending({ fd, missing });
-    else doUpload(fd);
-  };
-
-  const copyCode = async () => {
-    if (!createdCode) return;
-    try {
-      await navigator.clipboard.writeText(createdCode);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      /* clipboard blocked — the code is on screen to read anyway */
-    }
-  };
-
-  const fileField = (name: string, label: string, required: boolean, accept?: string) => (
-    <div>
-      <label className="field-label">
-        {label} {required ? <span className="text-red-500">*</span> : <span className="text-stone-400">(optional)</span>}
-      </label>
-      <input
-        type="file" name={name} required={required} accept={accept}
-        className="block w-full text-sm text-stone-600 dark:text-stone-300 file:mr-3 file:py-1.5 file:px-3 file:rounded file:border-0 file:text-xs file:font-medium file:bg-stone-100 dark:file:bg-white/10 file:text-ink hover:file:bg-stone-200 dark:hover:file:bg-white/20 file:cursor-pointer"
-      />
-    </div>
-  );
-
   return (
     <div className="card card-body">
       <h2 className="heading-2 mb-4">Upload a Pattern</h2>
 
-      {createdCode && (
+      {savedCode && (
         <div className="mb-4 rounded-md border border-emerald-200 dark:border-emerald-500/30 bg-emerald-50 dark:bg-emerald-500/10 px-4 py-3">
           <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="text-sm font-medium text-emerald-800 dark:text-emerald-300 flex items-center gap-1.5">
-                <Check size={14} /> Pattern saved
-              </p>
-              <p className="text-xs text-emerald-700 dark:text-emerald-400 mt-1">
-                Give this Pattern ID to your administrator so they can assign it to an order:
-              </p>
-              <div className="flex items-center gap-2 mt-2">
-                <code className="font-mono text-lg font-semibold text-ink tracking-wider">{createdCode}</code>
-                <button type="button" onClick={copyCode} className="btn-ghost text-xs py-1 px-2">
-                  {copied ? <Check size={12} /> : <Copy size={12} />} {copied ? "Copied" : "Copy"}
-                </button>
-              </div>
-            </div>
-            <button type="button" onClick={() => setCreatedCode(null)} className="text-emerald-600 hover:text-emerald-800 flex-none">
+            <p className="text-sm font-medium text-emerald-800 dark:text-emerald-300 flex items-center gap-1.5">
+              <Check size={14} /> Pattern <code className="font-mono font-semibold">{savedCode}</code> saved.
+            </p>
+            <button type="button" onClick={() => setSavedCode(null)} className="text-emerald-600 hover:text-emerald-800 flex-none">
               <X size={16} />
             </button>
           </div>
@@ -120,6 +65,17 @@ export function PatternUploadForm() {
       )}
 
       <form ref={formRef} onSubmit={submit} className="space-y-4">
+        <div>
+          <label className="field-label">Pattern ID <span className="text-red-500">*</span></label>
+          <input
+            type="text" name="patternCode" required maxLength={40}
+            value={patternCode} onChange={(e) => setPatternCode(e.target.value)}
+            placeholder="e.g. SHIRT-A17"
+            className="field-input font-mono"
+          />
+          <p className="text-xs text-stone-400 mt-1">Your own unique ID for this pattern. Not case-sensitive.</p>
+        </div>
+
         <div>
           <label className="field-label">Item Description <span className="text-red-500">*</span></label>
           <input
@@ -130,41 +86,29 @@ export function PatternUploadForm() {
           />
         </div>
 
-        {fileField("picture", "Picture", false, "image/*")}
-
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          {PATTERN_FILE_SLOTS.map((s) => fileField(s.field, s.label, false))}
+        <div>
+          <label className="field-label">Module file <span className="text-red-500">*</span></label>
+          <input
+            type="file" name={MODULE_FILE_FIELD} required
+            className="block w-full text-sm text-stone-600 dark:text-stone-300 file:mr-3 file:py-1.5 file:px-3 file:rounded file:border-0 file:text-xs file:font-medium file:bg-stone-100 dark:file:bg-white/10 file:text-ink hover:file:bg-stone-200 dark:hover:file:bg-white/20 file:cursor-pointer"
+          />
+          <p className="text-xs text-stone-400 mt-1">The .mdl module file. Any file type is accepted; max 10MB.</p>
         </div>
-        <p className="text-xs text-stone-400">
-          DXF, HPGL and RUL cutting files. Any file type is accepted; max 10MB each.
-        </p>
+
+        <div>
+          <label className="field-label">Picture <span className="text-stone-400">(optional)</span></label>
+          <input
+            type="file" name="picture" accept="image/*"
+            className="block w-full text-sm text-stone-600 dark:text-stone-300 file:mr-3 file:py-1.5 file:px-3 file:rounded file:border-0 file:text-xs file:font-medium file:bg-stone-100 dark:file:bg-white/10 file:text-ink hover:file:bg-stone-200 dark:hover:file:bg-white/20 file:cursor-pointer"
+          />
+        </div>
 
         {error && <p className="text-sm text-red-500">{error}</p>}
 
-        {pending ? (
-          <div className="rounded-md border border-amber-200 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-500/10 px-4 py-3 space-y-3">
-            <div className="flex items-start gap-2.5">
-              <AlertTriangle size={16} className="text-amber-500 mt-0.5 flex-none" />
-              <p className="text-sm text-amber-800 dark:text-amber-300">
-                You&apos;re adding this pattern without all 3 files — missing{" "}
-                <strong>{pending.missing.join(", ")}</strong>. Are you sure you want to proceed?
-              </p>
-            </div>
-            <div className="flex gap-2 justify-end">
-              <button type="button" onClick={() => setPending(null)} className="btn-ghost text-xs py-1.5">
-                Cancel
-              </button>
-              <button type="button" onClick={() => doUpload(pending.fd)} className="btn-primary text-xs py-1.5">
-                <Upload size={13} /> Yes, add it
-              </button>
-            </div>
-          </div>
-        ) : (
-          <button type="submit" disabled={saving} className="btn-primary">
-            {saving ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
-            {saving ? "Uploading…" : "Save Pattern"}
-          </button>
-        )}
+        <button type="submit" disabled={saving} className="btn-primary">
+          {saving ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
+          {saving ? "Uploading…" : "Save Pattern"}
+        </button>
       </form>
     </div>
   );
