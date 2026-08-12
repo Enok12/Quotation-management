@@ -17,6 +17,7 @@ export const SECTION_LABELS: Record<Section, string> = {
   EXPENSES: "Expenses",
   INCOME: "Income",
   STYLES: "Styles",
+  RECOMMENDATIONS: "Recommendations",
   TEAM: "Team",
   AUDIT_LOG: "Audit Log",
   SETTINGS: "Settings",

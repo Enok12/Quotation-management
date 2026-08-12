@@ -114,9 +114,17 @@ enum Section {
   EXPENSES
   INCOME
   STYLES
+  RECOMMENDATIONS
   TEAM
   AUDIT_LOG
   SETTINGS
+}
+
+// Local (Sri Lanka) vs Global — the two lenses the Recommendations section
+// presents fashion-trend data through.
+enum TrendRegion {
+  LOCAL
+  GLOBAL
 }
 
 // ACTIVE/TRIAL both count as "in good standing" (full plan access); EXPIRED
@@ -238,6 +246,7 @@ model Business {
   patterns        Pattern[]
   customerInvites CustomerInvite[]
   auditLogs       AuditLog[]
+  recommendations Recommendation[]
 }
 
 // Membership + role, per business — a person can belong to more than one.
@@ -594,4 +603,38 @@ model AuditLog {
   @@index([entityType, entityId])
   @@index([actorId])
   @@index([createdAt])
+}
+
+// ----------------------- Recommendations -----------------------
+// Raw fashion-trend data pulled from SerpApi (Google Trends). SHARED across
+// every business — "frock interest in Sri Lanka this month" is the same for
+// all of them — so it's fetched once per (region, period) and cached here,
+// keeping SerpApi usage tiny. `data` holds the fetched time-series JSON.
+model TrendSnapshot {
+  id        String      @id @default(cuid())
+  region    TrendRegion
+  periodKey String // "YYYY-MM" — one snapshot per calendar month per region
+  data      Json
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  @@unique([region, periodKey])
+}
+
+// A business's generated recommendation cards for one region+month. Unlike the
+// shared trend data, this is PER business — it blends the shared trends with
+// that business's own order history via its Gemini key, so the result is
+// tailored. Cached so the LLM runs at most once a month per region.
+model Recommendation {
+  id         String      @id @default(cuid())
+  businessId String
+  business   Business    @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  region     TrendRegion
+  periodKey  String // "YYYY-MM"
+  data       Json // the generated cards
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+
+  @@unique([businessId, region, periodKey])
+  @@index([businessId])
 }

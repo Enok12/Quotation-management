@@ -15,6 +15,7 @@ import {
   UserCog,
   Settings,
   Shirt,
+  Sparkles,
   type LucideIcon,
 } from "lucide-react";
 
@@ -30,6 +31,7 @@ const ICONS = {
   UserCog,
   Settings,
   Shirt,
+  Sparkles,
 } satisfies Record<string, LucideIcon>;
 
 export type NavIcon = keyof typeof ICONS;

@@ -36,6 +36,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
     { href: "/dashboard/styles", icon: "Shirt", label: "Styles", section: "STYLES" },
     { href: "/dashboard/expenses", icon: "Banknote", label: "Expenses", section: "EXPENSES" },
     { href: "/dashboard/income", icon: "TrendingUp", label: "Income", section: "INCOME" },
+    { href: "/dashboard/recommendations", icon: "Sparkles", label: "Recommendations", section: "RECOMMENDATIONS" },
     { href: "/dashboard/team", icon: "UserCog", label: "Team", section: "TEAM" },
     { href: "/dashboard/audit", icon: "ClipboardList", label: "Audit Log", section: "AUDIT_LOG" },
     ...(role === "ADMIN" ? [{ href: "/dashboard/settings", icon: "Settings", label: "Settings", section: "SETTINGS" }] as const : []),
