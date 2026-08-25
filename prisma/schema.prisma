@@ -101,6 +101,8 @@ enum AuditAction {
   PATTERN_CREATED
   PATTERN_ASSIGNED
   PATTERN_UNASSIGNED
+  PATTERN_FINALIZED
+  PATTERN_DELETED
 }
 
 // A gate-able dashboard section — used by Plan.enabledSections to control
@@ -190,6 +192,7 @@ model User {
   customerInvites     CustomerInvite[]
   payments            Payment[]
   patternsCreated     Pattern[]            @relation("PatternCreatedBy")
+  patternsFinalized   Pattern[]            @relation("PatternFinalizedBy")
   expenseRecords      ExpenseRecord[]      @relation("ExpenseRecordedBy")
   finalizedExpenses   ExpenseRecord[]      @relation("ExpenseFinalizedBy")
 }
@@ -503,21 +506,34 @@ model ReceiptItem {
 // A style/pattern uploaded by a Pattern Maker, later assigned to order items.
 // patternCode is the human-facing "Pattern ID" that gets read aloud and typed
 // by hand into the Assign Pattern dialog — system-generated, never chosen.
+// PENDING_REVIEW = uploaded by a pattern maker, awaiting an admin's
+// description/picture. FINALIZED = reviewed and assignable to order items.
+enum PatternStatus {
+  PENDING_REVIEW
+  FINALIZED
+}
+
 model Pattern {
   id         String @id @default(cuid())
   businessId String
   business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
 
-  // The human-facing "Pattern ID", entered by the pattern maker (not
-  // generated). Unique per business (not globally) — two businesses can each
-  // use the same ID. Stored normalized (trimmed + uppercased) so case variants
-  // can't become near-duplicates; see normalizePatternCode().
+  // The human-facing "Pattern ID". Derived from the uploaded module file's
+  // name (e.g. "EC 1.mdl" → "EC 1"), not typed. Unique per business (not
+  // globally). Stored normalized (trimmed + uppercased) so case variants can't
+  // become near-duplicates; see normalizePatternCode() / patternCodeFromFileName().
   patternCode String
-  description String
-  // Optional reference photo, plus the single required Module (.mdl) file the
-  // pattern maker uploads. Any file type is accepted for the module, so it's
-  // never assumed to be renderable as an <img>. Kept nullable at the DB level
-  // (older rows may lack one); the app requires it on new uploads.
+  // Two-stage lifecycle: the pattern maker bulk-uploads .mdl files (created
+  // PENDING_REVIEW, with no description/picture yet); an admin then reviews
+  // each, adds a description (+ optional picture) and FINALIZEs it. Only
+  // FINALIZED patterns can be assigned to order items.
+  status PatternStatus @default(PENDING_REVIEW)
+  // Null until an admin reviews the pattern (required to finalize).
+  description String?
+  // Optional reference photo (admin adds at review), plus the required Module
+  // (.mdl) file. Any file type is accepted for the module, so it's never
+  // assumed to be renderable as an <img>. Nullable at the DB level (older rows
+  // / pre-review state); the app enforces the module on upload.
   imageUrl       String?
   moduleFileUrl  String?
   // Original upload filename — Blob URLs are opaque, so without this there'd be
@@ -526,6 +542,10 @@ model Pattern {
 
   createdById String
   createdBy   User   @relation("PatternCreatedBy", fields: [createdById], references: [id])
+  // Which admin finalized it, and when (null while PENDING_REVIEW).
+  finalizedById String?
+  finalizedBy   User?     @relation("PatternFinalizedBy", fields: [finalizedById], references: [id], onDelete: SetNull)
+  finalizedAt   DateTime?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

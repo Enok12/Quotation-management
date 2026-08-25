@@ -1,16 +1,23 @@
+import type { Role } from "@prisma/client";
 import { prisma } from "@/lib/db";
-import { NotFoundError, ConflictError } from "@/lib/api/errors";
+import { NotFoundError, ConflictError, ForbiddenError } from "@/lib/api/errors";
 import { auditService } from "./audit.service";
 import { normalizePatternCode } from "@/lib/utils/pattern-code";
 
 export interface PatternCreateInput {
-  // Already normalized (trim + uppercase) by the caller.
+  // Already normalized (from the file name) by the caller.
   patternCode: string;
-  description: string;
-  imageUrl: string | null;
-  // The single required Module (.mdl) file. Url and Name are set together.
+  // The required Module (.mdl) file. A pattern maker uploads only this; the
+  // pattern starts PENDING_REVIEW with no description/picture until an admin
+  // finalizes it (see finalize()).
   moduleFileUrl: string;
   moduleFileName: string;
+}
+
+export interface PatternFinalizeInput {
+  description: string;
+  /** A newly uploaded picture URL. Omitted = keep whatever's there. */
+  imageUrl?: string;
 }
 
 export interface PatternFile {
@@ -33,10 +40,11 @@ export function patternFiles(p: {
 
 export const patternService = {
   /**
-   * Creates a pattern with the pattern maker's own Pattern ID. Uniqueness is
-   * enforced by the database's @@unique([businessId, patternCode]) — a P2002
-   * here means that ID is already taken, which (unlike the old auto-generated
-   * scheme) is a real user error to surface, not something to retry.
+   * Creates a PENDING_REVIEW pattern from a bulk-uploaded module file. The
+   * Pattern ID is derived from the file name by the caller. Uniqueness is
+   * enforced by the DB's @@unique([businessId, patternCode]) — a P2002 here
+   * means that name is already used, which the upload flow reports as a
+   * "skipped — already exists" for that one file (the rest still upload).
    */
   async create(input: PatternCreateInput, actorId: string, businessId: string) {
     try {
@@ -53,9 +61,66 @@ export const patternService = {
     } catch (e) {
       const isDuplicate =
         typeof e === "object" && e !== null && "code" in e && (e as { code?: string }).code === "P2002";
-      if (isDuplicate) throw new ConflictError(`Pattern ID "${input.patternCode}" is already taken. Choose a different one.`);
+      if (isDuplicate) throw new ConflictError(`Pattern ID "${input.patternCode}" already exists.`);
       throw e;
     }
+  },
+
+  /**
+   * Admin review: attach a description (+ optional picture) and mark the
+   * pattern FINALIZED so it can be assigned. Also serves edits of an
+   * already-finalized pattern (stays FINALIZED). Business-scoped.
+   */
+  async finalize(patternId: string, input: PatternFinalizeInput, actorId: string, businessId: string) {
+    const pattern = await prisma.pattern.findFirst({ where: { id: patternId, businessId }, select: { id: true } });
+    if (!pattern) throw new NotFoundError("Pattern");
+
+    return prisma.$transaction(async (tx) => {
+      const updated = await tx.pattern.update({
+        where: { id: patternId },
+        data: {
+          description: input.description,
+          ...(input.imageUrl !== undefined ? { imageUrl: input.imageUrl } : {}),
+          status: "FINALIZED",
+          finalizedById: actorId,
+          finalizedAt: new Date(),
+        },
+      });
+      await auditService.log(tx, {
+        businessId, actorId, action: "PATTERN_FINALIZED", entityType: "Pattern", entityId: patternId,
+        metadata: { patternCode: updated.patternCode },
+      });
+      return updated;
+    });
+  },
+
+  /**
+   * Delete a pattern. A Pattern Maker may delete only their OWN, still
+   * PENDING_REVIEW upload (e.g. a wrong file); an Admin may delete any.
+   * Returns the deleted file URLs so the caller can clean up Blob storage.
+   * (ReceiptItem.patternId is onDelete: SetNull, so any assigned items are
+   * simply unassigned — order items are never destroyed.)
+   */
+  async remove(patternId: string, actorId: string, businessId: string, role: Role) {
+    const pattern = await prisma.pattern.findFirst({
+      where: { id: patternId, businessId },
+      select: { id: true, createdById: true, status: true, patternCode: true, moduleFileUrl: true, imageUrl: true },
+    });
+    if (!pattern) throw new NotFoundError("Pattern");
+
+    if (role !== "ADMIN") {
+      const ownPending = pattern.createdById === actorId && pattern.status === "PENDING_REVIEW";
+      if (!ownPending) throw new ForbiddenError("You can only delete your own patterns that are still pending review.");
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.pattern.delete({ where: { id: patternId } });
+      await auditService.log(tx, {
+        businessId, actorId, action: "PATTERN_DELETED", entityType: "Pattern", entityId: patternId,
+        metadata: { patternCode: pattern.patternCode },
+      });
+    });
+    return { moduleFileUrl: pattern.moduleFileUrl, imageUrl: pattern.imageUrl };
   },
 
   /**
@@ -107,8 +172,11 @@ export const patternService = {
 
     let patternCode: string | null = null;
     if (patternId !== null) {
-      const pattern = await prisma.pattern.findFirst({ where: { id: patternId, businessId }, select: { patternCode: true } });
+      const pattern = await prisma.pattern.findFirst({ where: { id: patternId, businessId }, select: { patternCode: true, status: true } });
       if (!pattern) throw new NotFoundError("Pattern");
+      // Defense-in-depth: a pending pattern must not be assignable even if its
+      // id is obtained some other way (the lookup already hides pending ones).
+      if (pattern.status !== "FINALIZED") throw new ConflictError("This pattern is still pending review and can't be assigned yet.");
       patternCode = pattern.patternCode;
     }
 

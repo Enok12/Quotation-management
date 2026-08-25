@@ -22,6 +22,11 @@ export const GET = handler(async (req: NextRequest) => {
   const pattern = await patternService.findByCode(code, businessId);
   if (!pattern) return ok({ found: false });
 
+  // A pattern that exists but hasn't been reviewed yet isn't assignable —
+  // report it distinctly so the dialog can say "still pending review" rather
+  // than the plain "no such pattern".
+  if (pattern.status !== "FINALIZED") return ok({ found: false, reason: "pending" });
+
   return ok({
     found: true,
     pattern: {

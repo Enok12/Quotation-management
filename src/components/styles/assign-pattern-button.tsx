@@ -34,11 +34,14 @@ export function AssignPatternButton({
   const [searching, setSearching] = useState(false);
   const [assigning, setAssigning] = useState(false);
   const [notFound, setNotFound] = useState(false);
+  // The code matches a pattern that exists but hasn't been reviewed/finalized
+  // yet — distinct from "no such pattern".
+  const [pending, setPending] = useState(false);
   const [found, setFound] = useState<FoundPattern | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const reset = () => {
-    setCode(""); setFound(null); setNotFound(false); setError(null);
+    setCode(""); setFound(null); setNotFound(false); setPending(false); setError(null);
   };
 
   const close = () => {
@@ -53,12 +56,14 @@ export function AssignPatternButton({
     setSearching(true);
     setError(null);
     setNotFound(false);
+    setPending(false);
     setFound(null);
     try {
       const res = await fetch(`/api/v1/patterns/lookup?code=${encodeURIComponent(code)}`);
       const json = await res.json();
       if (!json.success) throw new Error(json.message ?? "Lookup failed");
       if (json.data.found) setFound(json.data.pattern);
+      else if (json.data.reason === "pending") setPending(true);
       else setNotFound(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
@@ -124,6 +129,12 @@ export function AssignPatternButton({
             {notFound && (
               <p className="mt-3 text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30 rounded px-3 py-2">
                 No pattern exists with that Pattern ID. Check it with whoever uploaded it.
+              </p>
+            )}
+
+            {pending && (
+              <p className="mt-3 text-sm text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 rounded px-3 py-2">
+                That pattern exists but is still pending review — an admin needs to finalize it (add a description) before it can be assigned.
               </p>
             )}
 
