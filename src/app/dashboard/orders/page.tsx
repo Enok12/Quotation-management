@@ -9,7 +9,7 @@ import { dateRangeFilter, buildQuery } from "@/lib/utils/date-range";
 import { getBusinessAccess, hasSection } from "@/lib/section-access";
 import { SectionUnavailable } from "@/components/dashboard/section-unavailable";
 
-interface Props { searchParams: Promise<{ status?: string; page?: string; from?: string; to?: string; search?: string }> }
+interface Props { searchParams: Promise<{ status?: string; type?: string; page?: string; from?: string; to?: string; search?: string }> }
 export const metadata = { title: "Production" };
 
 export default async function OrdersPage({ searchParams }: Props) {
@@ -22,10 +22,13 @@ export default async function OrdersPage({ searchParams }: Props) {
   const orderStatus = sp.status as
     | "FABRIC_SELECTION" | "CUTTING" | "PRODUCTION" | "QUALITY_CHECK" | "IRON_PACKING" | "DELIVERY" | "COMPLETED"
     | undefined;
+  const type = (sp.type === "BULK" || sp.type === "SAMPLE" ? sp.type : undefined) as "BULK" | "SAMPLE" | undefined;
   const dateWhere = dateRangeFilter(sp.from, sp.to);
   const search = sp.search?.trim() ?? "";
 
-  const where = {
+  // Everything EXCEPT the order-type filter — drives both the paginated query
+  // and the per-type counts (each type's count reflects the other active filters).
+  const baseWhere = {
     businessId,
     status: "FINALIZED" as const,
     // Unconfirmed orders (no advance paid yet) don't show up here — nothing
@@ -35,9 +38,11 @@ export default async function OrdersPage({ searchParams }: Props) {
     ...(dateWhere ? { date: dateWhere } : {}),
     ...(search ? { custName: { contains: search, mode: "insensitive" as const } } : {}),
   };
+  const where = { ...baseWhere, ...(type ? { orderType: type } : {}) };
 
-  const [total, orders] = await Promise.all([
-    prisma.receipt.count({ where }),
+  const [bulkCount, sampleCount, orders] = await Promise.all([
+    prisma.receipt.count({ where: { ...baseWhere, orderType: "BULK" } }),
+    prisma.receipt.count({ where: { ...baseWhere, orderType: "SAMPLE" } }),
     prisma.receipt.findMany({
       where,
       orderBy: { createdAt: "desc" },
@@ -49,18 +54,29 @@ export default async function OrdersPage({ searchParams }: Props) {
       },
     }),
   ]);
+  const total = type === "BULK" ? bulkCount : type === "SAMPLE" ? sampleCount : bulkCount + sampleCount;
   const totalPages = Math.ceil(total / pageSize);
 
-  const tabHref = (status?: string) => `/dashboard/orders?${buildQuery({ status, from: sp.from, to: sp.to, search: sp.search })}`;
+  // Each tab preserves the OTHER filter dimension (status tabs keep the current
+  // type, type tabs keep the current status) plus search/date.
+  const statusHref = (status?: string) => `/dashboard/orders?${buildQuery({ status, type: sp.type, from: sp.from, to: sp.to, search: sp.search })}`;
+  const typeHref = (t?: string) => `/dashboard/orders?${buildQuery({ type: t, status: sp.status, from: sp.from, to: sp.to, search: sp.search })}`;
+
+  const typeTabs = [
+    { label: "All Orders", href: typeHref(), active: !type, count: bulkCount + sampleCount },
+    { label: "Bulk", href: typeHref("BULK"), active: type === "BULK", count: bulkCount },
+    { label: "Sample", href: typeHref("SAMPLE"), active: type === "SAMPLE", count: sampleCount },
+  ];
+
   const tabs = [
-    { label: "All", href: tabHref(), active: !orderStatus },
-    { label: "Fabric Selection", href: tabHref("FABRIC_SELECTION"), active: orderStatus === "FABRIC_SELECTION" },
-    { label: "Cutting", href: tabHref("CUTTING"), active: orderStatus === "CUTTING" },
-    { label: "Production", href: tabHref("PRODUCTION"), active: orderStatus === "PRODUCTION" },
-    { label: "Quality Check", href: tabHref("QUALITY_CHECK"), active: orderStatus === "QUALITY_CHECK" },
-    { label: "Iron / Packing", href: tabHref("IRON_PACKING"), active: orderStatus === "IRON_PACKING" },
-    { label: "Delivery", href: tabHref("DELIVERY"), active: orderStatus === "DELIVERY" },
-    { label: "Completed", href: tabHref("COMPLETED"), active: orderStatus === "COMPLETED" },
+    { label: "All", href: statusHref(), active: !orderStatus },
+    { label: "Fabric Selection", href: statusHref("FABRIC_SELECTION"), active: orderStatus === "FABRIC_SELECTION" },
+    { label: "Cutting", href: statusHref("CUTTING"), active: orderStatus === "CUTTING" },
+    { label: "Production", href: statusHref("PRODUCTION"), active: orderStatus === "PRODUCTION" },
+    { label: "Quality Check", href: statusHref("QUALITY_CHECK"), active: orderStatus === "QUALITY_CHECK" },
+    { label: "Iron / Packing", href: statusHref("IRON_PACKING"), active: orderStatus === "IRON_PACKING" },
+    { label: "Delivery", href: statusHref("DELIVERY"), active: orderStatus === "DELIVERY" },
+    { label: "Completed", href: statusHref("COMPLETED"), active: orderStatus === "COMPLETED" },
   ];
 
   return (
@@ -75,7 +91,7 @@ export default async function OrdersPage({ searchParams }: Props) {
         <DateRangeFilter />
       </div>
 
-      <FilterTableShell groups={[tabs]}>
+      <FilterTableShell groups={[typeTabs, tabs]}>
       <div className="card">
         <div className="overflow-x-auto">
           <table className="w-full">
@@ -113,8 +129,8 @@ export default async function OrdersPage({ searchParams }: Props) {
           <div className="px-6 py-4 border-t border-stone-100 dark:border-stone-700 flex items-center justify-between text-sm">
             <span className="text-stone-500">Page {page} of {totalPages}</span>
             <div className="flex gap-2">
-              {page > 1 && <Link href={`/dashboard/orders?${buildQuery({ page: String(page - 1), status: orderStatus, from: sp.from, to: sp.to, search: sp.search })}`} className="btn-outline text-xs py-1.5">Previous</Link>}
-              {page < totalPages && <Link href={`/dashboard/orders?${buildQuery({ page: String(page + 1), status: orderStatus, from: sp.from, to: sp.to, search: sp.search })}`} className="btn-outline text-xs py-1.5">Next</Link>}
+              {page > 1 && <Link href={`/dashboard/orders?${buildQuery({ page: String(page - 1), status: orderStatus, type: sp.type, from: sp.from, to: sp.to, search: sp.search })}`} className="btn-outline text-xs py-1.5">Previous</Link>}
+              {page < totalPages && <Link href={`/dashboard/orders?${buildQuery({ page: String(page + 1), status: orderStatus, type: sp.type, from: sp.from, to: sp.to, search: sp.search })}`} className="btn-outline text-xs py-1.5">Next</Link>}
             </div>
           </div>
         )}

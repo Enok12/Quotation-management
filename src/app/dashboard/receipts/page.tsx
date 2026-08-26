@@ -14,7 +14,7 @@ import { dateRangeFilter } from "@/lib/utils/date-range";
 import { receiptNumberLabel } from "@/lib/utils/receipt-number";
 
 interface Props {
-  searchParams: Promise<{ page?: string; status?: string; orderStatus?: string; search?: string; from?: string; to?: string }>;
+  searchParams: Promise<{ page?: string; type?: string; orderStatus?: string; search?: string; from?: string; to?: string }>;
 }
 export const metadata = { title: "Receipts" };
 
@@ -25,16 +25,22 @@ export default async function ReceiptsPage({ searchParams }: Props) {
   const pageSize = 25;
   const search = sp.search?.trim() ?? "";
   const dateWhere = dateRangeFilter(sp.from, sp.to);
+  const type = (sp.type === "BULK" || sp.type === "SAMPLE" ? sp.type : undefined) as "BULK" | "SAMPLE" | undefined;
 
-  const where = {
+  // Everything EXCEPT the order-type filter — used both for the paginated query
+  // and for the per-type counts (each type's count reflects the other active
+  // filters, but not the type tab itself).
+  const baseWhere = {
     businessId,
     ...(sp.orderStatus ? { orderStatus: sp.orderStatus as "FABRIC_SELECTION" | "CUTTING" | "PRODUCTION" | "QUALITY_CHECK" | "IRON_PACKING" | "DELIVERY" | "COMPLETED" } : {}),
     ...(search ? { custName: { contains: search, mode: "insensitive" as const } } : {}),
     ...(dateWhere ? { date: dateWhere } : {}),
   };
+  const where = { ...baseWhere, ...(type ? { orderType: type } : {}) };
 
-  const [total, receipts] = await Promise.all([
-    prisma.receipt.count({ where }),
+  const [bulkCount, sampleCount, receipts] = await Promise.all([
+    prisma.receipt.count({ where: { ...baseWhere, orderType: "BULK" } }),
+    prisma.receipt.count({ where: { ...baseWhere, orderType: "SAMPLE" } }),
     prisma.receipt.findMany({
       where,
       orderBy: { createdAt: "desc" },
@@ -50,21 +56,33 @@ export default async function ReceiptsPage({ searchParams }: Props) {
       },
     }),
   ]);
+  // The current view's total is derivable from the two type counts — no extra query.
+  const total = type === "BULK" ? bulkCount : type === "SAMPLE" ? sampleCount : bulkCount + sampleCount;
   const totalPages = Math.ceil(total / pageSize);
 
-  const filterTab = (label: string, value: string | null, key: "status" | "orderStatus") => {
-    const active = sp[key] === value || (value === null && !sp[key]);
+  // Builds one filter tab's href, preserving search/date AND the OTHER filter
+  // dimension (the type tabs keep the current orderStatus, and vice versa) so
+  // the two tab groups compose. Omitting `page` resets to page 1 on any switch.
+  const filterTab = (label: string, value: string | null, key: "orderStatus" | "type", count?: number) => {
+    const active = (sp[key] ?? null) === value;
     const params = new URLSearchParams();
     if (sp.search) params.set("search", sp.search);
     if (sp.from) params.set("from", sp.from);
     if (sp.to) params.set("to", sp.to);
-    if (key === "status" && value) params.set("status", value);
-    if (key === "orderStatus" && value) params.set("orderStatus", value);
-    return { label, href: `/dashboard/receipts?${params}`, active };
+    const otherKey = key === "type" ? "orderStatus" : "type";
+    if (sp[otherKey]) params.set(otherKey, sp[otherKey]!);
+    if (value) params.set(key, value);
+    return { label, href: `/dashboard/receipts?${params}`, active, count };
   };
 
+  const typeTabs = [
+    filterTab("All Orders", null, "type", bulkCount + sampleCount),
+    filterTab("Bulk", "BULK", "type", bulkCount),
+    filterTab("Sample", "SAMPLE", "type", sampleCount),
+  ];
+
   const orderTabs = [
-    filterTab("All Orders", null, "orderStatus"),
+    filterTab("All", null, "orderStatus"),
     filterTab("Fabric Selection", "FABRIC_SELECTION", "orderStatus"),
     filterTab("Cutting", "CUTTING", "orderStatus"),
     filterTab("Production", "PRODUCTION", "orderStatus"),
@@ -87,7 +105,7 @@ export default async function ReceiptsPage({ searchParams }: Props) {
       </div>
 
       {/* Filters + table (the shell shows a loading overlay while switching) */}
-      <FilterTableShell groups={[orderTabs]}>
+      <FilterTableShell groups={[typeTabs, orderTabs]}>
       <div className="card">
         <div className="card-header flex items-center justify-between flex-wrap gap-3">
           <CustomerSearch defaultValue={search} />
