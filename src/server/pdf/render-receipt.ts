@@ -54,6 +54,7 @@ export async function renderReceiptPdf(r: FullReceipt): Promise<Uint8Array> {
       unitPrice: num(i.unitPrice), lineTotal: num(i.lineTotal),
     })),
     adjustments: r.adjustments.map((a) => ({ label: t(a.label), amount: num(a.amount) })),
+    specialNotes: t(r.specialNotes),
     totalDue: num(r.totalDue),
     advanceAmount: num(r.advanceAmount),
     amountPaid: num(r.amountPaid),

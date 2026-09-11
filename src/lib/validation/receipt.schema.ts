@@ -21,6 +21,7 @@ export const receiptCreateSchema = z.object({
   customerId: z.string().min(1),
   date: z.coerce.date().optional(),
   notes: z.string().max(2000).optional().nullable(),
+  specialNotes: z.string().max(2000).optional().nullable(),
   paymentMethods: z.array(paymentMethod).default([]),
   items: z.array(receiptItemSchema).min(1, "At least one item is required"),
   adjustments: z.array(receiptAdjustmentSchema).default([]),

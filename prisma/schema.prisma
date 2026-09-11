@@ -365,6 +365,11 @@ model Receipt {
   date  DateTime @default(now())
   notes String?
 
+  // Customer-facing conditions printed on the receipt itself (e.g. "no
+  // exchanges", a rush-order surcharge note) — distinct from `notes`, which
+  // is staff-only and never appears on the PDF.
+  specialNotes String?
+
   // Payment information block (the four boxes on the template)
   paymentMethods PaymentMethod[]
 

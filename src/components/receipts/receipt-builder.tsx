@@ -29,6 +29,7 @@ const adjSchema = z.object({
 const schema = z.object({
   date: z.string().min(1, "Required"),
   notes: z.string().optional(),
+  specialNotes: z.string().optional(),
   paymentMethods: z.array(z.string()).default([]),
   items: z.array(itemSchema).min(1, "Add at least one item"),
   adjustments: z.array(adjSchema).default([]),
@@ -210,6 +211,7 @@ export function ReceiptBuilder({ customer, defaultValues, mode = "create", retur
         customerId: customer.id,
         date: new Date(data.date).toISOString(),
         notes: data.notes,
+        specialNotes: data.specialNotes,
         paymentMethods: data.paymentMethods,
         orderType: data.isSample ? "SAMPLE" : "BULK",
         category: data.category,
@@ -515,6 +517,17 @@ export function ReceiptBuilder({ customer, defaultValues, mode = "create", retur
               </div>
             </div>
 
+            {/* Special Notes — printed on the receipt itself, unlike Notes below */}
+            <div>
+              <label className="field-label">Special Notes (optional)</label>
+              <textarea
+                {...register("specialNotes")}
+                rows={2}
+                placeholder="Conditions for this customer, printed at the bottom of the receipt…"
+                className="field-input resize-none"
+              />
+            </div>
+
             {/* Notes */}
             <div>
               <label className="field-label">Notes (optional)</label>
@@ -550,6 +563,7 @@ export function ReceiptBuilder({ customer, defaultValues, mode = "create", retur
             totals={totals}
             advanceAmount={Number(watchedValues.advanceAmount) || 0}
             amountPaid={Number(watchedValues.amountPaid) || 0}
+            specialNotes={watchedValues.specialNotes ?? ""}
           />
         </div>
       </div>
@@ -572,6 +586,7 @@ export function ReceiptBuilder({ customer, defaultValues, mode = "create", retur
             totals={totals}
             advanceAmount={Number(watchedValues.advanceAmount) || 0}
             amountPaid={Number(watchedValues.amountPaid) || 0}
+            specialNotes={watchedValues.specialNotes ?? ""}
           />
         </div>
       </div>
@@ -581,7 +596,7 @@ export function ReceiptBuilder({ customer, defaultValues, mode = "create", retur
 
 // ---- Live preview component (mirrors the PDF layout as faithfully as possible in HTML) ----
 function ReceiptPreview({
-  customer, date, items, adjustments, paymentMethods, totals, advanceAmount, amountPaid,
+  customer, date, items, adjustments, paymentMethods, totals, advanceAmount, amountPaid, specialNotes,
 }: {
   customer: Customer;
   date: string;
@@ -591,6 +606,7 @@ function ReceiptPreview({
   totals: ReturnType<typeof calcTotals>;
   advanceAmount: number;
   amountPaid: number;
+  specialNotes?: string;
 }) {
   const has = (v: string) => paymentMethods.includes(v);
 
@@ -689,6 +705,14 @@ function ReceiptPreview({
           ))}
         </tbody>
       </table>
+
+      {/* Special Notes — printed on the receipt, unlike the internal Notes field */}
+      {specialNotes?.trim() && (
+        <div style={{ marginTop: 14 }}>
+          <div style={{ fontWeight: 700, fontSize: 9.5, marginBottom: 3 }}>Special Notes:</div>
+          <div style={{ fontSize: 9.5, whiteSpace: "pre-wrap" }}>{specialNotes}</div>
+        </div>
+      )}
     </div>
   );
 }

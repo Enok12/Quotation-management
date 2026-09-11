@@ -280,6 +280,12 @@ export default async function ReceiptDetailPage({ params }: Props) {
                 <p className="text-sm text-stone-600 mt-0.5">{receipt.notes}</p>
               </div>
             )}
+            {receipt.specialNotes && (
+              <div>
+                <span className="text-xs text-stone-400 font-semibold uppercase tracking-wide">Special Notes</span>
+                <p className="text-sm text-stone-600 mt-0.5">{receipt.specialNotes}</p>
+              </div>
+            )}
           </div>
 
           {/* Version history */}

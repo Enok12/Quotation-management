@@ -71,6 +71,7 @@ export const receiptService = {
           custEmail: customer.email,
           date: input.date ?? new Date(),
           notes: input.notes,
+          specialNotes: input.specialNotes,
           paymentMethods: input.paymentMethods,
           subtotal: D(totals.subtotal),
           adjustmentsTotal: D(totals.adjustmentsTotal),
@@ -191,6 +192,7 @@ export const receiptService = {
         where: { id },
         data: {
           notes: input.notes,
+          specialNotes: input.specialNotes,
           paymentMethods: input.paymentMethods,
           subtotal: D(totals.subtotal),
           adjustmentsTotal: D(totals.adjustmentsTotal),
@@ -370,6 +372,7 @@ export const receiptService = {
           custEmail: sample.custEmail,
           date: new Date(),
           notes: sample.notes,
+          specialNotes: sample.specialNotes,
           paymentMethods: sample.paymentMethods,
           subtotal: D(totals.subtotal),
           adjustmentsTotal: D(totals.adjustmentsTotal),

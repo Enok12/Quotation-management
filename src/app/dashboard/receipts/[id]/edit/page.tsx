@@ -34,6 +34,7 @@ export default async function EditReceiptPage({ params }: Props) {
     receiptId: id,
     date: receipt.date.toISOString().slice(0, 10),
     notes: receipt.notes ?? undefined,
+    specialNotes: receipt.specialNotes ?? undefined,
     paymentMethods: receipt.paymentMethods,
     items: receipt.items.map((i) => ({
       itemId: i.id,

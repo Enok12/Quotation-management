@@ -36,6 +36,9 @@ export interface ReceiptPdfData {
   advanceAmount: number;
   amountPaid: number;
   balance: number;
+  // Customer-facing conditions printed at the bottom of the receipt — unlike
+  // the staff-only `notes` field, this is meant to be read by the customer.
+  specialNotes?: string | null;
 }
 // The tenant's own logo, embedded straight into the PDF — pdf-lib can only
 // embed PNG/JPEG, so the upload path (logo-upload-limits.ts) restricts to those.
@@ -198,6 +201,18 @@ export async function generateReceiptPdf(
     page.drawText(label, { x: xPrice + 6, y: ry + 8, size: 9.5, font: F(label, sansBold, true), color: C.ink });
     page.drawText(val, { x: xTotal + 6, y: ry + 8, size: 9.5, font: sans, color: C.ink });
   }
+
+  // Special Notes — customer-facing conditions, printed at the bottom of the
+  // receipt (unlike the staff-only `notes` field, which never appears here).
+  if (data.specialNotes?.trim()) {
+    ry -= 20;
+    page.drawText("Special Notes:", { x: innerL, y: ry, size: 9.5, font: sansBold, color: C.ink });
+    ry -= 14;
+    const font = F(data.specialNotes, sans);
+    const lines = wrapLines(data.specialNotes, contentW, font, 9.5);
+    drawLines(page, lines, innerL, ry, 13, font, 9.5, C.ink);
+  }
+
   return doc.save();
 }
 
