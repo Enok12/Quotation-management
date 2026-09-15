@@ -4,7 +4,10 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check } from "lucide-react";
 import { AnimatedCheckbox } from "@/components/ui/animated-checkbox";
-import { ALL_SECTIONS, SECTION_LABELS } from "@/lib/sections";
+import { ALL_SECTIONS, SECTION_LABELS, SECTION_GROUPS } from "@/lib/sections";
+
+const WHOLESALE_SECTIONS = ALL_SECTIONS.filter((s) => SECTION_GROUPS[s] === "WHOLESALE");
+const RETAIL_SECTIONS = ALL_SECTIONS.filter((s) => SECTION_GROUPS[s] === "RETAIL");
 
 export function PlanForm({
   planId,
@@ -74,9 +77,18 @@ export function PlanForm({
       </div>
 
       <div>
-        <label className="field-label">Enabled sections</label>
+        <label className="field-label">Enabled sections — Wholesale</label>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-1">
-          {ALL_SECTIONS.map((s) => (
+          {WHOLESALE_SECTIONS.map((s) => (
+            <AnimatedCheckbox key={s} checked={sections.has(s)} onChange={() => toggle(s)} label={SECTION_LABELS[s]} />
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <label className="field-label">Enabled sections — Retail</label>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-1">
+          {RETAIL_SECTIONS.map((s) => (
             <AnimatedCheckbox key={s} checked={sections.has(s)} onChange={() => toggle(s)} label={SECTION_LABELS[s]} />
           ))}
         </div>

@@ -16,6 +16,8 @@ import {
   Settings,
   Shirt,
   Sparkles,
+  Boxes,
+  ShoppingCart,
   type LucideIcon,
 } from "lucide-react";
 
@@ -32,6 +34,8 @@ const ICONS = {
   Settings,
   Shirt,
   Sparkles,
+  Boxes,
+  ShoppingCart,
 } satisfies Record<string, LucideIcon>;
 
 export type NavIcon = keyof typeof ICONS;

@@ -4,6 +4,7 @@ import { requireBusiness } from "@/lib/auth";
 import { ForbiddenError } from "@/lib/api/errors";
 import { prisma } from "@/lib/db";
 import { getBusinessAccess, hasSection } from "@/lib/section-access";
+import { SECTION_GROUPS } from "@/lib/sections";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { DailyReminders } from "@/components/dashboard/daily-reminders";
 
@@ -40,10 +41,20 @@ export default async function DashboardLayout({ children }: { children: React.Re
     { href: "/dashboard/team", icon: "UserCog", label: "Team", section: "TEAM" },
     { href: "/dashboard/audit", icon: "ClipboardList", label: "Audit Log", section: "AUDIT_LOG" },
     ...(role === "ADMIN" ? [{ href: "/dashboard/settings", icon: "Settings", label: "Settings", section: "SETTINGS" }] as const : []),
+    { href: "/dashboard/retail/inventory", icon: "Boxes", label: "Inventory Management", section: "INVENTORY" },
+    { href: "/dashboard/retail/sales", icon: "ShoppingCart", label: "Sales", section: "SALES" },
   ] as const;
 
-  const items = allNavItems
-    .filter((item) => item.section === null || hasSection(access, item.section))
+  // Split into Wholesale/Retail nav groups (see SECTION_GROUPS) so the
+  // sidebar can offer a switcher only when a business actually has sections
+  // in both — every business today has none in Retail, so retailItems comes
+  // back empty and the sidebar is unchanged from before this split existed.
+  const visible = allNavItems.filter((item) => item.section === null || hasSection(access, item.section));
+  const wholesaleItems = visible
+    .filter((item) => item.section === null || SECTION_GROUPS[item.section] === "WHOLESALE")
+    .map(({ section, ...item }) => item);
+  const retailItems = visible
+    .filter((item) => item.section !== null && SECTION_GROUPS[item.section] === "RETAIL")
     .map(({ section, ...item }) => item);
 
   return (
@@ -51,7 +62,8 @@ export default async function DashboardLayout({ children }: { children: React.Re
       businessName={business.name}
       logoUrl={business.logoUrl}
       memberships={memberships.map((m) => ({ businessId: m.businessId, name: m.business.name, role: m.role, active: m.businessId === businessId }))}
-      items={items}
+      wholesaleItems={wholesaleItems}
+      retailItems={retailItems}
     >
       {!access.inGoodStanding && (
         <div className="bg-red-50 dark:bg-red-500/10 border-b border-red-200 dark:border-red-500/30 px-4 py-2 text-center text-sm text-red-700 dark:text-red-400">

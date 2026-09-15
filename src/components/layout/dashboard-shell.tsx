@@ -13,13 +13,17 @@ import { cn } from "@/lib/utils/cn";
 // Fixed, always-visible sidebar at lg+; below that it becomes an off-canvas
 // drawer toggled by a mobile top bar, closing itself whenever the route changes.
 export function DashboardShell({
-  items,
+  wholesaleItems,
+  retailItems,
   businessName,
   logoUrl,
   memberships,
   children,
 }: {
-  items: NavItem[];
+  wholesaleItems: NavItem[];
+  /** Empty for every business today — only Inventory Management lives here
+   * so far. The switcher below only renders once this is non-empty. */
+  retailItems: NavItem[];
   businessName?: string;
   logoUrl?: string | null;
   memberships?: Membership[];
@@ -31,6 +35,13 @@ export function DashboardShell({
   useEffect(() => {
     setOpen(false);
   }, [pathname]);
+
+  // Purely a nav-grouping concept, not a permission — a business with
+  // sections in both groups gets a switcher; a Wholesale-only business (every
+  // one today) never sees it and the sidebar is unchanged from before.
+  const hasRetail = retailItems.length > 0;
+  const activeGroup = hasRetail && pathname.startsWith("/dashboard/retail") ? "retail" : "wholesale";
+  const items = activeGroup === "retail" ? retailItems : wholesaleItems;
 
   return (
     <div className="flex h-screen overflow-hidden bg-canvas print:h-auto print:overflow-visible">
@@ -73,6 +84,32 @@ export function DashboardShell({
             <X size={20} />
           </button>
         </div>
+
+        {/* Wholesale / Retail switcher — only when the business has both */}
+        {hasRetail && (
+          <div className="px-3 pt-3">
+            <div className="grid grid-cols-2 gap-1 bg-white/5 rounded-lg p-1">
+              <Link
+                href="/dashboard"
+                className={cn(
+                  "text-center text-xs font-medium py-1.5 rounded-md transition-colors",
+                  activeGroup === "wholesale" ? "bg-white/10 text-white" : "text-stone-400 hover:text-white",
+                )}
+              >
+                Wholesale
+              </Link>
+              <Link
+                href={retailItems[0]?.href ?? "/dashboard/retail/inventory"}
+                className={cn(
+                  "text-center text-xs font-medium py-1.5 rounded-md transition-colors",
+                  activeGroup === "retail" ? "bg-white/10 text-white" : "text-stone-400 hover:text-white",
+                )}
+              >
+                Retail
+              </Link>
+            </div>
+          </div>
+        )}
 
         {/* Navigation */}
         <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto scrollbar-sidebar">
