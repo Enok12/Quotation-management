@@ -2,6 +2,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { NotFoundError, ConflictError } from "@/lib/api/errors";
 import { auditService } from "./audit.service";
+import { dateRangeFilter } from "@/lib/utils/date-range";
 import type {
   InventoryProductCreateInput,
   InventoryProductUpdateInput,
@@ -15,11 +16,15 @@ export const inventoryService = {
     return prisma.inventoryProduct.findMany({
       where: { businessId, ...(opts.includeArchived ? {} : { isArchived: false }) },
       orderBy: { createdAt: "desc" },
+      include: { category: { select: { id: true, name: true } } },
     });
   },
 
   async get(id: string, businessId: string) {
-    const product = await prisma.inventoryProduct.findFirst({ where: { id, businessId } });
+    const product = await prisma.inventoryProduct.findFirst({
+      where: { id, businessId },
+      include: { category: { select: { id: true, name: true } } },
+    });
     if (!product) throw new NotFoundError("Product");
     return product;
   },
@@ -38,7 +43,7 @@ export const inventoryService = {
             businessId,
             sku: input.sku,
             name: input.name,
-            category: input.category,
+            categoryId: input.categoryId,
             costPrice: D(input.costPrice),
             sellingPrice: D(input.sellingPrice),
             quantityOnHand: input.openingQuantity,
@@ -83,7 +88,7 @@ export const inventoryService = {
           data: {
             ...(input.sku !== undefined ? { sku: input.sku } : {}),
             ...(input.name !== undefined ? { name: input.name } : {}),
-            ...(input.category !== undefined ? { category: input.category } : {}),
+            ...(input.categoryId !== undefined ? { categoryId: input.categoryId } : {}),
             ...(input.costPrice !== undefined ? { costPrice: D(input.costPrice) } : {}),
             ...(input.sellingPrice !== undefined ? { sellingPrice: D(input.sellingPrice) } : {}),
           },
@@ -154,6 +159,19 @@ export const inventoryService = {
       where: { productId, businessId },
       orderBy: { createdAt: "desc" },
       include: { performedBy: { select: { name: true, email: true } } },
+    });
+  },
+
+  /** Every stock movement across every product — the "Stock Adjustments" page. */
+  listAllMovements(businessId: string, opts: { from?: string; to?: string } = {}) {
+    const dateWhere = dateRangeFilter(opts.from, opts.to);
+    return prisma.inventoryStockMovement.findMany({
+      where: { businessId, ...(dateWhere ? { createdAt: dateWhere } : {}) },
+      orderBy: { createdAt: "desc" },
+      include: {
+        product: { select: { sku: true, name: true } },
+        performedBy: { select: { name: true, email: true } },
+      },
     });
   },
 };

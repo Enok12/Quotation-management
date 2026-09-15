@@ -5,11 +5,12 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Loader2 } from "lucide-react";
+import Link from "next/link";
 
 const productFormSchema = z.object({
   sku: z.string().min(1, "SKU is required"),
   name: z.string().min(1, "Name is required"),
-  category: z.string().optional(),
+  categoryId: z.string().optional(),
   costPrice: z.coerce.number().nonnegative().default(0),
   sellingPrice: z.coerce.number().nonnegative().default(0),
   openingQuantity: z.coerce.number().int().nonnegative().default(0),
@@ -17,6 +18,7 @@ const productFormSchema = z.object({
 export type ProductFormValues = z.infer<typeof productFormSchema>;
 
 interface SavedProduct { id: string; sku: string }
+interface Category { id: string; name: string }
 
 // Shared create/edit form — mirrors AddCustomerForm's shape. openingQuantity
 // only applies at creation (quantityOnHand is never edited directly after
@@ -24,11 +26,13 @@ interface SavedProduct { id: string; sku: string }
 export function ProductForm({
   productId,
   defaultValues,
+  categories,
   onSaved,
   submitLabel = "Add Product",
 }: {
   productId?: string;
   defaultValues?: Partial<ProductFormValues>;
+  categories: Category[];
   onSaved: (product: SavedProduct) => void;
   submitLabel?: string;
 }) {
@@ -43,8 +47,8 @@ export function ProductForm({
     setServerError(null);
     try {
       const payload = productId
-        ? { sku: data.sku, name: data.name, category: data.category, costPrice: data.costPrice, sellingPrice: data.sellingPrice }
-        : data;
+        ? { sku: data.sku, name: data.name, categoryId: data.categoryId || null, costPrice: data.costPrice, sellingPrice: data.sellingPrice }
+        : { ...data, categoryId: data.categoryId || null };
       const res = await fetch(productId ? `/api/v1/inventory/products/${productId}` : "/api/v1/inventory/products", {
         method: productId ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
@@ -73,8 +77,14 @@ export function ProductForm({
       </div>
 
       <div>
-        <label className="field-label">Category</label>
-        <input {...register("category")} className="field-input" placeholder="optional" />
+        <div className="flex items-center justify-between mb-1">
+          <label className="field-label mb-0">Category</label>
+          <Link href="/dashboard/retail/categories" className="text-xs text-amber-600 hover:underline">Manage categories</Link>
+        </div>
+        <select {...register("categoryId")} className="field-input">
+          <option value="">No category</option>
+          {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+        </select>
       </div>
 
       <div className="grid grid-cols-2 gap-3">

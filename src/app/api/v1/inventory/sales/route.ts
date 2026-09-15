@@ -17,11 +17,15 @@ export const GET = handler(async (req: NextRequest) => {
 
   return ok(sales.map((s) => ({
     id: s.id,
-    items: s.items.map((i) => ({
-      sku: i.product.sku, productName: i.product.name, quantity: i.quantity,
-      unitPrice: Number(i.unitPrice), lineTotal: Number(i.lineTotal),
-      profit: (Number(i.unitPrice) - Number(i.costPriceAtSale)) * i.quantity,
-    })),
+    items: s.items.map((i) => {
+      const returnedQuantity = i.returns.reduce((sum, r) => sum + r.quantity, 0);
+      return {
+        id: i.id, sku: i.product.sku, productName: i.product.name, quantity: i.quantity,
+        unitPrice: Number(i.unitPrice), lineTotal: Number(i.lineTotal),
+        profit: (Number(i.unitPrice) - Number(i.costPriceAtSale)) * i.quantity,
+        returnedQuantity, returnable: i.quantity - returnedQuantity,
+      };
+    }),
     totalAmount: Number(s.totalAmount),
     paymentMethod: s.paymentMethod, note: s.note,
     soldBy: s.soldBy.name ?? s.soldBy.email, createdAt: s.createdAt.toISOString(),

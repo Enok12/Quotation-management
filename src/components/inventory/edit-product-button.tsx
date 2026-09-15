@@ -8,9 +8,11 @@ import { ProductForm, type ProductFormValues } from "./product-form";
 export function EditProductButton({
   productId,
   defaultValues,
+  categories,
 }: {
   productId: string;
   defaultValues: Partial<ProductFormValues>;
+  categories: { id: string; name: string }[];
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -36,6 +38,7 @@ export function EditProductButton({
             <ProductForm
               productId={productId}
               defaultValues={defaultValues}
+              categories={categories}
               submitLabel="Save Changes"
               onSaved={() => {
                 setOpen(false);

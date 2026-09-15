@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Plus, X } from "lucide-react";
 import { ProductForm } from "./product-form";
 
-export function AddProductButton() {
+export function AddProductButton({ categories }: { categories: { id: string; name: string }[] }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
 
@@ -23,6 +23,7 @@ export function AddProductButton() {
               <button onClick={() => setOpen(false)} className="text-stone-400 hover:text-ink"><X size={18} /></button>
             </div>
             <ProductForm
+              categories={categories}
               onSaved={() => {
                 setOpen(false);
                 router.refresh();

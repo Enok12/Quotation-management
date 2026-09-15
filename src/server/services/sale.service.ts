@@ -80,7 +80,7 @@ export const saleService = {
       where: { businessId, ...(dateWhere ? { createdAt: dateWhere } : {}) },
       orderBy: { createdAt: "desc" },
       include: {
-        items: { include: { product: { select: { sku: true, name: true } } } },
+        items: { include: { product: { select: { sku: true, name: true } }, returns: true } },
         soldBy: { select: { name: true, email: true } },
       },
     });

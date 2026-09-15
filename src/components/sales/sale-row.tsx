@@ -3,8 +3,12 @@
 import { useState } from "react";
 import { ChevronRight, ChevronDown } from "lucide-react";
 import { fmtMoney, fmtDateTime } from "@/lib/utils/format";
+import { ReturnItemButton } from "./return-item-button";
 
-interface SaleItem { sku: string; productName: string; quantity: number; unitPrice: number; lineTotal: number; profit: number }
+interface SaleItem {
+  id: string; sku: string; productName: string; quantity: number; unitPrice: number; lineTotal: number; profit: number;
+  returnedQuantity: number; returnable: number;
+}
 interface Sale {
   id: string;
   items: SaleItem[];
@@ -49,13 +53,22 @@ export function SaleRow({ sale }: { sale: Sale }) {
           <td colSpan={7} className="td bg-stone-25 dark:bg-white/[0.02] py-2">
             <table className="w-full">
               <tbody>
-                {sale.items.map((item, i) => (
-                  <tr key={i}>
+                {sale.items.map((item) => (
+                  <tr key={item.id}>
                     <td className="py-1 pr-3"><code className="font-mono text-xs">{item.sku}</code></td>
                     <td className="py-1 pr-3 text-sm">{item.productName}</td>
                     <td className="py-1 pr-3 text-right font-mono text-xs">{item.quantity} ×</td>
                     <td className="py-1 pr-3 text-right font-mono text-xs">{fmtMoney(item.unitPrice)}</td>
                     <td className="py-1 pr-3 text-right font-mono text-xs">{fmtMoney(item.lineTotal)}</td>
+                    <td className="py-1 pr-3 text-xs text-stone-400">
+                      {item.returnedQuantity > 0 && <span>{item.returnedQuantity} returned</span>}
+                    </td>
+                    <td className="py-1">
+                      <ReturnItemButton
+                        saleItemId={item.id} sku={item.sku} productName={item.productName}
+                        unitPrice={item.unitPrice} returnable={item.returnable}
+                      />
+                    </td>
                   </tr>
                 ))}
               </tbody>

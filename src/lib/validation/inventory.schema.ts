@@ -3,7 +3,7 @@ import { z } from "zod";
 export const inventoryProductCreateSchema = z.object({
   sku: z.string().min(1).max(40),
   name: z.string().min(1).max(200),
-  category: z.string().max(80).optional().nullable(),
+  categoryId: z.string().optional().nullable(),
   costPrice: z.number().nonnegative().default(0),
   sellingPrice: z.number().nonnegative().default(0),
   // Only meaningful at creation — becomes an initial "Opening stock" IN

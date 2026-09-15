@@ -108,6 +108,10 @@ enum AuditAction {
   INVENTORY_PRODUCT_ARCHIVED
   INVENTORY_STOCK_ADJUSTED
   INVENTORY_SALE_RECORDED
+  INVENTORY_CATEGORY_CREATED
+  INVENTORY_CATEGORY_UPDATED
+  INVENTORY_CATEGORY_DELETED
+  INVENTORY_RETURN_PROCESSED
 }
 
 // A gate-able dashboard section — used by Plan.enabledSections to control
@@ -208,6 +212,7 @@ model User {
   inventoryProductsCreated InventoryProduct[]       @relation("InventoryProductCreatedBy")
   stockMovementsPerformed InventoryStockMovement[] @relation("StockMovementPerformedBy")
   inventorySales           InventorySale[]
+  inventoryReturnsProcessed InventoryReturn[]
 }
 
 // ---------------------------- Business ----------------------------
@@ -263,9 +268,11 @@ model Business {
   customerInvites CustomerInvite[]
   auditLogs       AuditLog[]
   recommendations Recommendation[]
-  inventoryProducts InventoryProduct[]
-  stockMovements    InventoryStockMovement[]
-  inventorySales    InventorySale[]
+  inventoryProducts   InventoryProduct[]
+  inventoryCategories InventoryCategory[]
+  stockMovements      InventoryStockMovement[]
+  inventorySales      InventorySale[]
+  inventoryReturns    InventoryReturn[]
 }
 
 // Membership + role, per business — a person can belong to more than one.
@@ -585,6 +592,24 @@ model Pattern {
 // fields, "derived in the service layer, persisted for fast reads" — and is
 // only ever changed via InventoryStockMovement rows, which are the actual
 // source of truth for stock history (who changed what, when, and why).
+// A business-managed category list — replaces free-text category entry so
+// it can be picked from a dropdown and renamed in one place without having
+// to touch every product. onDelete: SetNull on the product side means
+// deleting a category just clears it off any products that used it, rather
+// than blocking the delete or cascading.
+model InventoryCategory {
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  name       String
+  createdAt  DateTime @default(now())
+
+  products InventoryProduct[]
+
+  @@unique([businessId, name])
+  @@index([businessId])
+}
+
 model InventoryProduct {
   id         String   @id @default(cuid())
   businessId String
@@ -592,9 +617,8 @@ model InventoryProduct {
 
   sku  String
   name String
-  // Free text, not the existing MEN/WOMEN Category enum — retail stock isn't
-  // necessarily clothing, and Retail is meant to grow beyond Inventory later.
-  category String?
+  categoryId String?
+  category   InventoryCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
 
   costPrice    Decimal @default(0) @db.Decimal(12, 2)
   sellingPrice Decimal @default(0) @db.Decimal(12, 2)
@@ -610,6 +634,7 @@ model InventoryProduct {
 
   movements InventoryStockMovement[]
   saleItems InventorySaleItem[]
+  returns   InventoryReturn[]
 
   @@unique([businessId, sku])
   @@index([businessId])
@@ -684,7 +709,38 @@ model InventorySaleItem {
   costPriceAtSale Decimal @db.Decimal(12, 2)
   lineTotal       Decimal @db.Decimal(12, 2)
 
+  returns InventoryReturn[]
+
   @@index([saleId])
+  @@index([productId])
+}
+
+// A (partial or full) return against one sale line — restocks the returned
+// quantity via its own InventoryStockMovement (type IN, reason "Returned"),
+// same transactional pairing sale.service.ts uses for the OUT side. Kept as
+// its own ledger rather than mutating the original InventorySaleItem, so a
+// sale's historical record never changes — Sales reporting stays gross, and
+// Returns is where net-of-returns activity lives.
+model InventoryReturn {
+  id         String            @id @default(cuid())
+  businessId String
+  business   Business          @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  saleItemId String
+  saleItem   InventorySaleItem @relation(fields: [saleItemId], references: [id], onDelete: Cascade)
+  productId  String
+  product    InventoryProduct  @relation(fields: [productId], references: [id])
+
+  quantity     Int
+  refundAmount Decimal @db.Decimal(12, 2)
+  reason       String
+  note         String?
+
+  processedById String
+  processedBy   User     @relation(fields: [processedById], references: [id])
+  createdAt     DateTime @default(now())
+
+  @@index([businessId])
+  @@index([saleItemId])
   @@index([productId])
 }
 

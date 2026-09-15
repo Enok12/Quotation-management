@@ -30,19 +30,26 @@ export default async function DashboardLayout({ children }: { children: React.Re
   // Each nav item's gating Section — null means always shown (never gated).
   const allNavItems = [
     { href: "/dashboard", icon: "LayoutDashboard", label: "Dashboard", exact: true, section: null },
-    { href: "/dashboard/customers", icon: "Users", label: "Customers", section: "CUSTOMERS" },
-    { href: "/dashboard/receipts", icon: "FileText", label: "Receipts", section: "RECEIPTS" },
-    { href: "/dashboard/payments", icon: "Wallet", label: "Orders", section: "ORDERS" },
-    { href: "/dashboard/orders", icon: "Package", label: "Production", section: "PRODUCTION" },
-    { href: "/dashboard/styles", icon: "Shirt", label: "Styles", section: "STYLES" },
-    { href: "/dashboard/expenses", icon: "Banknote", label: "Expenses", section: "EXPENSES" },
-    { href: "/dashboard/income", icon: "TrendingUp", label: "Income", section: "INCOME" },
-    { href: "/dashboard/recommendations", icon: "Sparkles", label: "Recommendations", section: "RECOMMENDATIONS" },
-    { href: "/dashboard/team", icon: "UserCog", label: "Team", section: "TEAM" },
-    { href: "/dashboard/audit", icon: "ClipboardList", label: "Audit Log", section: "AUDIT_LOG" },
-    ...(role === "ADMIN" ? [{ href: "/dashboard/settings", icon: "Settings", label: "Settings", section: "SETTINGS" }] as const : []),
-    { href: "/dashboard/retail/inventory", icon: "Boxes", label: "Inventory Management", section: "INVENTORY" },
-    { href: "/dashboard/retail/sales", icon: "ShoppingCart", label: "Sales", section: "SALES" },
+    // Wholesale — grouped the same way Retail is (see below): consecutive
+    // items sharing a `group` get one header in SidebarNav.
+    { href: "/dashboard/customers", icon: "Users", label: "Customers", section: "CUSTOMERS", group: "Customers & Orders" },
+    { href: "/dashboard/receipts", icon: "FileText", label: "Receipts", section: "RECEIPTS", group: "Customers & Orders" },
+    { href: "/dashboard/payments", icon: "Wallet", label: "Orders", section: "ORDERS", group: "Customers & Orders" },
+    { href: "/dashboard/orders", icon: "Package", label: "Production", section: "PRODUCTION", group: "Production" },
+    { href: "/dashboard/styles", icon: "Shirt", label: "Styles", section: "STYLES", group: "Production" },
+    { href: "/dashboard/expenses", icon: "Banknote", label: "Expenses", section: "EXPENSES", group: "Finance" },
+    { href: "/dashboard/income", icon: "TrendingUp", label: "Income", section: "INCOME", group: "Finance" },
+    { href: "/dashboard/recommendations", icon: "Sparkles", label: "Recommendations", section: "RECOMMENDATIONS", group: "Insights" },
+    { href: "/dashboard/team", icon: "UserCog", label: "Team", section: "TEAM", group: "Administration" },
+    { href: "/dashboard/audit", icon: "ClipboardList", label: "Audit Log", section: "AUDIT_LOG", group: "Administration" },
+    ...(role === "ADMIN" ? [{ href: "/dashboard/settings", icon: "Settings", label: "Settings", section: "SETTINGS", group: "Administration" }] as const : []),
+    // Retail — ordered so consecutive items share a group header in
+    // SidebarNav (Sales & POS, then Inventory).
+    { href: "/dashboard/retail/sales", icon: "ShoppingCart", label: "Sales", section: "SALES", group: "Sales & POS" },
+    { href: "/dashboard/retail/returns", icon: "Undo2", label: "Returns", section: "SALES", group: "Sales & POS" },
+    { href: "/dashboard/retail/inventory", icon: "Boxes", label: "Products", section: "INVENTORY", group: "Inventory" },
+    { href: "/dashboard/retail/categories", icon: "Tags", label: "Categories", section: "INVENTORY", group: "Inventory" },
+    { href: "/dashboard/retail/stock-adjustments", icon: "ArrowLeftRight", label: "Stock Adjustments", section: "INVENTORY", group: "Inventory" },
   ] as const;
 
   // Split into Wholesale/Retail nav groups (see SECTION_GROUPS) so the

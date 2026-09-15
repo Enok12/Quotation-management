@@ -11,7 +11,7 @@ export const GET = handler(async () => {
 
   const products = await inventoryService.list(businessId);
   return ok(products.map((p) => ({
-    id: p.id, sku: p.sku, name: p.name, category: p.category,
+    id: p.id, sku: p.sku, name: p.name, categoryId: p.categoryId, categoryName: p.category?.name ?? null,
     costPrice: Number(p.costPrice), sellingPrice: Number(p.sellingPrice),
     quantityOnHand: p.quantityOnHand, createdAt: p.createdAt.toISOString(),
   })));
