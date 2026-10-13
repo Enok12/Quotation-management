@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Wallet, X, Loader2 } from "lucide-react";
 import { moveInvoiceIfConnected } from "@/lib/folder-sync";
@@ -33,12 +33,32 @@ export function RecordPaymentButton({
   orderType?: ReceiptOrderType;
 }) {
   const router = useRouter();
+  const [isRefreshing, startRefresh] = useTransition();
   const [open, setOpen] = useState(false);
   const [amount, setAmount] = useState("");
   const [method, setMethod] = useState("");
   const [note, setNote] = useState("");
+  // Covers both the POST request AND the page refresh that follows it — the
+  // modal stays open and visibly loading for the whole thing, so it never
+  // closes onto a page that's still showing pre-payment data for a beat.
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // True from the moment the POST succeeds until the refresh below has
+  // actually resolved — distinguishes "about to close" from an unrelated
+  // isRefreshing=false at mount, so the effect only ever acts after a save.
+  const closingRef = useRef(false);
+
+  // Fires once the refresh triggered below has actually finished re-rendering
+  // the page with fresh data — only then is it safe to close the modal.
+  useEffect(() => {
+    if (closingRef.current && !isRefreshing) {
+      closingRef.current = false;
+      setOpen(false);
+      setSaving(false);
+      setAmount(""); setMethod(""); setNote("");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isRefreshing]);
 
   // Remaining advance still to be collected (advance is a target, paid is real).
   const advanceRemaining = Math.max(0, Math.round((advanceAmount - amountPaid) * 100) / 100);
@@ -71,12 +91,11 @@ export function RecordPaymentButton({
         deriveFolder(orderType, json.data.paymentStatus, confirmedNumber),
       );
 
-      setOpen(false);
-      setAmount(""); setMethod(""); setNote("");
-      router.refresh();
+      closingRef.current = true;
+      startRefresh(() => router.refresh());
+      // Modal closes via the effect above once the refresh actually resolves.
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong");
-    } finally {
       setSaving(false);
     }
   };
@@ -144,7 +163,7 @@ export function RecordPaymentButton({
 
               <button onClick={submit} disabled={saving} className="btn-primary w-full">
                 {saving && <Loader2 size={15} className="animate-spin" />}
-                {saving ? "Saving…" : "Record Payment"}
+                {saving ? (isRefreshing ? "Updating…" : "Saving…") : "Record Payment"}
               </button>
             </div>
           </div>

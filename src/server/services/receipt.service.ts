@@ -49,9 +49,13 @@ export const receiptService = {
     if (!customer) throw new NotFoundError("Customer");
 
     const totals = calcReceiptTotals(input);
-    // Fully paid at creation (e.g. a bulk-upload review of an already-settled
-    // historical order) is a strong signal the whole order is already done.
-    const initialStatus: OrderStage = input.startCompleted ? "COMPLETED" : "FABRIC_SELECTION";
+    // Fully paid at creation — either explicitly flagged (a bulk-upload
+    // review of an already-settled historical order) or because the amount
+    // paid entered on the form already covers the full total — is a strong
+    // signal the whole order is already done. Mirrors the same rule applied
+    // to an in-progress order in recordPayment() below.
+    const startsFullyPaid = input.startCompleted || derivePaymentStatus(totals.totalDue, input.amountPaid) === "PAID";
+    const initialStatus: OrderStage = startsFullyPaid ? "COMPLETED" : "FABRIC_SELECTION";
     const confirmedAtCreation = input.startCompleted || isConfirmedState(input.orderType, input.amountPaid);
 
     return prisma.$transaction(async (tx) => {
@@ -142,6 +146,12 @@ export const receiptService = {
     // instead of via Record Payment, or switching an unconfirmed Bulk order
     // to Sample, which always confirms immediately).
     const nowConfirms = existing.receiptNumber === null && isConfirmedState(input.orderType, input.amountPaid);
+    const paymentStatus = derivePaymentStatus(totals.totalDue, input.amountPaid);
+    // Same rule as recordPayment(): an edit that pushes the receipt into
+    // Fully Paid — e.g. entering the full amount directly here instead of
+    // via Record Payment, which happens often right after converting a
+    // sample to bulk — also auto-completes every surviving item.
+    const justFullyPaid = existing.paymentStatus !== "PAID" && paymentStatus === "PAID";
 
     return prisma.$transaction(async (tx) => {
       if (existing.status === "FINALIZED") {
@@ -163,16 +173,34 @@ export const receiptService = {
             data: {
               description: it.description, quantity: it.quantity,
               unitPrice: D(it.unitPrice), lineTotal: D(totals.lineTotals[i]), sortOrder: i,
+              ...(justFullyPaid ? { orderStatus: "COMPLETED" as const } : {}),
             },
           });
-          survivingStatuses.push(existingItem.orderStatus);
+          if (justFullyPaid && existingItem.orderStatus !== "COMPLETED") {
+            await tx.orderStatusHistory.create({
+              data: {
+                receiptId: id, itemId: existingItem.id, fromStatus: existingItem.orderStatus, toStatus: "COMPLETED",
+                changedById: actorId, note: "Auto-completed — order paid in full",
+              },
+            });
+          }
+          survivingStatuses.push(justFullyPaid ? "COMPLETED" : existingItem.orderStatus);
         } else {
           const created = await tx.receiptItem.create({
             data: {
               receiptId: id, description: it.description, quantity: it.quantity,
               unitPrice: D(it.unitPrice), lineTotal: D(totals.lineTotals[i]), sortOrder: i,
+              ...(justFullyPaid ? { orderStatus: "COMPLETED" as const } : {}),
             },
           });
+          if (justFullyPaid) {
+            await tx.orderStatusHistory.create({
+              data: {
+                receiptId: id, itemId: created.id, fromStatus: null, toStatus: "COMPLETED",
+                changedById: actorId, note: "Auto-completed — order paid in full",
+              },
+            });
+          }
           survivingStatuses.push(created.orderStatus);
         }
       }
@@ -200,7 +228,7 @@ export const receiptService = {
           advanceAmount: D(input.advanceAmount),
           amountPaid: D(input.amountPaid),
           balance: D(totals.balance),
-          paymentStatus: derivePaymentStatus(totals.totalDue, input.amountPaid),
+          paymentStatus,
           orderType: input.orderType,
           category: input.category,
           receiptNumber,
@@ -218,6 +246,12 @@ export const receiptService = {
       if (nowConfirms) {
         await auditService.log(tx, {
           businessId: existing.businessId, actorId, action: "ORDER_CONFIRMED", entityType: "Receipt", entityId: id,
+        });
+      }
+      if (justFullyPaid) {
+        await auditService.log(tx, {
+          businessId: existing.businessId, actorId, action: "ORDER_STATUS_CHANGED", entityType: "Receipt", entityId: id,
+          metadata: { to: "COMPLETED", bulk: true, auto: true },
         });
       }
       return updated;
@@ -280,6 +314,8 @@ export const receiptService = {
   // receipt move between the Unpaid / Partial / Completed folders automatically.
   // If this receipt is still Unconfirmed, this payment is what confirms it —
   // assigns its invoice number and tracking token in the same transaction.
+  // A payment that pushes the receipt into Fully Paid also auto-completes
+  // every item's production status — see justFullyPaid below.
   async recordPayment(
     id: string,
     input: { amount: number; method?: FullReceipt["paymentMethods"][number] | null; note?: string | null },
@@ -300,6 +336,11 @@ export const receiptService = {
     const balance = Math.round((totalDue - Math.max(advanceAmount, newAmountPaid) + Number.EPSILON) * 100) / 100;
     const paymentStatus = derivePaymentStatus(totalDue, newAmountPaid);
     const nowConfirms = existing.receiptNumber === null;
+    // A genuine transition into Paid (not "was already Paid") — so a later
+    // correction payment on an already-settled, already-Completed order
+    // doesn't re-fire this and silently override a status staff may have
+    // deliberately moved backward for a rework.
+    const justFullyPaid = existing.paymentStatus !== "PAID" && paymentStatus === "PAID";
 
     // Reflect the method used on the receipt's Payment Information block (and PDF).
     const methods = new Set(existing.paymentMethods);
@@ -326,6 +367,7 @@ export const receiptService = {
           paymentMethods: { set: Array.from(methods) },
           receiptNumber,
           trackingToken,
+          ...(justFullyPaid ? { orderStatus: "COMPLETED" as const } : {}),
         },
       });
       await auditService.log(tx, {
@@ -335,6 +377,25 @@ export const receiptService = {
       if (nowConfirms) {
         await auditService.log(tx, {
           businessId: existing.businessId, actorId, action: "ORDER_CONFIRMED", entityType: "Receipt", entityId: id,
+        });
+      }
+
+      // Paid in full — auto-complete every item, same mechanism
+      // setAllItemsStatus() uses for a manual bulk status change.
+      if (justFullyPaid) {
+        for (const item of existing.items) {
+          if (item.orderStatus === "COMPLETED") continue;
+          await tx.receiptItem.update({ where: { id: item.id }, data: { orderStatus: "COMPLETED" } });
+          await tx.orderStatusHistory.create({
+            data: {
+              receiptId: id, itemId: item.id, fromStatus: item.orderStatus, toStatus: "COMPLETED",
+              changedById: actorId, note: "Auto-completed — order paid in full",
+            },
+          });
+        }
+        await auditService.log(tx, {
+          businessId: existing.businessId, actorId, action: "ORDER_STATUS_CHANGED", entityType: "Receipt", entityId: id,
+          metadata: { to: "COMPLETED", bulk: true, auto: true },
         });
       }
       return receipt;

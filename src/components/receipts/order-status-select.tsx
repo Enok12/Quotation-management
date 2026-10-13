@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronDown, Loader2, Check } from "lucide-react";
 import { ORDER_STAGES, ORDER_STAGE_LABELS, type OrderStage } from "@/lib/order-stage";
@@ -27,6 +27,16 @@ export function OrderStatusSelect({
   const [value, setValue] = useState<OrderStage>(status as OrderStage);
   const [saving, setSaving] = useState(false);
   const [justSaved, setJustSaved] = useState(false);
+
+  // The initial useState only runs on mount — without this, a status change
+  // that happens elsewhere (e.g. record a payment that auto-completes the
+  // order) never reaches this already-mounted dropdown until a full page
+  // reload remounts it. Skipped while actively saving/showing "saved" so it
+  // doesn't clobber the optimistic update mid-flight.
+  useEffect(() => {
+    if (!saving && !justSaved) setValue(status as OrderStage);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status]);
 
   const change = async (to: OrderStage) => {
     if (to === value) return;
