@@ -8,7 +8,8 @@ import { getBusinessAccess, hasSection } from "@/lib/section-access";
 const LIMIT = 8;
 
 // Ongoing orders for the once-a-day reminder popup — confirmed, finalized
-// orders that haven't reached COMPLETED yet.
+// orders that haven't reached COMPLETED yet and have at least some payment
+// recorded against them (see the paymentStatus filter below).
 //
 // Only fetched when the client has actually decided to show the popup (it
 // checks its own "already seen today" flag first), so this costs nothing on
@@ -31,6 +32,11 @@ export const GET = handler(async () => {
     // Production page itself uses.
     receiptNumber: { not: null },
     orderStatus: { not: "COMPLETED" as const },
+    // A Sample confirms (gets a receiptNumber) regardless of payment, unlike
+    // Bulk — so the receiptNumber check above doesn't catch an entirely
+    // unpaid Sample. Nothing's been collected toward it yet, so it's not
+    // real ongoing work to chase either.
+    paymentStatus: { not: "UNPAID" as const },
   };
 
   const [total, orders] = await Promise.all([
@@ -43,7 +49,7 @@ export const GET = handler(async () => {
       take: LIMIT,
       select: {
         id: true, receiptNumber: true, custName: true, date: true,
-        balance: true, orderStatus: true, orderType: true,
+        balance: true, orderStatus: true, orderType: true, paymentStatus: true,
       },
     }),
   ]);
@@ -58,6 +64,7 @@ export const GET = handler(async () => {
       balance: Number(o.balance),
       orderStatus: o.orderStatus,
       orderType: o.orderType,
+      paymentStatus: o.paymentStatus,
     })),
   });
 });

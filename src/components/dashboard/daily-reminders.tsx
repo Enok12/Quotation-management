@@ -15,6 +15,7 @@ interface ReminderOrder {
   balance: number;
   orderStatus: string;
   orderType: ReceiptOrderType;
+  paymentStatus: string;
 }
 
 const SEEN_KEY = "montra:reminders-seen";
@@ -122,8 +123,9 @@ export function DailyReminders() {
                 {/* Deliberately the coarse Ongoing/Completed badge, not the
                     per-stage one — the granular stage is detail for the
                     Production page, not for a morning glance. Every row here
-                    is ongoing by construction (the query excludes COMPLETED). */}
-                <OrderProgressBadge status={o.orderStatus} />
+                    is ongoing by construction (the query excludes COMPLETED
+                    and UNPAID). */}
+                <OrderProgressBadge status={o.orderStatus} paymentStatus={o.paymentStatus} />
               </Link>
             </li>
           ))}

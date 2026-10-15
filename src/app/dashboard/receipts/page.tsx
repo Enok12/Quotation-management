@@ -147,7 +147,7 @@ export default async function ReceiptsPage({ searchParams }: Props) {
                   <td className="td"><PaymentStatusBadge status={r.paymentStatus} /></td>
                   <td className="td">
                     <div className="flex items-center gap-2">
-                      <OrderProgressBadge status={r.orderStatus} />
+                      <OrderProgressBadge status={r.orderStatus} paymentStatus={r.paymentStatus} />
                       <ItemStatusPopup receiptId={r.id} receiptNumber={r.receiptNumber} orderType={r.orderType} custName={r.custName} items={r.items} />
                     </div>
                   </td>

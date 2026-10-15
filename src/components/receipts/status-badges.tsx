@@ -31,8 +31,17 @@ export function OrderStatusBadge({ status }: { status: string }) {
 // aggregation needed. Useful on list views where the granular per-stage
 // badge (Fabric Selection, Cutting, …) is more detail than a scan needs —
 // see ItemStatusPopup for the per-item breakdown behind it.
-export function OrderProgressBadge({ status }: { status: string }) {
+//
+// "Ongoing" is further gated on paymentStatus: an order nobody has paid
+// anything toward yet (still Unconfirmed for Bulk, or a brand-new Sample)
+// isn't real in-progress work to show as Ongoing — it reads as "Not Started"
+// until at least a partial/advance payment lands, same moment the app
+// elsewhere treats an order as actually confirmed into production.
+export function OrderProgressBadge({ status, paymentStatus }: { status: string; paymentStatus: string }) {
   const completed = status === "COMPLETED";
+  if (!completed && paymentStatus === "UNPAID") {
+    return <span className="badge-draft">Not Started</span>;
+  }
   return <span className={completed ? "badge-completed" : "badge-in-progress"}>{completed ? "Completed" : "Ongoing"}</span>;
 }
 
