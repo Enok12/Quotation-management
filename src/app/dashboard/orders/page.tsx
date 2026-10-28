@@ -1,3 +1,4 @@
+import { popDelay } from "@/lib/utils/pop";
 import { prisma } from "@/lib/db";
 import { requireBusiness } from "@/lib/auth";
 import Link from "next/link";
@@ -81,18 +82,18 @@ export default async function OrdersPage({ searchParams }: Props) {
 
   return (
     <div className="px-4 py-6 sm:px-8 sm:py-8 max-w-6xl">
-      <div className="mb-6">
+      <div className="mb-6 pop-in">
         <h1 className="font-serif text-3xl text-ink">Production</h1>
         <p className="text-stone-500 text-sm mt-1">{total.toLocaleString()} orders in production</p>
       </div>
 
-      <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+      <div className="flex items-center justify-between mb-4 flex-wrap gap-3 pop-in" style={popDelay(80)}>
         <CustomerSearch defaultValue={search} placeholder="Search by customer name…" />
         <DateRangeFilter />
       </div>
 
       <FilterTableShell groups={[typeTabs, tabs]}>
-      <div className="card">
+      <div className="card pop-in" style={popDelay(160)}>
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>

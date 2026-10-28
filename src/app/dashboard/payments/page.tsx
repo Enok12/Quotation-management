@@ -1,3 +1,4 @@
+import { popDelay } from "@/lib/utils/pop";
 import { prisma } from "@/lib/db";
 import { requireBusiness } from "@/lib/auth";
 import Link from "next/link";
@@ -132,24 +133,24 @@ export default async function OrdersFolderPage({ searchParams }: Props) {
 
   return (
     <div className="px-4 py-6 sm:px-8 sm:py-8 max-w-6xl">
-      <div className="mb-6">
+      <div className="mb-6 pop-in">
         <h1 className="font-serif text-3xl text-ink">Orders</h1>
         <p className="text-stone-500 text-sm mt-1">Unconfirmed · Bulk Orders · Sample Orders · Completed</p>
       </div>
 
       {/* Computer-folder sync */}
-      <div className="mb-6">
+      <div className="mb-6 pop-in" style={popDelay(60)}>
         <FolderSyncPanel items={syncItems} />
       </div>
 
-      <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+      <div className="flex items-center justify-between mb-4 flex-wrap gap-3 pop-in" style={popDelay(100)}>
         <CustomerSearch defaultValue={search} placeholder="Search by customer name…" />
         <DateRangeFilter />
       </div>
 
       {/* Folder tabs + table (loading overlay while switching) */}
       <FilterTableShell groups={[tabItems]}>
-      <div className="card">
+      <div className="card pop-in" style={popDelay(180)}>
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>

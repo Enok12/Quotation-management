@@ -5,6 +5,12 @@ import { useRouter } from "next/navigation";
 import { useTransition } from "react";
 import { Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
+import { popDelay } from "@/lib/utils/pop";
+
+// Each tab pops in a beat after the previous one, across all groups, so the
+// row builds up left to right. They start a little after the page header.
+const TAB_START_MS = 80;
+const TAB_STAGGER_MS = 35;
 
 export interface ShellTab {
   label: string;
@@ -29,6 +35,9 @@ export function FilterTableShell({
   const [isPending, startTransition] = useTransition();
   const go = (href: string) => startTransition(() => router.push(href));
 
+  // Position of each group's first tab in the whole row, for the stagger.
+  const firstIndex = groups.map((_, gi) => groups.slice(0, gi).reduce((n, g) => n + g.length, 0));
+
   const tabClass = (active: boolean) =>
     cn(
       "px-3 py-1.5 rounded text-xs font-medium transition-colors disabled:cursor-not-allowed",
@@ -42,10 +51,21 @@ export function FilterTableShell({
       <div className="flex items-center gap-6 mb-4 flex-wrap">
         {groups.map((tabs, gi) => (
           <Fragment key={gi}>
-            {gi > 0 && <div className="w-px h-4 bg-stone-200 dark:bg-stone-700" />}
+            {gi > 0 && (
+              <div
+                className="w-px h-4 bg-stone-200 dark:bg-stone-700 pop-in"
+                style={popDelay(TAB_START_MS + firstIndex[gi] * TAB_STAGGER_MS)}
+              />
+            )}
             <div className="flex gap-1 flex-wrap">
-              {tabs.map((t) => (
-                <button key={t.label} onClick={() => go(t.href)} disabled={isPending} className={tabClass(t.active)}>
+              {tabs.map((t, ti) => (
+                <button
+                  key={t.label}
+                  onClick={() => go(t.href)}
+                  disabled={isPending}
+                  className={cn(tabClass(t.active), "pop-in")}
+                  style={popDelay(TAB_START_MS + (firstIndex[gi] + ti) * TAB_STAGGER_MS)}
+                >
                   {t.label}
                   {t.count !== undefined && (
                     <span className={cn("ml-1.5", t.active ? "text-white/70 dark:text-stone-900/60" : "text-stone-400 dark:text-stone-500")}>{t.count}</span>

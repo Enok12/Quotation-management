@@ -5,6 +5,11 @@ import { Users, FileText, Package, CheckCircle, Layers, Scissors, Factory, Shiel
 import { fmtMoney, fmtDate } from "@/lib/utils/format";
 import { PaymentStatusBadge, OrderStatusBadge } from "@/components/receipts/status-badges";
 import { receiptNumberLabel } from "@/lib/utils/receipt-number";
+import { CountUp } from "@/components/ui/count-up";
+import type { CSSProperties } from "react";
+
+// Gap between one stat card appearing and the next.
+const CARD_STAGGER_MS = 60;
 
 async function getStats(businessId: string) {
   const [totalCustomers, totalReceipts, unconfirmed, bulk, sample, completed, byStage] = await Promise.all([
@@ -67,30 +72,34 @@ export default async function DashboardPage() {
   return (
     <div className="px-4 py-6 sm:px-8 sm:py-8 max-w-6xl">
       {/* Header */}
-      <div className="mb-8">
+      <div className="mb-8 pop-in">
         <h1 className="font-serif text-3xl text-ink">Dashboard</h1>
         <p className="text-stone-500 text-sm mt-1">Overview of your business</p>
       </div>
 
       {/* Stats grid */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 mb-8">
-        {statCards.map((s) => (
+        {statCards.map((s, i) => (
           <Link
             key={s.label}
             href={s.href}
-            className="card p-5 hover:shadow-md transition-shadow group"
+            className="card p-5 hover:shadow-md transition-shadow group pop-in"
+            style={{ "--pop-delay": `${i * CARD_STAGGER_MS}ms` } as CSSProperties}
           >
             <div className="flex items-start justify-between mb-3">
               <span className="text-xs font-semibold tracking-wider uppercase text-stone-400">{s.label}</span>
               <s.icon size={16} className={s.color} />
             </div>
-            <div className="font-serif text-3xl text-ink">{s.value}</div>
+            {/* Counts up in CSS, using the tile's own --pop-delay, so it starts the instant the tile does. */}
+            <div className="font-serif text-3xl text-ink">
+              <CountUp value={s.value} />
+            </div>
           </Link>
         ))}
       </div>
 
-      {/* Recent receipts */}
-      <div className="card">
+      {/* Recent receipts — appears once the cards are well under way. */}
+      <div className="card pop-in" style={{ "--pop-delay": `${Math.min(statCards.length * CARD_STAGGER_MS, 500)}ms` } as CSSProperties}>
         <div className="card-header flex items-center justify-between">
           <h2 className="text-sm font-semibold text-ink">Recent Receipts</h2>
           <Link href="/dashboard/receipts" className="text-xs text-amber-600 hover:text-amber-500">

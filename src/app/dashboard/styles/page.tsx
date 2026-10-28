@@ -1,3 +1,4 @@
+import { popDelay } from "@/lib/utils/pop";
 import { requireBusiness } from "@/lib/auth";
 import { getBusinessAccess, hasSection } from "@/lib/section-access";
 import { SectionUnavailable } from "@/components/dashboard/section-unavailable";
@@ -52,7 +53,7 @@ export default async function StylesPage() {
 
   return (
     <div className="px-4 py-6 sm:px-8 sm:py-8 max-w-5xl">
-      <div className="mb-6">
+      <div className="mb-6 pop-in">
         <h1 className="font-serif text-3xl text-ink">Styles</h1>
         <p className="text-stone-500 text-sm mt-1">
           {isPatternMaker
@@ -61,13 +62,13 @@ export default async function StylesPage() {
         </p>
       </div>
 
-      <div className="mb-8">
+      <div className="mb-8 pop-in" style={popDelay(80)}>
         <PatternBulkUpload />
       </div>
 
       {/* -------- Pattern Maker: a single list of their own patterns -------- */}
       {isPatternMaker ? (
-        <div className="card">
+        <div className="card pop-in" style={popDelay(160)}>
           <div className="card-header"><h2 className="text-sm font-semibold text-ink">My Patterns</h2></div>
           <div className="overflow-x-auto">
             <table className="w-full">
@@ -102,7 +103,7 @@ export default async function StylesPage() {
       ) : (
         <>
           {/* -------- Admin/Staff: Pending review -------- */}
-          <div className="card mb-8">
+          <div className="card mb-8 pop-in" style={popDelay(160)}>
             <div className="card-header flex items-center gap-2">
               <h2 className="text-sm font-semibold text-ink">Pending review</h2>
               {pending.length > 0 && <span className="badge-partial">{pending.length}</span>}
@@ -142,7 +143,7 @@ export default async function StylesPage() {
           </div>
 
           {/* -------- Admin/Staff: Finalized -------- */}
-          <div className="card">
+          <div className="card pop-in" style={popDelay(240)}>
             <div className="card-header"><h2 className="text-sm font-semibold text-ink">Finalized</h2></div>
             <div className="overflow-x-auto">
               <table className="w-full">

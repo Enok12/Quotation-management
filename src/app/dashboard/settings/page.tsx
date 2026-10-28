@@ -1,3 +1,4 @@
+import { popDelay } from "@/lib/utils/pop";
 import { requireAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { BusinessNameForm } from "@/components/settings/business-name-form";
@@ -23,24 +24,24 @@ export default async function SettingsPage() {
 
   return (
     <div className="px-4 py-6 sm:px-8 sm:py-8 max-w-2xl">
-      <div className="mb-8">
+      <div className="mb-8 pop-in">
         <h1 className="font-serif text-3xl text-ink">Settings</h1>
         <p className="text-stone-500 text-sm mt-1">
           Your business name and logo appear on receipt PDFs and customer-facing pages.
         </p>
       </div>
 
-      <div className="card card-body mb-6">
+      <div className="card card-body mb-6 pop-in" style={popDelay(80)}>
         <h2 className="heading-2 mb-4">Business details</h2>
         <BusinessNameForm initialName={business.name} initialNotificationEmail={business.notificationEmail ?? ""} />
       </div>
 
-      <div className="card card-body mb-6">
+      <div className="card card-body mb-6 pop-in" style={popDelay(150)}>
         <h2 className="heading-2 mb-4">Logo</h2>
         <BusinessLogoUploader initialLogoUrl={business.logoUrl} />
       </div>
 
-      <div className="card card-body mb-6">
+      <div className="card card-body mb-6 pop-in" style={popDelay(220)}>
         <h2 className="heading-2 mb-1">Retail: Cash on Delivery</h2>
         <p className="text-sm text-stone-500 mb-4">
           Sell parcels that the courier collects payment for on delivery.
@@ -48,7 +49,7 @@ export default async function SettingsPage() {
         <BusinessCodForm initialEnabled={business.codEnabled} initialThreshold={business.codRefusalWarnThreshold} />
       </div>
 
-      <div className="card card-body">
+      <div className="card card-body pop-in" style={popDelay(290)}>
         <h2 className="heading-2 mb-1">AI receipt import</h2>
         <p className="text-sm text-stone-500 mb-4">
           Receipt-photo import (Bulk Upload) uses a shared Gemini API key by default. Add your own

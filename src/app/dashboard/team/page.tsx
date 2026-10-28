@@ -1,3 +1,4 @@
+import { popDelay } from "@/lib/utils/pop";
 import { requireBusiness } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { staffInviteService } from "@/server/services/staff-invite.service";
@@ -28,7 +29,7 @@ export default async function TeamPage() {
 
   return (
     <div className="px-4 py-6 sm:px-8 sm:py-8 max-w-4xl">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-8">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-8 pop-in">
         <div>
           <h1 className="font-serif text-3xl text-ink">Team</h1>
           <p className="text-stone-500 text-sm mt-1">
@@ -38,7 +39,7 @@ export default async function TeamPage() {
         {isAdmin && <GenerateStaffInviteButton />}
       </div>
 
-      <div className="card mb-6">
+      <div className="card mb-6 pop-in" style={popDelay(120)}>
         <div className="card-header">
           <h2 className="text-sm font-semibold text-ink">Members</h2>
         </div>
@@ -72,7 +73,7 @@ export default async function TeamPage() {
       </div>
 
       {isAdmin && (
-        <div className="card">
+        <div className="card pop-in" style={popDelay(220)}>
           <div className="card-header">
             <h2 className="text-sm font-semibold text-ink">Pending &amp; past invites</h2>
           </div>

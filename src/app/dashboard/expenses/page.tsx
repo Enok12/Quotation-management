@@ -1,3 +1,4 @@
+import { popDelay } from "@/lib/utils/pop";
 import { prisma } from "@/lib/db";
 import { requireBusiness } from "@/lib/auth";
 import Link from "next/link";
@@ -129,7 +130,7 @@ export default async function ExpensesPage({ searchParams }: Props) {
           columns than any other page in the app, so on wide monitors it
           should use the extra space to show every column at once, instead
           of scrolling unnecessarily inside an artificially narrow card. */}
-      <div className="flex items-start justify-between mb-6 flex-wrap gap-4">
+      <div className="flex items-start justify-between mb-6 flex-wrap gap-4 pop-in">
         <div>
           <h1 className="font-serif text-3xl text-ink">Expenses</h1>
           <p className="text-stone-500 text-sm mt-1">
@@ -139,12 +140,12 @@ export default async function ExpensesPage({ searchParams }: Props) {
         <DateRangeFilter />
       </div>
 
-      <div className="mb-4">
+      <div className="mb-4 pop-in" style={popDelay(80)}>
         <CustomerSearch defaultValue={search} placeholder="Search by receipt number or customer name…" />
       </div>
 
       <FilterTableShell groups={[tabs]}>
-        <div className="card">
+        <div className="card pop-in" style={popDelay(160)}>
           <ExpensesTable
             orderType={activeType}
             isAdmin={isAdmin}
