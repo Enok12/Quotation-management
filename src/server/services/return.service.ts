@@ -2,6 +2,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { NotFoundError, ConflictError } from "@/lib/api/errors";
 import { auditService } from "./audit.service";
+import { RECOGNISED_COD_STATUSES } from "./cod.service";
 import { dateRangeFilter } from "@/lib/utils/date-range";
 import type { ReturnCreateInput } from "@/lib/validation/return.schema";
 
@@ -18,9 +19,15 @@ export const returnService = {
   async create(input: ReturnCreateInput, actorId: string, businessId: string) {
     const saleItem = await prisma.inventorySaleItem.findFirst({
       where: { id: input.saleItemId, sale: { businessId } },
-      include: { product: true, returns: true },
+      include: { product: true, returns: true, sale: { select: { delivery: { select: { status: true } } } } },
     });
     if (!saleItem) throw new NotFoundError("Sale item");
+    // A COD parcel that hasn't been delivered yet (or was refused/cancelled) was
+    // never sold: it can't be "returned". Refusals restore stock via the COD flow.
+    const cod = saleItem.sale.delivery;
+    if (cod && !RECOGNISED_COD_STATUSES.includes(cod.status)) {
+      throw new ConflictError("This COD order hasn't been delivered, so it can't be returned.");
+    }
 
     const alreadyReturned = saleItem.returns.reduce((sum, r) => sum + r.quantity, 0);
     const returnable = saleItem.quantity - alreadyReturned;

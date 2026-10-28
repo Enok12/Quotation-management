@@ -2,6 +2,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { NotFoundError, ConflictError } from "@/lib/api/errors";
 import { auditService } from "./audit.service";
+import { RECOGNISED_COD_STATUSES } from "./cod.service";
 import { dateRangeFilter } from "@/lib/utils/date-range";
 import type { SaleCreateInput } from "@/lib/validation/sale.schema";
 
@@ -74,14 +75,28 @@ export const saleService = {
     });
   },
 
+  // Revenue recognition: an in-store sale counts when it's recorded; a COD sale
+  // only once its delivery is DELIVERED (or REMITTED) and is dated by delivery,
+  // so pending / out-for-delivery / refused / cancelled COD orders never show
+  // up here — they live on the COD page.
   list(businessId: string, opts: { from?: string; to?: string } = {}) {
     const dateWhere = dateRangeFilter(opts.from, opts.to);
     return prisma.inventorySale.findMany({
-      where: { businessId, ...(dateWhere ? { createdAt: dateWhere } : {}) },
+      where: {
+        businessId,
+        OR: [
+          { fulfilment: "IN_STORE", ...(dateWhere ? { createdAt: dateWhere } : {}) },
+          {
+            fulfilment: "COD_DELIVERY",
+            delivery: { status: { in: RECOGNISED_COD_STATUSES }, ...(dateWhere ? { deliveredAt: dateWhere } : {}) },
+          },
+        ],
+      },
       orderBy: { createdAt: "desc" },
       include: {
         items: { include: { product: { select: { sku: true, name: true } }, returns: true } },
         soldBy: { select: { name: true, email: true } },
+        delivery: { select: { dispatchRef: true, status: true, deliveryFee: true, feePaidBy: true, deliveredAt: true } },
       },
     });
   },

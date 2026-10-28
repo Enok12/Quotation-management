@@ -21,6 +21,7 @@ import {
   Undo2,
   Tags,
   ArrowLeftRight,
+  Truck,
   type LucideIcon,
 } from "lucide-react";
 
@@ -42,6 +43,7 @@ const ICONS = {
   Undo2,
   Tags,
   ArrowLeftRight,
+  Truck,
 } satisfies Record<string, LucideIcon>;
 
 export type NavIcon = keyof typeof ICONS;

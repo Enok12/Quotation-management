@@ -50,6 +50,24 @@ export const businessService = {
     });
   },
 
+  async updateCodSettings(
+    businessId: string,
+    actorId: string,
+    input: { codEnabled: boolean; codRefusalWarnThreshold: number },
+  ) {
+    return prisma.$transaction(async (tx) => {
+      const business = await tx.business.update({
+        where: { id: businessId },
+        data: { codEnabled: input.codEnabled, codRefusalWarnThreshold: input.codRefusalWarnThreshold },
+      });
+      await auditService.log(tx, {
+        businessId, actorId, action: "BUSINESS_UPDATED", entityType: "Business", entityId: businessId,
+        metadata: { codEnabled: input.codEnabled, codRefusalWarnThreshold: input.codRefusalWarnThreshold },
+      });
+      return business;
+    });
+  },
+
   async setLogo(businessId: string, actorId: string, logoUrl: string | null) {
     return prisma.$transaction(async (tx) => {
       const business = await tx.business.update({ where: { id: businessId }, data: { logoUrl } });

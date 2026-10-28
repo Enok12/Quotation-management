@@ -4,6 +4,8 @@ import { requireBusiness } from "@/lib/auth";
 import { requireSection } from "@/lib/section-access";
 import { saleService } from "@/server/services/sale.service";
 import { saleCreateSchema } from "@/lib/validation/sale.schema";
+import { codService } from "@/server/services/cod.service";
+import { codSaleCreateSchema } from "@/lib/validation/cod.schema";
 
 export const GET = handler(async (req: NextRequest) => {
   const { businessId, role } = await requireBusiness();
@@ -28,7 +30,12 @@ export const GET = handler(async (req: NextRequest) => {
     }),
     totalAmount: Number(s.totalAmount),
     paymentMethod: s.paymentMethod, note: s.note,
-    soldBy: s.soldBy.name ?? s.soldBy.email, createdAt: s.createdAt.toISOString(),
+    soldBy: s.soldBy.name ?? s.soldBy.email,
+    // A COD sale is dated by its delivery (that's when it became revenue).
+    createdAt: (s.delivery?.deliveredAt ?? s.createdAt).toISOString(),
+    cod: s.delivery
+      ? { dispatchRef: s.delivery.dispatchRef, status: s.delivery.status, deliveryCost: s.delivery.feePaidBy === "BUSINESS" ? Number(s.delivery.deliveryFee) : 0 }
+      : null,
   })));
 });
 
@@ -36,7 +43,18 @@ export const POST = handler(async (req: NextRequest) => {
   const { id: userId, businessId, role } = await requireBusiness();
   await requireSection(businessId, role, "SALES");
 
-  const body = saleCreateSchema.parse(await req.json());
+  const raw = await req.json();
+
+  // Cash-on-Delivery sale: reserves stock, numbers it COD-0001…, and starts in
+  // PENDING_CONFIRMATION (or PENDING_DISPATCH when the seller already has the
+  // details). Everything else is the original immediate in-store sale below.
+  if (raw?.fulfilment === "COD_DELIVERY") {
+    const codBody = codSaleCreateSchema.parse(raw);
+    const cod = await codService.create(codBody, userId, businessId);
+    return ok(cod, 201);
+  }
+
+  const body = saleCreateSchema.parse(raw);
   const sale = await saleService.create(body, userId, businessId);
   return ok({ id: sale.id }, 201);
 });

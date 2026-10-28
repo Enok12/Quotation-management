@@ -18,7 +18,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
   }
 
   const [business, memberships, access] = await Promise.all([
-    prisma.business.findUniqueOrThrow({ where: { id: businessId }, select: { name: true, logoUrl: true } }),
+    prisma.business.findUniqueOrThrow({ where: { id: businessId }, select: { name: true, logoUrl: true, codEnabled: true } }),
     prisma.businessMember.findMany({
       where: { userId },
       include: { business: { select: { id: true, name: true } } },
@@ -46,6 +46,8 @@ export default async function DashboardLayout({ children }: { children: React.Re
     // Retail — ordered so consecutive items share a group header in
     // SidebarNav (Sales & POS, then Inventory).
     { href: "/dashboard/retail/sales", icon: "ShoppingCart", label: "Sales", section: "SALES", group: "Sales & POS" },
+    // Only for businesses that turned Cash on Delivery on in Settings.
+    ...(business.codEnabled ? [{ href: "/dashboard/retail/cod", icon: "Truck", label: "COD Orders", section: "SALES", group: "Sales & POS" }] as const : []),
     { href: "/dashboard/retail/returns", icon: "Undo2", label: "Returns", section: "SALES", group: "Sales & POS" },
     { href: "/dashboard/retail/inventory", icon: "Boxes", label: "Products", section: "INVENTORY", group: "Inventory" },
     { href: "/dashboard/retail/categories", icon: "Tags", label: "Categories", section: "INVENTORY", group: "Inventory" },
