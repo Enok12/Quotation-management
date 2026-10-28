@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { BusinessNameForm } from "@/components/settings/business-name-form";
 import { BusinessLogoUploader } from "@/components/settings/business-logo-uploader";
 import { BusinessApiKeyForm } from "@/components/settings/business-api-key-form";
+import { BusinessCodForm } from "@/components/settings/business-cod-form";
 import { getBusinessAccess, hasSection } from "@/lib/section-access";
 import { SectionUnavailable } from "@/components/dashboard/section-unavailable";
 
@@ -17,7 +18,7 @@ export default async function SettingsPage() {
   if (!hasSection(access, "SETTINGS")) return <SectionUnavailable section="Settings" />;
   const business = await prisma.business.findUniqueOrThrow({
     where: { id: businessId },
-    select: { name: true, logoUrl: true, geminiApiKeyEncrypted: true, notificationEmail: true },
+    select: { name: true, logoUrl: true, geminiApiKeyEncrypted: true, notificationEmail: true, codEnabled: true, codRefusalWarnThreshold: true },
   });
 
   return (
@@ -37,6 +38,14 @@ export default async function SettingsPage() {
       <div className="card card-body mb-6">
         <h2 className="heading-2 mb-4">Logo</h2>
         <BusinessLogoUploader initialLogoUrl={business.logoUrl} />
+      </div>
+
+      <div className="card card-body mb-6">
+        <h2 className="heading-2 mb-1">Retail: Cash on Delivery</h2>
+        <p className="text-sm text-stone-500 mb-4">
+          Sell parcels that the courier collects payment for on delivery.
+        </p>
+        <BusinessCodForm initialEnabled={business.codEnabled} initialThreshold={business.codRefusalWarnThreshold} />
       </div>
 
       <div className="card card-body">

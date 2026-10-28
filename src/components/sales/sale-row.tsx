@@ -17,6 +17,8 @@ interface Sale {
   note: string | null;
   soldBy: string;
   createdAt: string;
+  /** Set for Cash-on-Delivery sales (only delivered ones reach this list). */
+  cod: { dispatchRef: string; status: string; deliveryCost: number } | null;
 }
 
 const PAYMENT_LABEL: Record<string, string> = { CASH: "Cash", CARD: "Card", BANK_TRANSFER: "Bank Transfer", OTHER: "Other" };
@@ -27,7 +29,7 @@ const PAYMENT_LABEL: Record<string, string> = { CASH: "Cash", CARD: "Card", BANK
 export function SaleRow({ sale }: { sale: Sale }) {
   const [expanded, setExpanded] = useState(false);
   const unitsSold = sale.items.reduce((sum, i) => sum + i.quantity, 0);
-  const profit = sale.items.reduce((sum, i) => sum + i.profit, 0);
+  const profit = sale.items.reduce((sum, i) => sum + i.profit, 0) - (sale.cod?.deliveryCost ?? 0);
   const profitClass = profit >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400";
   const summary = sale.items.length === 1
     ? sale.items[0].productName
@@ -44,7 +46,9 @@ export function SaleRow({ sale }: { sale: Sale }) {
         <td className="td text-right font-mono text-sm">{unitsSold}</td>
         <td className="td text-right font-mono text-sm">{fmtMoney(sale.totalAmount)}</td>
         <td className={`td text-right font-mono text-sm ${profitClass}`}>{fmtMoney(profit)}</td>
-        <td className="td text-xs text-stone-500">{sale.paymentMethod ? PAYMENT_LABEL[sale.paymentMethod] : "—"}</td>
+        <td className="td text-xs text-stone-500">
+          {sale.cod ? `COD · ${sale.cod.dispatchRef}` : sale.paymentMethod ? PAYMENT_LABEL[sale.paymentMethod] : "—"}
+        </td>
         <td className="td text-xs text-stone-500">{sale.soldBy}</td>
       </tr>
       {expanded && (

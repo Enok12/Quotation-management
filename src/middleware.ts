@@ -10,6 +10,8 @@ const isPublicRoute = createRouteMatcher([
   "/sign-up(.*)",
   "/api/v1/customers/public", // public form submission endpoint
   "/api/v1/track", // public invoice-number tracking lookup
+  "/cod-confirm/(.*)", // customer's WhatsApp COD confirmation page (token link)
+  "/api/v1/cod/confirm/(.*)", // its answer endpoint (confirm / decline)
   "/api/public/(.*)", // signed public endpoints (e.g. WhatsApp receipt-PDF link)
 ]);
 

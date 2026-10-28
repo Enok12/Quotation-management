@@ -112,6 +112,13 @@ enum AuditAction {
   INVENTORY_CATEGORY_UPDATED
   INVENTORY_CATEGORY_DELETED
   INVENTORY_RETURN_PROCESSED
+  COD_SALE_CREATED
+  COD_CONFIRMED
+  COD_DISPATCHED
+  COD_DELIVERED
+  COD_REFUSED
+  COD_CANCELLED
+  COD_SETTLED
 }
 
 // A gate-able dashboard section — used by Plan.enabledSections to control
@@ -213,6 +220,7 @@ model User {
   stockMovementsPerformed InventoryStockMovement[] @relation("StockMovementPerformedBy")
   inventorySales           InventorySale[]
   inventoryReturnsProcessed InventoryReturn[]
+  codSettlementsCreated    CodSettlement[]
 }
 
 // ---------------------------- Business ----------------------------
@@ -247,6 +255,15 @@ model Business {
   lastReceiptNumber Int      @default(0)
   lastSampleNumber  Int      @default(0)
 
+  // Retail Cash-on-Delivery (see InventorySaleDelivery). Opt-in per business
+  // so the COD option only shows up for businesses that deliver parcels.
+  // lastDispatchNumber is the atomic counter behind "COD-0042" references.
+  // codRefusalWarnThreshold: how many earlier REFUSED COD orders on the same
+  // phone number it takes to show the "frequent refuser" warning.
+  codEnabled              Boolean @default(false)
+  codRefusalWarnThreshold Int     @default(2)
+  lastDispatchNumber      Int     @default(0)
+
   // Entitlements: which plan this business is on (controls which sections it
   // can see/use — see getBusinessAccess()) and whether its subscription is
   // currently in good standing. No payment provider yet — a Super Admin sets
@@ -273,6 +290,8 @@ model Business {
   stockMovements      InventoryStockMovement[]
   inventorySales      InventorySale[]
   inventoryReturns    InventoryReturn[]
+  codDeliveries       InventorySaleDelivery[]
+  codSettlements      CodSettlement[]
 }
 
 // Membership + role, per business — a person can belong to more than one.
@@ -688,10 +707,121 @@ model InventorySale {
   soldBy    User     @relation(fields: [soldById], references: [id])
   createdAt DateTime @default(now())
 
+  // IN_STORE (the original, immediate-sale behaviour) or COD_DELIVERY — a
+  // parcel collected on delivery, tracked by `delivery` below. A COD sale's
+  // stock is reserved when it's created, but it only counts toward Sales
+  // revenue/profit once its delivery reaches DELIVERED (see saleService.list).
+  fulfilment SaleFulfilment @default(IN_STORE)
+  delivery   InventorySaleDelivery?
+
   items InventorySaleItem[]
 
   @@index([businessId])
   @@index([createdAt])
+}
+
+enum SaleFulfilment {
+  IN_STORE
+  COD_DELIVERY
+}
+
+// Where a COD sale is in its life. Stock is reserved from PENDING_CONFIRMATION
+// onward and restored if it ends REFUSED or CANCELLED; the sale only counts as
+// revenue from DELIVERED. REMITTED = the courier has paid us (cash received).
+enum CodStatus {
+  PENDING_CONFIRMATION // waiting for the customer to confirm via the WhatsApp link
+  PENDING_DISPATCH     // confirmed, ready to hand to the courier
+  OUT_FOR_DELIVERY
+  DELIVERED            // courier collected the cash — a receivable until remitted
+  REMITTED             // courier paid us; settled
+  REFUSED              // refused / undeliverable; stock restored
+  CANCELLED            // cancelled before dispatch; stock restored
+}
+
+enum DeliveryFeePayer {
+  CUSTOMER // fee is added to the COD amount the courier collects
+  BUSINESS // fee is absorbed by the seller and reduces profit
+}
+
+// COD data for a sale, kept 1:1 and separate so in-store sales and every query
+// that reads them are untouched. businessId is denormalised for tenant-safe
+// queries without a join.
+model InventorySaleDelivery {
+  id         String        @id @default(cuid())
+  saleId     String        @unique
+  sale       InventorySale @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  businessId String
+  business   Business      @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  // Our own per-business reference ("COD-0042") — NOT the courier's waybill.
+  dispatchRef String
+
+  customerName            String
+  customerPhone           String
+  customerPhone2          String?
+  // Digits only, country-code form (94…), so 0771234567 / +94771234567 /
+  // "94 77 123 4567" all match — used for the frequent-refuser warning.
+  customerPhoneNormalized String
+  deliveryAddress         String
+  city                    String?
+
+  // The courier is free text (not decided yet); the waybill is issued by the
+  // courier and typed in by the seller at dispatch.
+  courierName String?
+  waybillNo   String?
+  codAmount   Decimal          @db.Decimal(12, 2) // what the courier must collect
+  deliveryFee Decimal          @default(0) @db.Decimal(12, 2)
+  feePaidBy   DeliveryFeePayer @default(CUSTOMER)
+
+  status       CodStatus @default(PENDING_DISPATCH)
+  dispatchedAt DateTime?
+  deliveredAt  DateTime?
+  remittedAt   DateTime?
+  closedAt     DateTime? // when it ended REFUSED / CANCELLED
+  closedReason String?
+
+  // Customer confirmation link (WhatsApp-assisted flow): 256-bit token,
+  // expires, only works while status is PENDING_CONFIRMATION.
+  confirmToken     String?   @unique
+  confirmExpiresAt DateTime?
+  confirmedAt      DateTime?
+  confirmedBy      String? // "CUSTOMER" (via link) | "SELLER" (manual)
+
+  settlementId String?
+  settlement   CodSettlement? @relation(fields: [settlementId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([businessId, dispatchRef])
+  @@unique([businessId, courierName, waybillNo])
+  @@index([businessId, status])
+  @@index([businessId, customerPhoneNormalized, status])
+  @@index([settlementId])
+}
+
+// One courier remittance covering many delivered COD orders.
+model CodSettlement {
+  id          String   @id @default(cuid())
+  businessId  String
+  business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  courierName String
+  reference   String? // bank / courier statement reference
+  receivedAt  DateTime
+
+  grossCollected Decimal @db.Decimal(12, 2) // sum of the included orders' COD amounts
+  feesDeducted   Decimal @db.Decimal(12, 2)
+  netReceived    Decimal @db.Decimal(12, 2) // what actually arrived
+  variance       Decimal @db.Decimal(12, 2) // gross - fees - net; non-zero = flag
+  note           String?
+
+  createdById String
+  createdBy   User     @relation(fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
+
+  deliveries InventorySaleDelivery[]
+
+  @@index([businessId, receivedAt])
 }
 
 // One product line within a sale. costPriceAtSale is a snapshot: a later
