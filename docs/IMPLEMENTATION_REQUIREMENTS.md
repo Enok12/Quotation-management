@@ -277,8 +277,8 @@ Prerequisites: SEC-1, SEC-2, DATA-1 and QA-1 are complete before billing or noti
 ### Tier 3 (longer term, scope separately)
 Wholesale fabric stock with low-stock alerts; combined wholesale + retail P&L; quotation-to-order flow with customer approval link; stage-delay analytics; multi-branch; PWA with offline measurement entry; Sinhala/Tamil UI; feedback and loyalty; public signup page.
 
-### Recommendations module (decision needed)
-`src/server/recommendations/*`, `src/lib/recommendations/terms.ts`, the `Recommendation` and `TrendSnapshot` models, and the `RECOMMENDATIONS` section exist, but no page or route uses them, and the nav entry `/dashboard/recommendations` (`dashboard/layout.tsx:42`) is a 404. Product owner to choose: **finish** (page + Gemini generation + SerpApi cache) or **remove** (code, models via migration, section enum value, nav item, `SERPAPI_KEY`).
+### Recommendations module: REMOVED (decision made 2026-10-28)
+The product owner chose to remove it completely rather than finish it. Removed: `src/server/recommendations/*`, `src/lib/recommendations/terms.ts`, the `Recommendation` and `TrendSnapshot` models, the `TrendRegion` enum, the `RECOMMENDATIONS` value of the `Section` enum, its entries in `src/lib/sections.ts`, and the dead nav entry. Migration `20261028150000_remove_recommendations` drops the two tables (which held cached data) and strips `RECOMMENDATIONS` from any plan that listed it. The `SERPAPI_KEY` environment variable is no longer used and can be deleted from `.env` and the hosting provider. The original migration `20260811120000_recommendations` stays in the history unchanged.
 
 ---
 
@@ -514,7 +514,7 @@ Open points (assumptions made; confirm before release):
 |---|---|---|
 | 0 | Days 0-30 | SEC-1, SEC-2, SEC-3, SEC-4, SEC-5, SEC-6, SEC-7, SEC-8, QA-1 (foundations: env, CI, first tests). In parallel (no new infra): F-1, F-3. |
 | 1 | Days 31-60 | DATA-1, SEC-9, DATA-2, DATA-3, API-1, UPL-1, OPS-1, PERF-1. In parallel: F-2, F-4, F-5. |
-| 2 | Days 61-90 | F-7, F-8, F-6, F-11, F-10, Recommendations decision, cleanup items below. **RET-COD MVP + RET-WA-1** (section 4A) is being built FIRST, ahead of Phase 0, with its own safeguards (see "Sequencing decision" in 4A). |
+| 2 | Days 61-90 | F-7, F-8, F-6, F-11, F-10, cleanup items below (Recommendations already removed). **RET-COD MVP + RET-WA-1** (section 4A) is being built FIRST, ahead of Phase 0, with its own safeguards (see "Sequencing decision" in 4A). |
 | 3 | After day 90 | F-9, F-12, F-13, F-14, Tier 3. |
 
 Ordering rules: no payment gateway (F-10) or billing (F-11) before SEC-2 and DATA-1. No customer-facing notifications (F-6, F-9) before the outbox (F-8) and rate limiting (SEC-3).
