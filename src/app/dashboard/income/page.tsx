@@ -1,3 +1,5 @@
+import { popDelay } from "@/lib/utils/pop";
+import { CountUp } from "@/components/ui/count-up";
 import { prisma } from "@/lib/db";
 import { requireBusiness } from "@/lib/auth";
 import { fmtMoney, fmtDate } from "@/lib/utils/format";
@@ -91,7 +93,7 @@ export default async function IncomePage({ searchParams }: Props) {
   return (
     <div className="px-4 py-6 sm:px-8 sm:py-8 max-w-6xl">
       {/* Screen-only controls */}
-      <div className="flex items-start justify-between mb-6 flex-wrap gap-4 print:hidden">
+      <div className="flex items-start justify-between mb-6 flex-wrap gap-4 print:hidden pop-in">
         <div>
           <h1 className="font-serif text-3xl text-ink">Income</h1>
           <p className="text-stone-500 text-sm mt-1">Profit &amp; loss for a date range</p>
@@ -110,39 +112,39 @@ export default async function IncomePage({ searchParams }: Props) {
         </p>
       </div>
 
-      <p className="text-sm text-stone-500 mb-4 print:hidden">
+      <p className="text-sm text-stone-500 mb-4 print:hidden pop-in" style={popDelay(60)}>
         Period: {fmtDate(effectiveFrom)} – {fmtDate(effectiveTo)}
       </p>
 
       {/* Summary */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
-        <div className="card p-5">
+        <div className="card p-5 pop-in" style={popDelay(100)}>
           <span className="text-xs font-semibold uppercase tracking-wider text-stone-400">Orders</span>
-          <div className="font-serif text-3xl text-ink mt-2">{rows.length}</div>
+          <div className="font-serif text-3xl text-ink mt-2"><CountUp value={rows.length} /></div>
           <p className="text-xs text-stone-400 mt-1">{bulkCount} bulk · {sampleCount} sample</p>
         </div>
-        <div className="card p-5">
+        <div className="card p-5 pop-in" style={popDelay(160)}>
           <span className="text-xs font-semibold uppercase tracking-wider text-stone-400">Revenue</span>
-          <div className="font-serif text-3xl text-ink mt-2">{fmtMoney(totalRevenue)}</div>
+          <div className="font-serif text-3xl text-ink mt-2"><CountUp value={totalRevenue} grouped /></div>
         </div>
-        <div className="card p-5">
+        <div className="card p-5 pop-in" style={popDelay(220)}>
           <span className="text-xs font-semibold uppercase tracking-wider text-stone-400">Expenses</span>
-          <div className="font-serif text-3xl text-red-600 dark:text-red-400 mt-2">{fmtMoney(totalExpenses)}</div>
+          <div className="font-serif text-3xl text-red-600 dark:text-red-400 mt-2"><CountUp value={totalExpenses} grouped /></div>
         </div>
-        <div className="card p-5">
+        <div className="card p-5 pop-in" style={popDelay(280)}>
           <span className="text-xs font-semibold uppercase tracking-wider text-stone-400">Net Profit</span>
-          <div className={`font-serif text-3xl mt-2 ${profitClass(netProfit)}`}>{fmtMoney(netProfit)}</div>
+          <div className={`font-serif text-3xl mt-2 ${profitClass(netProfit)}`}><CountUp value={netProfit} grouped /></div>
           <p className="text-xs text-stone-400 mt-1">Revenue − Expenses</p>
         </div>
-        <div className="card p-5">
+        <div className="card p-5 pop-in" style={popDelay(340)}>
           <span className="text-xs font-semibold uppercase tracking-wider text-stone-400">Actual Profit</span>
-          <div className={`font-serif text-3xl mt-2 ${profitClass(actualProfit)}`}>{fmtMoney(actualProfit)}</div>
+          <div className={`font-serif text-3xl mt-2 ${profitClass(actualProfit)}`}><CountUp value={actualProfit} grouped /></div>
           <p className="text-xs text-stone-400 mt-1">Includes manual overrides</p>
         </div>
       </div>
 
       {/* Detail */}
-      <div className="card">
+      <div className="card pop-in" style={popDelay(420)}>
         <div className="card-header">
           <h2 className="text-sm font-semibold text-ink">Orders in this period</h2>
         </div>

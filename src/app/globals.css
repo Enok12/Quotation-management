@@ -250,6 +250,155 @@
       animation: none;
     }
   }
+
+  /* Staggered page entrance: fades in while rising a few pixels. Set
+     --pop-delay on the element (e.g. style={{ "--pop-delay": "120ms" }}) to
+     make a row of cards appear one after another. `backwards` fill keeps the
+     element hidden during its delay but leaves no transform behind once done,
+     so hover effects still work normally. */
+  .pop-in {
+    animation: pop-in 480ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
+    animation-delay: var(--pop-delay, 0ms);
+  }
+  @media (prefers-reduced-motion: reduce), print {
+    .pop-in {
+      animation: none;
+    }
+  }
+
+  /* A number that counts up from 0 to --target using only CSS: an animated
+     integer custom property (see @property --num below) feeds a CSS counter.
+     Being CSS-only it starts at first paint, in step with .pop-in, with no
+     wait for JavaScript. It inherits --pop-delay from its tile so the count
+     begins exactly when the tile does. Normal (end) state = the target, so
+     reduced-motion users, and anything after the animation, show the real value. */
+  .count-up,
+  .count-up-grouped {
+    --num: var(--target, 0);
+    font-variant-numeric: tabular-nums;
+    animation: count-up var(--count-duration, 900ms) cubic-bezier(0.22, 0.61, 0.36, 1) backwards;
+    animation-delay: var(--count-delay, var(--pop-delay, 0ms));
+  }
+  .count-up {
+    counter-reset: num var(--num);
+  }
+  .count-up::before {
+    content: counter(num);
+  }
+  /* No animation when printing (the Income page has a Print button), so a
+     printout can never catch a number mid-count or a tile mid-fade. */
+  @media (prefers-reduced-motion: reduce), print {
+    .count-up,
+    .count-up-grouped {
+      animation: none;
+    }
+  }
+
+  /* Thousands-separated variant ("2,014,710"), still CSS-only. A counter can't
+     insert commas, so the animated number is split into groups of three digits
+     (t0 = units … t3 = billions) with CSS maths, and each group is its own
+     counter:
+       - cg-lead : the first (leading) group, no padding, blank if it's zero
+       - cg-comma: a "," shown only when a higher group exists
+       - cg-pad  : every later group, padded to 3 digits ("014")
+     f0…f2 are 1 when a higher group exists, else 0.
+     Where CSS round()/mod() aren't supported, the plain text (.cg-fallback)
+     stays visible and this whole machinery stays hidden. */
+  .count-up-grouped {
+    display: none;
+  }
+  @supports (width: round(down, 1px, 1px)) {
+    .cg-fallback {
+      display: none;
+    }
+    .count-up-grouped {
+      display: inline;
+      --t0: var(--num);
+      --t1: round(down, var(--num) / 1000, 1);
+      --t2: round(down, var(--num) / 1000000, 1);
+      --t3: round(down, var(--num) / 1000000000, 1);
+      --f0: min(1, var(--t1));
+      --f1: min(1, var(--t2));
+      --f2: min(1, var(--t3));
+      --f3: 0;
+    }
+    .cg {
+      counter-reset: v var(--v, 0);
+    }
+    .cg-lead::before {
+      content: counter(v, cg-lead);
+    }
+    .cg-lead0::before {
+      content: counter(v, cg-lead0);
+    }
+    .cg-comma::before {
+      content: counter(v, cg-comma);
+    }
+    .cg-pad::before {
+      content: counter(v, cg-pad3);
+    }
+  }
+}
+
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.98);
+  }
+}
+
+/* Lets --num animate smoothly as a whole number (supported in current
+   Chrome, Edge, Safari and Firefox). */
+@property --num {
+  syntax: "<integer>";
+  initial-value: 0;
+  /* inherits so the digit-group spans inside .count-up-grouped follow it */
+  inherits: true;
+}
+
+/* Counter styles for the thousands-separated count (see .count-up-grouped).
+   Out-of-range values fall back to cg-blank, which prints an invisible
+   zero-width space — that is how a group hides itself. suffix must be "" or
+   custom styles append ". " by default. */
+@counter-style cg-blank {
+  system: cyclic;
+  symbols: "\200B";
+  suffix: "";
+}
+@counter-style cg-lead {
+  system: numeric;
+  symbols: "0" "1" "2" "3" "4" "5" "6" "7" "8" "9";
+  range: 1 infinite;
+  fallback: cg-blank;
+  suffix: "";
+}
+@counter-style cg-lead0 {
+  system: numeric;
+  symbols: "0" "1" "2" "3" "4" "5" "6" "7" "8" "9";
+  range: 0 infinite;
+  fallback: cg-blank;
+  suffix: "";
+}
+@counter-style cg-pad3 {
+  system: numeric;
+  symbols: "0" "1" "2" "3" "4" "5" "6" "7" "8" "9";
+  range: 0 infinite;
+  pad: 3 "0";
+  fallback: cg-blank;
+  suffix: "";
+}
+@counter-style cg-comma {
+  system: fixed;
+  symbols: ",";
+  range: 1 1;
+  fallback: cg-blank;
+  suffix: "";
+}
+
+@keyframes count-up {
+  from {
+    --num: 0;
+  }
 }
 
 @keyframes skeleton-shimmer {

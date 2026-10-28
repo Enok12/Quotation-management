@@ -1,3 +1,4 @@
+import { popDelay } from "@/lib/utils/pop";
 import { prisma } from "@/lib/db";
 import { requireBusiness } from "@/lib/auth";
 import { fmtDateTime } from "@/lib/utils/format";
@@ -52,12 +53,12 @@ export default async function AuditPage({ searchParams }: Props) {
 
   return (
     <div className="px-4 py-6 sm:px-8 sm:py-8 max-w-5xl">
-      <div className="mb-6">
+      <div className="mb-6 pop-in">
         <h1 className="font-serif text-3xl text-ink">Audit Log</h1>
         <p className="text-stone-500 text-sm mt-1">{total.toLocaleString()} events</p>
       </div>
 
-      <div className="card">
+      <div className="card pop-in" style={popDelay(120)}>
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>

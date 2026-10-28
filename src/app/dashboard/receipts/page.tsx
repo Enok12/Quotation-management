@@ -1,3 +1,4 @@
+import { popDelay } from "@/lib/utils/pop";
 import { prisma } from "@/lib/db";
 import { requireBusiness } from "@/lib/auth";
 import Link from "next/link";
@@ -94,7 +95,7 @@ export default async function ReceiptsPage({ searchParams }: Props) {
 
   return (
     <div className="px-4 py-6 sm:px-8 sm:py-8 max-w-6xl">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6 pop-in">
         <div>
           <h1 className="font-serif text-3xl text-ink">Receipts</h1>
           <p className="text-stone-500 text-sm mt-1">{total.toLocaleString()} total</p>
@@ -106,7 +107,7 @@ export default async function ReceiptsPage({ searchParams }: Props) {
 
       {/* Filters + table (the shell shows a loading overlay while switching) */}
       <FilterTableShell groups={[typeTabs, orderTabs]}>
-      <div className="card">
+      <div className="card pop-in" style={popDelay(120)}>
         <div className="card-header flex items-center justify-between flex-wrap gap-3">
           <CustomerSearch defaultValue={search} />
           <DateRangeFilter />
